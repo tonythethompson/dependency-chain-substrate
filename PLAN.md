@@ -16,12 +16,12 @@ paper-spike complete. IR either survives the spike or is revised.
 | ADR-002: IR + identity model | ✅ Done | 2026-06-28 — Multi-factor identity |
 | ADR-003: Form factor | ✅ Done | 2026-06-28 — CLI-first accepted |
 | ADR-004: Spring paper-spike timing | ✅ Done | 2026-06-28 — Spike before IR freeze |
-| Spring paper-spike (IR compatibility validation) | ⬜ Not started | Phase 0 gate; blocks IR freeze |
+| Spring paper-spike (IR compatibility validation) | ✅ Done | 2026-06-28 — No breaking changes; 5 additive extensions folded into ADR-002 |
 | DESIGN.md §4 (Extraction Strategy) — fill answers | ⬜ Not started | After ADR-001 accepted |
 | DESIGN.md §5 (IR + Identity) — fill answers | ⬜ Not started | After ADR-002 + spike |
 | DESIGN.md §1-3 (Problem, Goals, Users) — fill answers | ⬜ Not started | Parallelisable with above |
 
-**Phase 0 gate:** Spring spike + IR section filled = Planning phase done.
+**Phase 0 gate:** ✅ CLOSED — Spring spike complete, IR frozen, ADR-002 Accepted.
 
 ---
 

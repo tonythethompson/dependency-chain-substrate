@@ -81,13 +81,18 @@ RegistrationNode {
   id:               NodeId          // stable identity (see below)
   display_name:     string          // human-readable; may change without id change
   abstract_token:   TypeRef         // the type being depended upon
-  concrete_impl:    TypeRef?        // the implementation; null if unresolved
+  aliases:          TypeRef[]       // all types this bean satisfies (supertypes + interfaces)
+                                    // required for Spring multi-interface beans; empty list for C#
+  concrete_impl:    TypeRef?        // the implementation; null if unresolved (e.g. Spring Data proxies)
   lifetime:         Lifetime        // see Lifetime enum
   scope:            Scope           // see Scope enum
   source_location:  SourceRef?      // file + line if available
   parser_confidence: Confidence     // EXPLICIT / INFERRED / DEGRADED / BLIND_SPOT
   framework_tags:   string[]        // which framework(s) this belongs to
-  annotations:      map<string, string>  // parser-specific extras (e.g. "key" for keyed services)
+  annotations:      map<string, string>  // parser-specific extras (e.g. "key" for keyed services,
+                                    // "bean_name", "bean_mode", "conditional_type", "spring_scope")
+  conditional_on:   NodeId[]        // nodes that must be absent/present for this bean to register
+                                    // empty for unconditional registrations
 }
 ```
 
@@ -128,6 +133,7 @@ Lifetime:
   PROTOTYPE       // Spring synonym for transient
   REQUEST         // web-request lifetime (Spring, NestJS)
   SESSION         // session lifetime (Spring)
+  APPLICATION     // Spring: one per ServletContext (between SESSION and SINGLETON)
   UNKNOWN         // could not be determined statically
 
 Scope:
@@ -144,8 +150,9 @@ Confidence:
 Mechanism:
   CONSTRUCTOR
   PROPERTY
-  METHOD
+  METHOD          // setter injection
   FIELD
+  FACTORY_PARAMETER  // @Bean method parameter injected by Spring at factory call time
   DEPENDS_FN      // FastAPI Depends() or equivalent function-based injection
 ```
 
