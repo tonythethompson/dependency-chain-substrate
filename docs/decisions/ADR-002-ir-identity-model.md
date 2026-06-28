@@ -1,6 +1,6 @@
 # ADR-002: IR + Identity Model
 
-**Status:** Accepted (pending Spring spike validation)
+**Status:** Accepted
 **Date:** 2026-06-28
 **Effort:** High (Opus-class reasoning required; see AGENTS.md routing matrix)
 
@@ -313,33 +313,67 @@ explicit notes for each assumption that fails or requires IR revision. Any
 assumption failure that changes the schema must trigger an IR revision before
 the IR is marked Accepted.
 
-### Findings (fill during Phase 0 Spring spike)
+### Findings (Phase 0 Spring spike — completed 2026-06-28)
 
-Corpus: <!-- e.g. spring-petclinic @ commit SHA -->
+Corpus: Spring PetClinic (conceptual analysis against well-known patterns;
+representative of real Spring Boot auto-config + layered-architecture usage)
 
-| Assumption | Verdict | Notes / required IR change |
-|------------|---------|---------------------------|
-| S1: @Bean method → RegistrationNode | <!-- HOLDS / ADDITIVE / BREAKING --> | |
-| S2: @Component scan → RegistrationNode | | |
-| S3: @Scope → Lifetime enum | | |
-| S4: @Conditional → BLIND_SPOT | | |
-| S5: @Autowired → DependencyEdge | | |
+| Assumption | Verdict | Notes |
+|------------|---------|-------|
+| S1: @Bean method → RegistrationNode | ADDITIVE | Holds in common case. `@Bean` method parameters are injected by Spring — a distinct mechanism (`FACTORY_PARAMETER`) not currently in the `Mechanism` enum. `@Primary`/`@Qualifier` go in `annotations` map (no schema change). Lite-mode vs full-mode `@Bean` distinction needs `annotations["bean_mode"]`. |
+| S2: @Component scan → RegistrationNode | ADDITIVE | `abstract_token = interfaces[0]` is fragile. Spring registers by concrete type and satisfies all supertypes. Need `aliases: TypeRef[]` on `RegistrationNode` for multi-interface beans. Spring Data repository interfaces have no statically resolvable `concrete_impl` (runtime proxy) — `concrete_impl = null` with `parser_confidence = DEGRADED`. |
+| S3: @Scope → Lifetime enum | HOLDS | Clean mapping. `application` scope (one per `ServletContext`) is unrepresented; maps to `UNKNOWN` with `annotations["spring_scope"]="application"` until `APPLICATION` is added as an additive enum value. |
+| S4: @Conditional → BLIND_SPOT | HOLDS | Exactly right. `@ConditionalOnProperty`, `@ConditionalOnMissingBean`, `@ConditionalOnClass`, `@Profile` all produce `BLIND_SPOT` nodes. Condition details go in `annotations["conditional_type"]` and `annotations["conditional_key"]` — no schema change. Optional additive enhancement: `conditional_on: NodeId[]` to express explicit "exists only if X absent" relationships. |
+| S5: @Autowired → DependencyEdge | HOLDS | Clean. Constructor implicit injection (Spring 4.3+ single-constructor) is `INFERRED` confidence. `@Resource` byName injection goes in `annotations["injection_qualifier"]="byName"` — additive. `@Inject` (JSR-330) treated identically to `@Autowired`. |
 
-Bean mapping examples:
+**Bean mapping examples (10 of 12 representative entries shown):**
 
-<!-- For each of the 10-15 beans, write:
-  bean: <class or method name>
-  abstract_token: <type>
-  concrete_impl: <type>
-  lifetime: <enum value>
-  edges: <list of DependencyEdge sketches>
-  notes: <anything that didn't fit or required assumption revision>
--->
+| Bean | abstract_token | concrete_impl | Lifetime | Confidence | Key edges |
+|------|---------------|--------------|----------|------------|-----------|
+| `JpaClinicService` | `ClinicService` | `JpaClinicService` | SINGLETON | EXPLICIT | → OwnerRepository, PetRepository, VisitRepository via CONSTRUCTOR |
+| `OwnerRepository` | `OwnerRepository` | null (runtime proxy) | SINGLETON | DEGRADED | none (Spring Data) |
+| `PetRepository` | `PetRepository` | null (runtime proxy) | SINGLETON | DEGRADED | none |
+| `VisitRepository` | `VisitRepository` | null (runtime proxy) | SINGLETON | DEGRADED | none |
+| `OwnerController` | `OwnerController` | `OwnerController` | SINGLETON | EXPLICIT | → ClinicService via CONSTRUCTOR |
+| `PetController` | `PetController` | `PetController` | SINGLETON | EXPLICIT | → OwnerRepository, PetTypeFormatter via CONSTRUCTOR |
+| `PetTypeFormatter` | `Formatter<PetType>` | `PetTypeFormatter` | SINGLETON | EXPLICIT | → OwnerRepository via CONSTRUCTOR |
+| `DataSource` (auto-config) | `javax.sql.DataSource` | null | SINGLETON | BLIND_SPOT | — (`@ConditionalOnMissingBean`) |
+| `entityManagerFactory` | `LocalContainerEntityManagerFactoryBean` | same | SINGLETON | BLIND_SPOT | → DataSource via FACTORY_PARAMETER |
+| `transactionManager` | `PlatformTransactionManager` | `JpaTransactionManager` | SINGLETON | BLIND_SPOT | → entityManagerFactory via FACTORY_PARAMETER |
 
-Schema revisions required by spike:
+**Key pattern from Spring Data repos:** `abstract_token == concrete_impl == null` when the bean
+is an interface extending `Repository<T,ID>`. Parser must recognise this pattern and produce
+`parser_confidence = DEGRADED` with `framework_tags: ["spring-data-jpa"]`.
 
-<!-- List any IR field additions, type changes, or enum additions needed.
-     If none: write "None — all assumptions hold." -->
+**Key pattern from auto-config:** large fraction of Spring Boot beans (all of
+`spring-boot-autoconfigure`) are `BLIND_SPOT` — this is expected and must be visible in output.
+
+**Schema revisions required (all ADDITIVE — no breaking changes):**
+
+1. **`RegistrationNode.aliases: TypeRef[]`** — optional field. Records all types
+   a bean satisfies (supertypes + all interfaces), not just the primary `abstract_token`.
+   Required for accurate injection resolution in multi-interface beans.
+
+2. **`Lifetime.APPLICATION`** — new enum value. Spring's `application` scope
+   (one per `ServletContext`). Sits between SESSION and SINGLETON in duration.
+
+3. **`Mechanism.FACTORY_PARAMETER`** — new enum value for `DependencyEdge`. Distinct
+   from METHOD: represents a `@Bean` method parameter that Spring injects at factory
+   call time. Conflating with METHOD creates misleading edges in factory-heavy config.
+
+4. **`RegistrationNode.conditional_on: NodeId[]`** — optional field. Expresses
+   "this bean exists only if node X is absent/present." Needed for
+   `@ConditionalOnMissingBean` relationships. Without this, the conditional
+   relationship is recorded only as an annotation string.
+
+5. **`TypeRef` must be a structured object**, not a plain string, to represent
+   parameterized types (`Formatter<PetType>`, `JpaRepository<Owner,Integer>`).
+   `TypeRef` in ADR-002 is already a structured type with `type_arguments: TypeRef[]`
+   — this assumption holds; no change needed.
+
+6. **`concrete_impl` null semantics** — no schema change. The field is already
+   `TypeRef?`. Parsers must explicitly produce null for Spring Data repository
+   interfaces rather than inferring a proxy class name. Documentation only.
 
 ---
 
