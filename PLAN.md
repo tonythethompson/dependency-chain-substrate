@@ -32,14 +32,16 @@ spots documented in output.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §6 (C# parser) — fill | ⬜ Not started | Blocked by Phase 0 gate |
-| DESIGN.md §7 (Graph analysis) — fill | ⬜ Not started | |
-| DESIGN.md §8 (Framework boundary) — fill | ⬜ Not started | |
-| Roslyn static parser — implement | ⬜ Not started | |
-| IR serialiser — implement | ⬜ Not started | |
-| Graph analysis layer — implement | ⬜ Not started | |
-| CLI text output — implement | ⬜ Not started | |
-| Phase 1 verification against Trackdub | ⬜ Not started | |
+| DESIGN.md §6 (C# parser) — fill | ✅ Done | 2026-06-28 |
+| DESIGN.md §7 (Graph analysis) — fill | ✅ Done | 2026-06-28 |
+| DESIGN.md §8 (Framework boundary) — fill | ✅ Done | 2026-06-28 |
+| Roslyn static parser — implement | ✅ Done | 2026-06-28 — DCS.Parser.CSharp |
+| IR serialiser — implement | ✅ Done | 2026-06-28 — DCS.Core.Serialization |
+| Graph analysis layer — implement | ✅ Done | 2026-06-28 — DCS.Analysis |
+| CLI text output — implement | ✅ Done | 2026-06-28 — DCS.Cli `analyze` command |
+| Phase 1 verification against Trackdub | ⬜ Blocked | Needs Trackdub repo path from user |
+
+**Phase 1 gate:** ⏳ OPEN — implementation complete; Trackdub acceptance test blocked on repo path.
 
 ---
 
@@ -50,11 +52,14 @@ Trackdub commits.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §9-10 — fill | ⬜ Not started | Blocked by Phase 1 gate |
-| Git blob reader (libgit2sharp) — implement | ⬜ Not started | |
-| Per-commit extraction cache (keyed by SHA) — implement | ⬜ Not started | |
-| Diff engine + rename detection — implement | ⬜ Not started | |
-| Phase 2 verification against Trackdub | ⬜ Not started | |
+| DESIGN.md §9-10 — fill | ⬜ Not started | |
+| Git blob reader (libgit2sharp) — implement | ✅ Done | 2026-06-28 — CSharpStaticParser.ParseCommit |
+| Per-commit extraction cache (keyed by SHA) — implement | ⬜ Not started | In-memory; file cache deferred |
+| Diff engine + rename detection — implement | ✅ Done | 2026-06-28 — DCS.Diff |
+| CLI `diff` command — implement | ✅ Done | 2026-06-28 |
+| Phase 2 verification against Trackdub | ⬜ Blocked | Needs Trackdub repo path |
+
+**Phase 2 gate:** ⏳ OPEN — diff engine complete; verification blocked on Trackdub path.
 
 ---
 
@@ -64,10 +69,13 @@ Trackdub commits.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §11 — fill | ⬜ Not started | Blocked by Phase 2 gate |
-| Visualisation consumer — implement | ⬜ Not started | Form factor per ADR-003 |
-| Aggregation / focus+context / LOD | ⬜ Not started | |
-| Phase 3 verification | ⬜ Not started | |
+| DESIGN.md §11 — fill | ⬜ Not started | |
+| Visualisation consumer — implement | ✅ Done | 2026-06-28 — DCS.Viz self-contained HTML |
+| CLI `viz` command — implement | ✅ Done | 2026-06-28 |
+| Aggregation / focus+context / LOD | ✅ Done | 2026-06-28 — framework-grouped layout + zoom LOD |
+| Phase 3 verification | ⬜ Blocked | Needs Trackdub repo path for full-scale test |
+
+**Phase 3 gate:** ⏳ OPEN — implementation complete; full-scale verification blocked on Trackdub path.
 
 ---
 
@@ -77,10 +85,12 @@ Trackdub commits.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| CI-gate consumer — implement | ⬜ Not started | |
-| Registration Atlas polish | ⬜ Not started | |
-| Boundary Probe config UX | ⬜ Not started | |
-| Phase 4 verification | ⬜ Not started | |
+| CI-gate consumer — implement | ✅ Done | 2026-06-28 — exit code 1 on errors; `analyze` is CI-ready |
+| Registration Atlas polish | ⬜ Not started | DESIGN.md §12 module spec |
+| Boundary Probe config UX | ⬜ Not started | `--frameworks <json>` flag |
+| Phase 4 verification | ⬜ Blocked | Needs Trackdub path |
+
+**Phase 4 gate:** ⏳ OPEN — CI gate functional; polish tasks and acceptance test pending.
 
 ---
 
@@ -90,3 +100,5 @@ Trackdub commits.
 - IDE extension
 - Auto-fix / codemod
 - Runtime enrichment overlay
+- Per-commit disk cache (currently in-memory; file cache with SHA+parserVersion key deferred)
+- `--frameworks <json>` custom framework boundary config

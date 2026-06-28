@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="3.0.0-preview.5.26302.115" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DCS.Core\DCS.Core.csproj" />
+    <ProjectReference Include="..\DCS.Parser.CSharp\DCS.Parser.CSharp.csproj" />
+    <ProjectReference Include="..\DCS.Analysis\DCS.Analysis.csproj" />
+    <ProjectReference Include="..\DCS.Diff\DCS.Diff.csproj" />
+    <ProjectReference Include="..\DCS.Viz\DCS.Viz.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -124,59 +124,137 @@ Decision: see `docs/decisions/ADR-002-ir-identity-model.md`.
 
 ## 6. C# Language Parser
 
-> Q: Which Roslyn API surface is used (CSharpSyntaxTree, SemanticModel,
->    ISymbol)? At what granularity are types resolved?
+**Roslyn API:** Syntactic API only for Phase 1 (`CSharpSyntaxTree.ParseText`,
+`CSharpSyntaxWalker`). No `SemanticModel` or `ISymbol` — avoids requiring
+MSBuildWorkspace and bundled reference assemblies. Type names are the short
+names from generic type arguments; namespace resolution uses `using` directives
+collected per file. Semantic model deferred to Phase 2 for factory lambda body
+analysis and cross-file type resolution.
 
-> Q: How is the Roslyn workspace loaded from git blob source (no .csproj build)?
+**Workspace loading:** LibGit2Sharp reads each `.cs` file as a blob from the
+git object store at the target commit SHA. Each blob content →
+`CSharpSyntaxTree.ParseText(content, path: filePath)`. No compilation object
+needed for syntactic walking. Files collected by recursive tree walk of the
+commit's tree object, filtered to `*.cs`.
 
-> Q: What is the concrete catalog of registration patterns, their in/degraded/
->    out status, and the Roslyn query for each?
+**Pattern catalog:**
 
-> Q: How are extension methods that wrap registration calls handled?
->    (e.g., `services.AddLogging()` which internally calls `AddSingleton<T>`)
+| Pattern | Status | Roslyn query |
+|---------|--------|-------------|
+| `services.AddSingleton<IFoo, FooImpl>()` | EXPLICIT | `InvocationExpressionSyntax` with method name in `AddList`, two generic type args |
+| `services.AddScoped<IFoo, FooImpl>()` | EXPLICIT | same |
+| `services.AddTransient<IFoo, FooImpl>()` | EXPLICIT | same |
+| `services.AddSingleton<FooImpl>()` | EXPLICIT | one generic type arg → AbstractToken = ConcreteImpl |
+| `services.AddSingleton(typeof(IFoo), typeof(FooImpl))` | EXPLICIT | two `TypeOfExpressionSyntax` arguments |
+| `services.AddSingleton(typeof(IGeneric<>), typeof(Generic<>))` | EXPLICIT | open generic typeof args |
+| `services.AddKeyedSingleton<IFoo, FooImpl>("key")` | EXPLICIT | two generic args + string literal → `annotations["service_key"]` |
+| `services.TryAddSingleton<IFoo, FooImpl>()` | EXPLICIT | same + `annotations["conditional"]="TryAdd"` |
+| `services.AddSingleton<IFoo>(new FooImpl(...))` | DEGRADED | object creation arg — AbstractToken known, ConcreteImpl null |
+| `services.Add(new ServiceDescriptor(typeof(IFoo), typeof(FooImpl), ...))` | DEGRADED | ServiceDescriptor ctor pattern |
+| `services.AddLogging()`, `services.AddHttpClient()`, etc. | DEGRADED | Any `Add*` call not in known list → `BlindSpotReport{pattern:"extension_method"}` |
+| `services.AddSingleton<IFoo>(sp => ...)` | BLIND_SPOT | Lambda arg — AbstractToken=IFoo, deps unresolvable |
+| `services.Scan(...)`, `RegisterServicesFromAssembly(...)` | BLIND_SPOT | Assembly scanning call → `BlindSpotReport{pattern:"assembly_scanning"}` |
+| XML config, runtime inspection | OUT | Not attempted in v1 |
 
-> Q: How are bundling extensions that call other extensions transitively
->    handled?
+**Extension methods:** detected at call site only; internals NOT traced in Phase 1.
+`services.AddLogging()` → one `BlindSpotReport{pattern:"extension_method",
+description:"AddLogging() — internal registrations not traced"}`.
 
-> Q: What is the error model for parse failures (missing references, partial
->    source, syntax errors)?
+**Bundling extensions:** same as single extension — DEGRADED/BLIND_SPOT at the
+outermost call site. Transitive tracing is Phase 2.
+
+**Error model:** syntax error in a file → `BlindSpotReport{pattern:"syntax_error",
+location:..., description:message}`, parser continues with remaining files. Missing
+references → type names remain as short names (less precise identity, not an error).
+Parser never halts on per-file failure; every file produces either nodes or a
+BlindSpotReport.
 
 ---
 
 ## 7. Graph Analysis Layer
 
-> Q: Give a precise, unambiguous definition of "orphaned" in this system.
+**Orphaned:** Node N is orphaned iff `in_degree(N) == 0` (no `DependencyEdge`
+has `to == N.id`) AND N is not the composition root AND N is not a
+framework-infrastructure node (excluded by default; configurable). Orphans are
+nodes nobody depends on — registered but unreachable from the consumer side.
 
-> Q: Give a precise definition of "reachable."
+**Reachable from root R:** N is reachable from composition root R iff there
+exists a directed path R → ... → N following `DependencyEdge(from→to)` forward
+edges. Computed by BFS from R over the directed graph. Nodes not reachable from
+any identified root are candidates for orphan or dead-registration reporting.
 
-> Q: Give a precise definition of "leaked" (crosses framework boundary with
->    explicit framework type exposed).
+**Leaked:** Node N is leaked iff `N.framework_tags` contains framework F1, and
+there exists `DependencyEdge{from: M, to: N}` where `M.framework_tags` contains
+F2 ≠ F1, and both F1 and F2 are declared framework boundaries. Concretely: an
+Avalonia service consuming a WinUI type directly (not through an abstraction).
+Secondary form: both `WinUI.IFooService` and `Avalonia.IFooService` registered —
+duplicate abstract-token short name across frameworks in the same graph.
 
-> Q: Give a precise definition of "broken chain" (dependency registered but
->    its dependency is not, or is ambiguous).
+**Broken chain:** Node N has a broken chain iff there exists a `DependencyEdge`
+`{from: N, to: M}` where M has `parser_confidence == BLIND_SPOT`, OR there
+exists a constructor parameter type T on `N.concrete_impl` for which no
+`RegistrationNode` exists where `abstract_token.short_name == T.short_name`.
 
-> Q: How is the composition root identified? Is it framework-specific?
->    Is it configurable?
+**Composition root identification:**
+1. Default: file with highest density of `services.Add*()` call sites. Ties:
+   alphabetical file path. Files named `Program.cs`, `Startup.cs`, `AppHost.cs`,
+   `ServiceRegistration.cs` get 2× weight.
+2. Override: `--root=<ClassName>` flag. Specifies the class whose method is the
+   composition root.
+3. Multiple roots: if multiple files tie or user specifies multiple, analysis
+   runs from all roots and unions the reachability set.
 
-> Q: How are cycles represented and reported?
+**Cycles:** detected by DFS with back-edge identification. Each strongly connected
+component of size ≥ 2 is reported as a cycle. Output: `CYCLE: A → B → C → A`.
+Cycles do not halt analysis; they are reported and flagged but other analysis
+continues. Nodes in cycles are not considered orphaned (they have in-degree > 0).
 
-> Q: What is the output format for analysis results (text, structured JSON,
->    annotated IR)?
+**Output format:** Phase 1 text to stdout, sections in order:
+`SUMMARY` → `LEAKED` → `BROKEN_CHAIN` → `ORPHANED` → `CYCLES` → `BLIND_SPOTS`.
+Each finding: one line, `[SEVERITY] category: node_display_name (location)`.
+Severity: `[ERROR]` for leaked/broken-chain, `[WARN]` for orphaned/blind-spot.
+JSON `AnalysisResult` embedded in IR when `--ir-out` flag used.
 
 ---
 
 ## 8. Framework Boundary Model
 
-> Q: How is a framework declared? (Namespace prefix, assembly name, NuGet
->    package ID — which of these, and in what priority order?)
+**Framework declaration:** namespace prefix (primary). Assembly name is secondary,
+used when namespace is ambiguous. NuGet package ID is metadata only. Priority:
+exact namespace prefix match > assembly name match > heuristic short-name prefix.
 
-> Q: Is this config-driven, heuristic-driven, or both?
+**Config-driven with built-in defaults.** Built-in set cannot be overridden for
+the named frameworks; custom frameworks are additive via `--frameworks <path>`
+(JSON config file).
 
-> Q: What is the built-in set of framework boundary declarations for v1?
->    (WinUI, Avalonia, ASP.NET Core, MS.DI itself, etc.)
+**Built-in set for v1:**
 
-> Q: What does a "boundary crossing" look like in the IR? How is it
->    distinguished from an intentional abstraction?
+| Tag | Namespace prefixes | Assembly names |
+|-----|--------------------|----------------|
+| `winui` | `Microsoft.UI.*`, `WinUI.*` | `Microsoft.WindowsAppSDK` |
+| `avalonia` | `Avalonia.*` | `Avalonia`, `Avalonia.*` |
+| `wpf` | `System.Windows.*` | `PresentationFramework`, `PresentationCore` |
+| `aspnetcore` | `Microsoft.AspNetCore.*` | `Microsoft.AspNetCore.*` |
+| `msdi` | `Microsoft.Extensions.DependencyInjection.*` | `Microsoft.Extensions.DependencyInjection` |
+| `ms-extensions` | `Microsoft.Extensions.*` | `Microsoft.Extensions.*` (lower priority than msdi) |
+
+**Boundary crossing in IR:** a `DependencyEdge{from: M, to: N}` where
+`M.framework_tags` and `N.framework_tags` are both non-empty and disjoint —
+a node in one framework depending directly on a type in another framework.
+
+**Intentional abstraction vs leak:** if `abstract_token` is in framework F1
+but `concrete_impl` is in framework F2, the node may be an intentional adapter
+(F2 implements the F1 interface). This is reported as `[WARN]` not `[ERROR]`.
+If the consuming node's constructor takes a *concrete* F1 type directly (no
+abstraction layer), that is `[ERROR]` leakage.
+
+**Phase 1 leakage heuristic (WinUI→Avalonia migration):**
+- Leaked registration: `abstract_token.namespace` starts with `Microsoft.UI.*`
+  and the node appears in a graph extracted from code that also contains
+  `Avalonia.*` registrations.
+- Duplicate abstract token: `Microsoft.UI.IFooService` and `Avalonia.IFooService`
+  both registered — same short name, different framework prefix.
+- Cross-framework edge: `DependencyEdge{from: AvaloniaNode, to: WinUINode}`.
 
 ---
 
