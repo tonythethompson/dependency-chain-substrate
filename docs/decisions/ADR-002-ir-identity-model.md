@@ -449,3 +449,57 @@ research.
 
 **Tertiary falsifier:** JSON serialisation of a Trackdub-scale graph takes
 >30 seconds. If this happens, add MessagePack as an alternative format in Phase 2.
+
+---
+
+## Addendum: Dual-Identity Model (schema 1.1.0, 2026-06-28)
+
+Discovered during Trackdub acceptance testing (Phase 1): when the same abstract
+token is registered in both WinUI and Avalonia shells (the parallel-shell
+migration pattern), both registrations share the same `Id` (hash of short name
+= FQN without semantic model). The `GroupBy().First()` deduplication in
+`GraphAnalyzer` and `GraphDiffer` collapses them to one node, suppressing the
+LEAKED cross-framework edge that would fire if they were distinct.
+
+The DUPLICATE detector remained correct (short-name grouping, not ID grouping),
+but LEAKED was silently suppressed for the most common migration pattern.
+
+### Extension: InstanceId (additive, non-breaking)
+
+`RegistrationNode` gains a second identity key:
+
+```
+instance_id: string   // hash(FQN + ":" + filePath + ":" + line) — within-snapshot unique
+id:          string   // hash(FQN) — cross-snapshot diff identity (unchanged)
+```
+
+**`id` (unchanged):** Cross-snapshot identity for the diff engine. Rename
+detection and change matching continue to use this. Stable under source-file
+moves only if the abstract type name stays constant.
+
+**`instance_id` (new):** Within-snapshot uniqueness. Different registration
+sites for the same abstract token get different `instance_id`s. Enables
+`GraphAnalyzer.FindLeaked` to distinguish them and detect cross-framework
+conflicts in the same graph without depending on a graph edge.
+
+**LEAKED detection now has two passes:**
+1. **Edge pass:** `DependencyEdge` from a framework-F1 node to a framework-F2
+   node (original mechanism — fires when two distinct abstract tokens have a
+   cross-framework dependency).
+2. **Instance pass:** Same `Id`, multiple instances with conflicting non-empty
+   `FrameworkTags` — fires for the parallel-shell migration pattern where the
+   same abstract token is registered in both frameworks but no edge connects them.
+
+**Schema change:** Additive. `instance_id` is a new optional field on
+`RegistrationNode`. Existing consumers that ignore unknown JSON fields are
+unaffected. Schema version bumped 1.0.0 → 1.1.0 per the versioning policy
+above.
+
+**Diff engine:** Unchanged. `GraphDiffer` continues to match nodes by `Id`
+(FQN hash). `instance_id` is not used in cross-snapshot comparison.
+
+**Deduplication workaround:** The `GroupBy().First()` deduplication in
+`GraphAnalyzer.nodeById` and `GraphDiffer.oldById/newById` is intentional and
+remains. It provides a canonical representative per logical registration for
+edge following. The new LEAKED instance pass operates on `_graph.Nodes` directly
+(no deduplication) so it sees all registration sites.

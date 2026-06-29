@@ -94,6 +94,66 @@ public sealed class GraphAnalyzerTests
     }
 
     [Fact]
+    public void Detects_cross_framework_leaked_via_duplicate_registration()
+    {
+        // Same logical abstract token (same Id) registered in WinUI and Avalonia contexts.
+        // This is the primary migration leakage pattern — no edge needed.
+        var fqn = "INavigationService";
+        var winuiNode = new RegistrationNode
+        {
+            Id = RegistrationNode.ComputeId(fqn),
+            InstanceId = RegistrationNode.ComputeInstanceId(fqn, "App.xaml.cs", 10),
+            DisplayName = fqn,
+            AbstractToken = TypeRef.FromShortName(fqn),
+            FrameworkTags = ["winui"],
+            ParserConfidence = Confidence.Explicit
+        };
+        var avaloniaNode = new RegistrationNode
+        {
+            Id = RegistrationNode.ComputeId(fqn),            // same Id — same abstract token
+            InstanceId = RegistrationNode.ComputeInstanceId(fqn, "App.axaml.cs", 15),
+            DisplayName = fqn,
+            AbstractToken = TypeRef.FromShortName(fqn),
+            FrameworkTags = ["avalonia"],
+            ParserConfidence = Confidence.Explicit
+        };
+        var graph = new RegistrationGraph { Nodes = [winuiNode, avaloniaNode] };
+        var result = new GraphAnalyzer(graph).Analyze();
+
+        Assert.Single(result.Leaked);
+        Assert.Equal(fqn, result.Leaked[0].DisplayName);
+        Assert.Contains("winui", result.Leaked[0].FromFramework + result.Leaked[0].ToFramework);
+        Assert.Contains("avalonia", result.Leaked[0].FromFramework + result.Leaked[0].ToFramework);
+    }
+
+    [Fact]
+    public void No_false_positive_for_same_framework_duplicate_registration()
+    {
+        var fqn = "IFoo";
+        var a = new RegistrationNode
+        {
+            Id = RegistrationNode.ComputeId(fqn),
+            InstanceId = RegistrationNode.ComputeInstanceId(fqn, "A.cs", 1),
+            DisplayName = fqn,
+            AbstractToken = TypeRef.FromShortName(fqn),
+            FrameworkTags = ["avalonia"],
+            ParserConfidence = Confidence.Explicit
+        };
+        var b = new RegistrationNode
+        {
+            Id = RegistrationNode.ComputeId(fqn),
+            InstanceId = RegistrationNode.ComputeInstanceId(fqn, "B.cs", 5),
+            DisplayName = fqn,
+            AbstractToken = TypeRef.FromShortName(fqn),
+            FrameworkTags = ["avalonia"],  // same framework — not a leak
+            ParserConfidence = Confidence.Explicit
+        };
+        var graph = new RegistrationGraph { Nodes = [a, b] };
+        var result = new GraphAnalyzer(graph).Analyze();
+        Assert.Empty(result.Leaked);
+    }
+
+    [Fact]
     public void Broken_chain_reported_for_blind_spot_dependency()
     {
         var consumer = MakeNode("IConsumer") with { ConcreteImpl = TypeRef.FromShortName("ConsumerImpl") };

@@ -41,7 +41,7 @@ spots documented in output.
 | CLI text output — implement | ✅ Done | 2026-06-28 — DCS.Cli `analyze` command |
 | Phase 1 verification against Trackdub | ✅ Done | 2026-06-28 — 186 registrations at commit 3c4e374d; VoiceCloneConsentCoordinator 2× (WinUI+Avalonia) and 6 other duplicates correctly detected as leaked migration state |
 
-**Phase 1 gate:** ✅ CLOSED — leakage detected on real Trackdub mid-migration commit. Primary signal: DUPLICATE registrations (same abstract token in both shells). Known limitation: LEAKED edge detector suppressed when duplicate IDs collapse two framework registrations to one node (see ADR-001 blind spot addendum needed).
+**Phase 1 gate:** ✅ CLOSED — leakage detected on real Trackdub mid-migration commit. Primary signal: DUPLICATE registrations (same abstract token in both shells). LEAKED now also fires via instance-pass (schema 1.1.0 dual-identity model, see ADR-002 addendum).
 
 ---
 

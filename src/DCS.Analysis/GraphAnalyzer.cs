@@ -100,7 +100,9 @@ public sealed class GraphAnalyzer
     private List<LeakedRegistration> FindLeaked(Dictionary<string, RegistrationNode> nodes)
     {
         var leaked = new List<LeakedRegistration>();
+        var seenPairs = new HashSet<string>(StringComparer.Ordinal);
 
+        // Pass 1: cross-framework dependency edges (A depends on B, A and B are different frameworks)
         foreach (var edge in _graph.Edges)
         {
             if (!nodes.TryGetValue(edge.From, out var from) ||
@@ -116,6 +118,40 @@ public sealed class GraphAnalyzer
                     string.Join(",", to.FrameworkTags),
                     from.SourceLocation?.FilePath,
                     from.SourceLocation?.Line));
+            }
+        }
+
+        // Pass 2: same abstract token (same Id / FQN) registered in multiple framework contexts.
+        // This is the primary migration leakage pattern: IFoo registered once in WinUI shell
+        // and once in Avalonia shell — both collapse to the same logical Id but have different
+        // FrameworkTags. Detected by grouping all instances per Id and checking tag conflicts.
+        var instanceGroups = _graph.Nodes
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1);
+
+        foreach (var group in instanceGroups)
+        {
+            var instances = group.ToList();
+            for (var i = 0; i < instances.Count - 1; i++)
+            {
+                for (var j = i + 1; j < instances.Count; j++)
+                {
+                    var a = instances[i];
+                    var b = instances[j];
+                    if (!_boundaries.AreDifferentFrameworks(a.FrameworkTags, b.FrameworkTags))
+                        continue;
+
+                    var pairKey = $"{a.InstanceId}:{b.InstanceId}";
+                    if (!seenPairs.Add(pairKey)) continue;
+
+                    leaked.Add(new LeakedRegistration(
+                        a.Id,
+                        a.DisplayName,
+                        string.Join(",", a.FrameworkTags),
+                        string.Join(",", b.FrameworkTags),
+                        a.SourceLocation?.FilePath,
+                        a.SourceLocation?.Line));
+                }
             }
         }
 

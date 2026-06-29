@@ -146,6 +146,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         return new RegistrationNode
         {
             Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
+            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
             DisplayName = abstractRef.ShortName,
             AbstractToken = abstractRef,
             ConcreteImpl = abstractRef.FullyQualifiedName == concreteRef.FullyQualifiedName ? null : concreteRef,
@@ -165,6 +166,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         return new RegistrationNode
         {
             Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
+            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
             DisplayName = abstractRef.ShortName,
             AbstractToken = abstractRef,
             Lifetime = lifetime,
@@ -189,6 +191,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         return new RegistrationNode
         {
             Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
+            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
             DisplayName = abstractRef.ShortName,
             AbstractToken = abstractRef,
             Lifetime = lifetime,
