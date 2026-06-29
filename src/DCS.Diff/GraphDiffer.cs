@@ -13,8 +13,14 @@ public sealed class GraphDiffer
 
     public GraphDiff Diff(RegistrationGraph oldGraph, RegistrationGraph newGraph)
     {
-        var oldById = oldGraph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
-        var newById = newGraph.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
+        // Duplicate IDs occur when multiple nodes share the same short name (no semantic FQN).
+        // Take first per ID; duplicates surface separately via FindDuplicates in the analyzer.
+        var oldById = oldGraph.Nodes
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var newById = newGraph.Nodes
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
         var oldOutEdges = BuildOutEdgeIndex(oldGraph.Edges);
         var newOutEdges = BuildOutEdgeIndex(newGraph.Edges);
