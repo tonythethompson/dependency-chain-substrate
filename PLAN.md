@@ -17,9 +17,9 @@ paper-spike complete. IR either survives the spike or is revised.
 | ADR-003: Form factor | ✅ Done | 2026-06-28 — CLI-first accepted |
 | ADR-004: Spring paper-spike timing | ✅ Done | 2026-06-28 — Spike before IR freeze |
 | Spring paper-spike (IR compatibility validation) | ✅ Done | 2026-06-28 — No breaking changes; 5 additive extensions folded into ADR-002 |
-| DESIGN.md §4 (Extraction Strategy) — fill answers | ⬜ Not started | After ADR-001 accepted |
-| DESIGN.md §5 (IR + Identity) — fill answers | ⬜ Not started | After ADR-002 + spike |
-| DESIGN.md §1-3 (Problem, Goals, Users) — fill answers | ⬜ Not started | Parallelisable with above |
+| DESIGN.md §4 (Extraction Strategy) — fill answers | ✅ Done | 2026-06-28 — backfilled from implementation + ADR-001 |
+| DESIGN.md §5 (IR + Identity) — fill answers | ✅ Done | 2026-06-28 — backfilled from DCS.Core.IR + ADR-002 |
+| DESIGN.md §1-3 (Problem, Goals, Users) — fill answers | ✅ Done | 2026-06-28 — backfilled from plan-of-plan + Trackdub verification |
 
 **Phase 0 gate:** ✅ CLOSED — Spring spike complete, IR frozen, ADR-002 Accepted.
 
@@ -52,7 +52,7 @@ Trackdub commits.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §9-10 — fill | ⬜ Not started | |
+| DESIGN.md §9-10 — fill | ✅ Done | 2026-06-28 — GraphDiffer + CSharpStaticParser |
 | Git blob reader (libgit2sharp) — implement | ✅ Done | 2026-06-28 — CSharpStaticParser.ParseCommit |
 | Per-commit extraction cache (keyed by SHA) — implement | ⬜ Not started | In-memory; file cache deferred |
 | Diff engine + rename detection — implement | ✅ Done | 2026-06-28 — DCS.Diff |
@@ -69,7 +69,7 @@ Trackdub commits.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §11 — fill | ⬜ Not started | |
+| DESIGN.md §11 — fill | ✅ Done | 2026-06-28 — HtmlVizGenerator + CLI |
 | Visualisation consumer — implement | ✅ Done | 2026-06-28 — DCS.Viz self-contained HTML |
 | CLI `viz` command — implement | ✅ Done | 2026-06-28 |
 | Aggregation / focus+context / LOD | ✅ Done | 2026-06-28 — framework-grouped layout + zoom LOD |
@@ -103,16 +103,16 @@ Trackdub; disk cache eliminates redundant re-extraction on repeated CLI runs.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| DESIGN.md §§1-3 (Problem, Goals, Users) — fill | ⬜ Not started | Answers derivable from implementation + ADRs |
-| DESIGN.md §§4-5 (Extraction, IR) — fill | ⬜ Not started | |
-| DESIGN.md §§9-10 (Diff Engine, Git Ingestion) — fill | ⬜ Not started | |
-| DESIGN.md §§11-17 (Viz, Modules, Cross-cutting, Extensibility, Phasing, Risks, Validation) — fill | ⬜ Not started | |
+| DESIGN.md §§1-3 (Problem, Goals, Users) — fill | ✅ Done | 2026-06-28 |
+| DESIGN.md §§4-5 (Extraction, IR) — fill | ✅ Done | 2026-06-28 |
+| DESIGN.md §§9-10 (Diff Engine, Git Ingestion) — fill | ✅ Done | 2026-06-28 |
+| DESIGN.md §§11-17 (Viz, Modules, Cross-cutting, Extensibility, Phasing, Risks, Validation) — fill | ✅ Done | 2026-06-28 |
 | `--frameworks <json>` — implement | ⬜ Not started | Allow caller to override default framework boundary config; see ADR-001 §future |
 | Per-commit disk cache — implement | ⬜ Not started | File cache keyed by SHA+parserVersion; eliminates re-extraction on repeated runs |
 | Registration Atlas polish — implement | ⬜ Not started | Complete §12 module spec per DESIGN.md |
 | Rename weight tuning | ⬜ Blocked | Needs a Trackdub commit pair with known renames; unblocked when such a pair is identified |
 
-**Phase 5 gate:** DESIGN.md has no unfilled `> Q:` prompts; `dcs diff --frameworks` works on Trackdub; repeated `dcs analyze` on same commit skips re-extraction.
+**Phase 5 gate:** DESIGN.md has no unfilled `> Q:` prompts ✅; `dcs diff --frameworks` works on Trackdub; repeated `dcs analyze` on same commit skips re-extraction.
 
 ---
 
