@@ -5,11 +5,15 @@
     <Project Path="src/DCS.Core/DCS.Core.csproj" />
     <Project Path="src/DCS.Diff/DCS.Diff.csproj" />
     <Project Path="src/DCS.Parser.CSharp/DCS.Parser.CSharp.csproj" />
+    <Project Path="src/DCS.Parser.Java/DCS.Parser.Java.csproj" />
     <Project Path="src/DCS.Viz/DCS.Viz.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DCS.Analysis.Tests/DCS.Analysis.Tests.csproj" />
+    <Project Path="tests/DCS.Cli.Tests/DCS.Cli.Tests.csproj" />
+    <Project Path="tests/DCS.Core.Tests/DCS.Core.Tests.csproj" />
     <Project Path="tests/DCS.Diff.Tests/DCS.Diff.Tests.csproj" />
     <Project Path="tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj" />
+    <Project Path="tests/DCS.Parser.Java.Tests/DCS.Parser.Java.Tests.csproj" />
   </Folder>
 </Solution>

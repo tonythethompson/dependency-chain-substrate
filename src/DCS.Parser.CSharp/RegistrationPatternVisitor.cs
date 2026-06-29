@@ -1,3 +1,4 @@
+using DCS.Analysis;
 using DCS.Core.IR;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -9,6 +10,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
 {
     private readonly string _filePath;
     private readonly List<string> _usings;
+    private readonly FrameworkBoundaryModel _boundaries;
     private readonly List<RegistrationNode> _registrations = [];
     private readonly List<BlindSpotReport> _blindSpots = [];
 
@@ -29,10 +31,14 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
     public IReadOnlyList<RegistrationNode> Registrations => _registrations;
     public IReadOnlyList<BlindSpotReport> BlindSpots => _blindSpots;
 
-    public RegistrationPatternVisitor(string filePath, List<string> usings)
+    public RegistrationPatternVisitor(
+        string filePath,
+        List<string> usings,
+        FrameworkBoundaryModel? boundaries = null)
     {
         _filePath = filePath;
         _usings = usings;
+        _boundaries = boundaries ?? FrameworkBoundaryModel.Default;
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -216,34 +222,8 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         };
     }
 
-    private List<string> InferFrameworkTags(TypeRef typeRef)
-    {
-        var tags = new List<string>();
-
-        // File-level: if usings include framework namespaces, this file's registrations are candidates
-        foreach (var ns in _usings)
-        {
-            if (ns.StartsWith("Microsoft.UI", StringComparison.OrdinalIgnoreCase) ||
-                ns.StartsWith("WinUI", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!tags.Contains("winui")) tags.Add("winui");
-            }
-            else if (ns.StartsWith("Avalonia", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!tags.Contains("avalonia")) tags.Add("avalonia");
-            }
-            else if (ns.StartsWith("System.Windows", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!tags.Contains("wpf")) tags.Add("wpf");
-            }
-            else if (ns.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase))
-            {
-                if (!tags.Contains("aspnetcore")) tags.Add("aspnetcore");
-            }
-        }
-
-        return tags;
-    }
+    private List<string> InferFrameworkTags(TypeRef typeRef) =>
+        FrameworkTagger.InferTags(_boundaries, _usings, typeRef);
 
     private static string GetTypeName(TypeSyntax type) => type switch
     {

@@ -1,37 +1,62 @@
+using DCS.Analysis;
+using DCS.Core.Caching;
 using DCS.Core.IR;
+using DCS.Core.Parsing;
 using LibGit2Sharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace DCS.Parser.CSharp;
 
-public sealed class CSharpStaticParser
+public sealed class CSharpStaticParser : IStaticParser
 {
-    private readonly string? _repoPath;
+    public const string ParserVersion = "0.1.0";
 
-    public CSharpStaticParser(string? repoPath = null)
+    private readonly CSharpParseOptions _options;
+
+    public CSharpStaticParser(CSharpParseOptions? options = null)
     {
-        _repoPath = repoPath;
+        _options = options ?? new CSharpParseOptions();
     }
 
     /// <summary>
     /// Extract registrations from a specific git commit (git blob reading, no checkout).
     /// </summary>
-    public RegistrationGraph ParseCommit(string repoPath, string commitSha)
+    public ParseResult ParseCommit(string repoPath, string commitSha)
     {
+        var cacheDir = _options.NoCache
+            ? null
+            : ExtractionCache.ResolveCacheDirectory(_options.CacheDirectory);
+
+        if (cacheDir != null)
+        {
+            var cached = ExtractionCache.TryReadResult(commitSha, ParserVersion, cacheDir);
+            if (cached != null)
+            {
+                _options.OnCacheHit?.Invoke(commitSha);
+                return cached;
+            }
+        }
+
         using var repo = new Repository(repoPath);
         var commit = repo.Lookup<Commit>(commitSha)
             ?? throw new ArgumentException($"Commit {commitSha} not found in {repoPath}");
 
         var sourceFiles = new List<(string path, string content)>();
         CollectCSharpFiles(commit.Tree, "", sourceFiles);
-        return BuildGraph(sourceFiles, commitSha);
+        var graph = BuildGraph(sourceFiles, commitSha, _options.Boundaries);
+        var result = CSharpParseResultFactory.Wrap(graph);
+
+        if (cacheDir != null)
+            ExtractionCache.Write(result, cacheDir);
+
+        return result;
     }
 
     /// <summary>
     /// Extract registrations from a directory on disk (working directory / current state).
     /// </summary>
-    public RegistrationGraph ParseDirectory(string directoryPath)
+    public ParseResult ParseDirectory(string directoryPath)
     {
         var sourceFiles = Directory
             .EnumerateFiles(directoryPath, "*.cs", SearchOption.AllDirectories)
@@ -39,7 +64,8 @@ public sealed class CSharpStaticParser
             .Select(f => (path: Path.GetRelativePath(directoryPath, f), content: File.ReadAllText(f)))
             .ToList();
 
-        return BuildGraph(sourceFiles, commitSha: null);
+        var graph = BuildGraph(sourceFiles, commitSha: null, _options.Boundaries);
+        return CSharpParseResultFactory.Wrap(graph);
     }
 
     private static void CollectCSharpFiles(Tree tree, string prefix, List<(string, string)> files)
@@ -63,7 +89,8 @@ public sealed class CSharpStaticParser
 
     private static RegistrationGraph BuildGraph(
         IEnumerable<(string path, string content)> sourceFiles,
-        string? commitSha)
+        string? commitSha,
+        FrameworkBoundaryModel boundaries)
     {
         var registrations = new List<RegistrationNode>();
         var blindSpots = new List<BlindSpotReport>();
@@ -95,7 +122,7 @@ public sealed class CSharpStaticParser
                 .Where(u => u.Length > 0)
                 .ToList();
 
-            var regVisitor = new RegistrationPatternVisitor(filePath, usings);
+            var regVisitor = new RegistrationPatternVisitor(filePath, usings, boundaries);
             regVisitor.Visit(root);
             registrations.AddRange(regVisitor.Registrations);
             blindSpots.AddRange(regVisitor.BlindSpots);
@@ -110,6 +137,7 @@ public sealed class CSharpStaticParser
 
         return new RegistrationGraph
         {
+            ParserVersion = ParserVersion,
             CommitSha = commitSha,
             Nodes = registrations,
             Edges = edges,
@@ -127,7 +155,6 @@ public sealed class CSharpStaticParser
         List<RegistrationNode> nodes,
         Dictionary<string, List<string>> constructorDeps)
     {
-        // Index by abstract token short name for fast lookup
         var byAbstractName = nodes
             .GroupBy(n => n.AbstractToken.ShortName, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);

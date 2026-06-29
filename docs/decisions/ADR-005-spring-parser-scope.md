@@ -1,7 +1,8 @@
 # ADR-005: Spring Language Parser — Scope and Approach
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-28
+**Accepted:** 2026-06-28 (Phase 6 kickoff; Trackdub Phase 5 regression verified)
 **Effort:** High (Opus-class reasoning required; see AGENTS.md routing matrix)
 
 ---
@@ -14,129 +15,109 @@ Phase 0). The IR accommodates Spring patterns with five additive extensions and
 no breaking changes. Phase 6 is the implementation phase for the Spring parser.
 
 This ADR decides: which AST library, which Spring patterns are in scope for
-v1, and how the parser plugs into the existing `IStaticParser` interface.
+v1, and how the parser plugs into the shared parser contract.
 
 ---
 
-## Questions to Resolve
+## Decision
 
-### Q1: Java AST library
+### Q1: Java AST library — **Tree-sitter (primary)**
 
-**Option A: JavaParser (javaparser.org)**
-- Pure Java, no JDK required for parsing
-- Produces a typed AST with visitor support
-- Can be called from .NET via a thin Java subprocess with JSON IPC
-- Well-maintained, widely used in static analysis tools
+**Accepted:** Tree-sitter with the Java grammar via .NET bindings, matching the
+C# parser's syntactic-only philosophy (no semantic model, no JDK type resolution).
 
-**Option B: Tree-sitter (Java grammar)**
-- Cross-platform, zero-JVM dependency
-- Native bindings exist for .NET (tree-sitter-dotnet)
-- Grammar-based: less semantic awareness than JavaParser (no type resolution)
-- Faster than JavaParser for large files
+**Rejected for v1 primary path:** JavaParser subprocess (JVM startup cost, IPC
+complexity) — retained as **fallback** if tree-sitter cannot reliably detect
+`@Bean` return types and `@Autowired` injection sites on Spring PetClinic
+(see falsifiers below).
 
-**Option C: Regex / string matching**
-- Minimal dependency
-- Brittle on unusual formatting
-- Unacceptable for production use
-
-**Option D: Roslyn analogue — Microsoft.CodeAnalysis.Java (if available)**
-- Does not exist as of 2026-06-28
-
-**Likely decision:** Tree-sitter for syntactic extraction (matches the C# parser's
-philosophy: syntactic-only, no semantic model). JavaParser as a fallback if
-tree-sitter grammar is insufficient for annotation detection.
-
----
+**Rejected:** Regex/string matching; Roslyn-equivalent for Java (does not exist).
 
 ### Q2: Spring patterns in scope for v1
 
 **In scope (EXPLICIT or DEGRADED confidence):**
-- `@Bean` methods in `@Configuration` classes → RegistrationNode (EXPLICIT)
-- `@Component`, `@Service`, `@Repository`, `@Controller` on concrete classes → RegistrationNode (EXPLICIT)
-- `@Autowired` constructor parameters → DependencyEdge CONSTRUCTOR (EXPLICIT)
-- `@Autowired` field injection → DependencyEdge FIELD (EXPLICIT)
-- `@Scope("singleton" | "prototype" | "request" | "session")` → Lifetime
-- Spring Data `Repository<T, ID>` interfaces → RegistrationNode, concrete_impl=null, DEGRADED
-- `@Primary` / `@Qualifier` → annotations map entry
+- `@Bean` methods in `@Configuration` classes → `RegistrationNode` (EXPLICIT)
+- `@Component`, `@Service`, `@Repository`, `@Controller` on concrete classes → EXPLICIT
+- `@Autowired` constructor parameters → `DependencyEdge` CONSTRUCTOR (EXPLICIT)
+- `@Autowired` field injection → `DependencyEdge` FIELD (EXPLICIT)
+- `@Scope("singleton" | "prototype" | "request" | "session")` → `Lifetime`
+- Spring Data `Repository<T, ID>` interfaces → `concrete_impl=null`, DEGRADED
+- `@Primary` / `@Qualifier` → `annotations` map entries
 
 **Accepted blind spots (BLIND_SPOT nodes):**
 - `@ConditionalOnProperty`, `@ConditionalOnMissingBean`, `@ConditionalOnClass`
 - `@Profile`-gated beans
 - Spring Boot auto-configuration (`spring.factories` / `AutoConfiguration.imports`)
 - `@Import` transitive configuration chains
-- Dynamic `@Bean` definitions (method body creates beans conditionally)
+- Dynamic `@Bean` definitions (conditional method body)
 
-**Out of scope for v1 (not even BLIND_SPOT):**
-- Spring Integration, Spring Batch (specialised container contexts)
-- XML-based Spring configuration (legacy, declining use)
-- Kotlin Spring DSL
+**Out of scope for v1:** Spring Integration/Batch, XML Spring config, Kotlin Spring DSL.
 
----
-
-### Q3: Parser interface integration
-
-The existing `IStaticParser` interface in `DCS.Core`:
+### Q3: Parser interface integration — **`IStaticParser` in `DCS.Core.Parsing`**
 
 ```csharp
 public interface IStaticParser
 {
-    Task<RegistrationGraph> ParseDirectoryAsync(string rootPath, CancellationToken ct = default);
-    Task<RegistrationGraph> ParseCommitAsync(string repoPath, string commitSha, CancellationToken ct = default);
+    RegistrationGraph ParseCommit(string repoPath, string commitSha);
+    RegistrationGraph ParseDirectory(string directoryPath);
 }
 ```
 
-The Spring parser must implement this interface. Language detection: by file
-extension (`.java`) and presence of Spring annotations in imports. A `DCS.Parser.Java`
-project follows the same structure as `DCS.Parser.CSharp`.
+`DCS.Parser.Java.SpringStaticParser` implements this interface (scaffold landed
+2026-06-28). Structure mirrors `DCS.Parser.CSharp`: LibGit2Sharp blob read,
+`ExtractionCache` keyed by SHA + `ParserVersion`, `FrameworkBoundaryModel` for tags.
 
-**Subprocess model (if JavaParser is used):** A thin Java CLI that reads a
-file list from stdin and emits JSON IR fragments. The .NET parser spawns it,
-collects the JSON, and deserializes. Tradeoff: JVM startup cost (~300ms);
-acceptable for batch analysis, painful for per-file IDE use.
+CLI language routing (`.java` → Java parser) is a follow-up task; Phase 6 gate
+is PetClinic IR quality, not multi-language CLI dispatch.
 
-**Tree-sitter model (if used):** Native .NET binding; no subprocess; no JVM.
-Parse is syntactic only; annotation detection via tree-sitter queries.
+### Q4: Framework tags for Spring — **built into `FrameworkBoundaryModel`**
+
+| Tag | Namespace prefix |
+|-----|------------------|
+| `spring-mvc` | `org.springframework.web.` |
+| `spring-security` | `org.springframework.security.` |
+| `spring-data` | `org.springframework.data.` |
+| `spring-boot` | `org.springframework.boot.` |
+| `spring-core` | `org.springframework.` (lowest priority among Spring tags) |
 
 ---
 
-### Q4: Framework tags for Spring
+## Implementation sequence (Phase 6)
 
-Spring-specific framework tags to add to `FrameworkBoundary.cs`:
-
-| Tag | Heuristic |
-|-----|-----------|
-| `spring-mvc` | `@Controller` or `@RestController` on a class, or `import org.springframework.web.*` |
-| `spring-data` | `extends Repository<>` or `@EnableJpaRepositories` in file |
-| `spring-security` | `import org.springframework.security.*` |
-| `spring-core` | `@Component`, `@Service`, `@Bean` without a more specific tag |
-| `spring-boot` | `@SpringBootApplication` in file |
+1. ✅ Scaffold `DCS.Parser.Java` + `IStaticParser` + Spring framework tags
+2. Add tree-sitter-java dependency + query-based annotation visitor
+3. `@Bean` / `@Configuration` extraction
+4. `@Component` stereotype extraction
+5. `@Autowired` edge extraction
+6. `@Conditional` / auto-config → BLIND_SPOT; Spring Data → DEGRADED
+7. Verification against Spring PetClinic
 
 ---
 
 ## Assumptions
 
-1. A JVM is available in the development environment (for JavaParser option).
-   The CLI can skip Java files gracefully if no JVM is detected, logging a
-   `BLIND_SPOT` for the missing parser.
-2. The .NET–JVM subprocess boundary adds <500ms startup latency on a cold run,
-   acceptable for batch analysis.
-3. Spring annotation patterns are stable enough that syntactic detection
-   without semantic resolution covers ≥80% of real-world Spring Boot apps.
+1. Tree-sitter Java grammar reliably exposes annotation nodes and method signatures
+   without a semantic model.
+2. Spring annotation FQNs in import statements or fully-qualified annotations are
+   sufficient for ≥80% of PetClinic beans.
+3. Batch analysis tolerates tree-sitter native binding deployment on Windows/Linux CI.
 
 ---
 
 ## What Would Falsify This Decision
 
-- Tree-sitter Java grammar cannot reliably identify `@Bean` method return types
-  and parameter injection sites → fall back to JavaParser.
-- JVM startup cost exceeds 2 seconds on CI baseline → reconsider subprocess
-  model; consider AOT-compiled Java tool.
-- More than 20% of Spring PetClinic beans are missed by syntactic detection
-  → scope must expand or confidence must be set lower.
+- Tree-sitter cannot reliably identify `@Bean` return types and parameter injection
+  sites on PetClinic → **fall back to JavaParser subprocess**.
+- More than 20% of PetClinic beans missed by syntactic detection → expand scope or
+  lower default confidence.
+- Tree-sitter native bindings block CI → reconsider JavaParser AOT JAR or pure Java CLI sidecar.
 
 ---
 
-## Status: Proposed
+## Rejected Alternatives
 
-This ADR will be marked Accepted when Phase 6 begins and the Q1–Q4 decisions
-are confirmed by the implementation team.
+### JavaParser as primary
+Rejected for v1 due to JVM subprocess latency and IPC complexity; valid fallback.
+
+### Defer `IStaticParser` until Java parser is complete
+Rejected — contract needed before parallel parser work proceeds.

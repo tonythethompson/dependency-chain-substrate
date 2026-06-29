@@ -31,6 +31,17 @@ public sealed record RegistrationNode
     public Dictionary<string, string> Annotations { get; init; } = [];
     public List<string> ConditionalOn { get; init; } = [];
 
+    public List<ContextMembership> ContextMemberships { get; init; } = [];
+    public string? PrimaryBeanName { get; init; }
+    public List<string> BeanAliases { get; init; } = [];
+    public TypeRef? ExposedType { get; init; }
+    public TypeRef? ImplementationType { get; init; }
+    public List<QualifierConstraint> QualifierConstraints { get; init; } = [];
+    public bool IsPrimary { get; init; }
+    public RegistrationOrigin? Origin { get; init; }
+    public string? ModuleId { get; init; }
+    public SourceSetKind? SourceSet { get; init; }
+
     /// <summary>Cross-snapshot identity: hash(FQN). Shared by all registrations of the same abstract token.</summary>
     public static string ComputeId(string fullyQualifiedName)
     {

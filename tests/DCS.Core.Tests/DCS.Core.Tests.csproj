@@ -4,7 +4,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -22,13 +21,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DCS.Core\DCS.Core.csproj" />
-    <ProjectReference Include="..\..\src\DCS.Analysis\DCS.Analysis.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\fixtures\custom-frameworks.json" Link="fixtures\custom-frameworks.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

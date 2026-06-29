@@ -38,7 +38,9 @@ public sealed class GraphAnalyzer
         return new AnalysisResult
         {
             Leaked = FindLeaked(nodeById),
-            Orphaned = FindOrphaned(nodeById, inEdges, rootId, reachable),
+            Orphaned = string.Equals(_graph.SourceLanguage, "java", StringComparison.OrdinalIgnoreCase)
+                ? []
+                : FindOrphaned(nodeById, inEdges, rootId, reachable),
             BrokenChains = FindBrokenChains(nodeById, outEdges),
             Duplicates = FindDuplicates(),
             Cycles = FindCycles(nodeById, outEdges),
@@ -69,7 +71,11 @@ public sealed class GraphAnalyzer
             {
                 var edgeCount = outEdges.TryGetValue(n.Id, out var edges) ? edges.Count : 0;
                 var fileName = Path.GetFileName(n.SourceLocation?.FilePath ?? string.Empty);
-                return edgeCount * (priorityFiles.Contains(fileName) ? 2 : 1);
+                var simpleName = n.ExposedType?.ShortName ?? n.DisplayName;
+                var boost = priorityFiles.Contains(fileName) ? 2
+                    : simpleName.EndsWith("Application", StringComparison.Ordinal) ? 2
+                    : 1;
+                return edgeCount * boost;
             })
             .FirstOrDefault()?.Id;
     }

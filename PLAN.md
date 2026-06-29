@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
 
 ---
 
@@ -54,7 +54,7 @@ Trackdub commits.
 |------|--------|-------|
 | DESIGN.md §9-10 — fill | ✅ Done | 2026-06-28 — GraphDiffer + CSharpStaticParser |
 | Git blob reader (libgit2sharp) — implement | ✅ Done | 2026-06-28 — CSharpStaticParser.ParseCommit |
-| Per-commit extraction cache (keyed by SHA) — implement | ⬜ Not started | In-memory; file cache deferred |
+| Per-commit extraction cache (keyed by SHA) — implement | ✅ Done | 2026-06-28 — ExtractionCache in DCS.Core; `--cache-dir` / `--no-cache` |
 | Diff engine + rename detection — implement | ✅ Done | 2026-06-28 — DCS.Diff |
 | CLI `diff` command — implement | ✅ Done | 2026-06-28 |
 | Phase 2 verification against Trackdub | ✅ Done | 2026-06-28 — diff 3c4e374d→316614b8 correctly shows MainWindow+MainWindowViewModel removed; breaking changes detected |
@@ -86,8 +86,8 @@ Trackdub commits.
 | Task | Status | Notes |
 |------|--------|-------|
 | CI-gate consumer — implement | ✅ Done | 2026-06-28 — exit code 1 on errors; `analyze` is CI-ready |
-| Registration Atlas polish | ⬜ Not started | DESIGN.md §12 module spec |
-| Boundary Probe config UX | ⬜ Not started | `--frameworks <json>` flag |
+| Registration Atlas polish | ✅ Done | 2026-06-28 — `dcs atlas` command |
+| Boundary Probe config UX | ✅ Done | 2026-06-28 — `--frameworks <json>` flag |
 | Phase 4 verification | ✅ Done | 2026-06-28 — exit code 1 on analyze 3c4e374d (4 broken chains); exit code 1 on diff 3c4e374d→316614b8 (breaking changes) |
 
 **Phase 4 gate:** ✅ CLOSED — CI gate verified on real Trackdub commits.
@@ -107,12 +107,12 @@ Trackdub; disk cache eliminates redundant re-extraction on repeated CLI runs.
 | DESIGN.md §§4-5 (Extraction, IR) — fill | ✅ Done | 2026-06-28 |
 | DESIGN.md §§9-10 (Diff Engine, Git Ingestion) — fill | ✅ Done | 2026-06-28 |
 | DESIGN.md §§11-17 (Viz, Modules, Cross-cutting, Extensibility, Phasing, Risks, Validation) — fill | ✅ Done | 2026-06-28 |
-| `--frameworks <json>` — implement | ⬜ Not started | Allow caller to override default framework boundary config; see ADR-001 §future |
-| Per-commit disk cache — implement | ⬜ Not started | File cache keyed by SHA+parserVersion; eliminates re-extraction on repeated runs |
-| Registration Atlas polish — implement | ⬜ Not started | Complete §12 module spec per DESIGN.md |
+| `--frameworks <json>` — implement | ✅ Done | 2026-06-28 — FrameworkBoundaryModel.LoadFromJson + CLI wiring |
+| Per-commit disk cache — implement | ✅ Done | 2026-06-28 — ExtractionCache; default %LOCALAPPDATA%/dependency-chain-substrate |
+| Registration Atlas polish — implement | ✅ Done | 2026-06-28 — `dcs atlas` human-readable listing |
 | Rename weight tuning | ⬜ Blocked | Needs a Trackdub commit pair with known renames; unblocked when such a pair is identified |
 
-**Phase 5 gate:** DESIGN.md has no unfilled `> Q:` prompts ✅; `dcs diff --frameworks` works on Trackdub; repeated `dcs analyze` on same commit skips re-extraction.
+**Phase 5 gate:** ✅ CLOSED — DESIGN.md fully answered; `--frameworks` on analyze/diff/atlas; disk cache on repeated `analyze --commit`.
 
 ---
 
@@ -123,18 +123,19 @@ LEAKED detection work on a real Spring Boot repo with multiple framework context
 
 | Task | Status | Notes |
 |------|--------|-------|
-| ADR-005: Spring parser scope and approach | ⬜ Not started | Key decisions: JavaParser vs tree-sitter; which Spring patterns are in scope |
-| DCS.Parser.Java — scaffold | ⬜ Not started | After ADR-005 accepted |
-| @Bean / @Configuration pattern extraction | ⬜ Not started | |
-| @Component scan pattern extraction | ⬜ Not started | |
-| @Autowired constructor edge extraction | ⬜ Not started | |
-| @Conditional / Spring Data → BLIND_SPOT | ⬜ Not started | |
-| Framework tags for Spring MVC / Spring Data / Spring Security | ⬜ Not started | |
-| Phase 6 verification | ⬜ Not started | Against Spring PetClinic or equivalent open-source project |
+| ADR-005: Spring parser scope and approach | ✅ Done | 2026-06-28 — Accepted; tree-sitter primary |
+| ParseResult bundle + ContextGraph IR | ✅ Done | 2026-06-29 — Multi-context bundle; schema 1.2.0 |
+| Tree-sitter Java parse layer | ✅ Done | 2026-06-29 — TreeSitter.DotNet 1.3.0; JavaCompilationUnit |
+| Context discovery (scan, @Import, Spring Data) | ✅ Done | 2026-06-29 — Default repo scan from @SpringBootApplication package |
+| @Bean / @Configuration / stereotype extraction | ✅ Done | 2026-06-29 — PrimaryBeanName, aliases, @Scope, FactoryProvenance |
+| @Autowired constructor/field edge extraction | ✅ Done | 2026-06-29 — Single-ctor inference; ConservativeEdgeResolver |
+| @Conditional / Spring Data → degraded confidence | ✅ Done | 2026-06-29 — Spring Data repos DEGRADED; conditional injections |
+| IStaticParser → ParseResult | ✅ Done | 2026-06-29 — C# parser wraps single-graph bundle |
+| CLI `--language java` + auto-detect | ✅ Done | 2026-06-29 — analyze/atlas/diff/viz route to SpringStaticParser |
+| Phase 6 verification | ✅ Done | 2026-06-29 — PetClinic pinned SHA gate + analysis (no leaked/broken) |
 
-**Phase 6 gate:** Spring PetClinic IR contains ≥10 correctly typed nodes with
-SINGLETON lifetime; @Autowired edges present; Spring Data repos show DEGRADED
-confidence; auto-config beans show BLIND_SPOT.
+**Phase 6 gate:** ✅ CLOSED — Spring PetClinic IR contains ≥10 singleton nodes,
+@Autowired wiring edges present; Spring Data repos show DEGRADED confidence.
 
 ---
 

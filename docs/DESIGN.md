@@ -78,8 +78,8 @@ Full extension-method transitive tracing. Decorator chains (`Decorate<T>()`).
 **Answer:** No runtime container inspection; no hybrid static+runtime diffs; no
 auto-fix or write-back; no IDE/marketplace extension; no semantic type resolution
 (no `SemanticModel`); no assembly-scanning body expansion; no factory-lambda
-dependency resolution; no `--frameworks` override yet (Phase 5 task); no on-disk
-extraction cache yet (Phase 5 task); no rename-weight tuning on labelled corpus
+dependency resolution; `--frameworks <json>` for additive custom framework tags;
+per-commit disk cache via `--cache-dir` / `--no-cache`; no rename-weight tuning on labelled corpus
 (blocked until Trackdub rename pair identified).
 
 > Q: How does this differ from existing tools (dotnet-trace, SonarQube,
@@ -559,11 +559,12 @@ tree; enables concurrent/extraction without side effects; required for diff-at-s
 > Q: How is per-commit extraction cached? (Cache key = commit SHA + parser
 >    version. Where stored? What invalidation policy?)
 
-**Answer:** **Not implemented yet** (Phase 5 task). Current behaviour: full re-parse
-on every CLI invocation. Planned: file cache keyed by `{commit_sha}:{parser_version}`
-(hash of parser assembly version); invalidate when `parser_version` bumps or cache
-file missing. In-memory only today within a single `diff` run (two parses, no reuse
-between commands).
+**Answer:** **Implemented** (Phase 5). `ExtractionCache` in `DCS.Core.Caching` stores IR JSON at
+`{commitSha}_{parserVersion}.json`. Default directory:
+`%LOCALAPPDATA%/dependency-chain-substrate/cache/` (Windows) or
+`~/.cache/dependency-chain-substrate/` (elsewhere). Override: `--cache-dir <path>`.
+Bypass: `--no-cache`. Invalidation: automatic when `CSharpStaticParser.ParserVersion`
+changes. Scope: `ParseCommit` only (not `ParseDirectory`). Stderr logs `[DCS] Cache hit for {sha}`.
 
 > Q: How are merge commits handled? (Which parent's tree is extracted?)
 
@@ -641,16 +642,15 @@ Modules:
 - **Migration Diff** — diff engine + git, migration-focused comparison
 
 **Answer (MVP slices as shipped):**
-- **Registration Atlas:** `dcs dump-ir` + `dcs analyze --ir-out` — full
-  `RegistrationGraph` JSON with nodes, edges, blind_spots, metadata. No separate
-  atlas UI beyond viz/CLI.
+- **Registration Atlas:** `dcs atlas` (human-readable sorted listing + framework counts)
+  and `dcs dump-ir` / `dcs analyze --ir-out` (JSON IR for tooling).
 - **Topology Lens:** `dcs viz` — canvas graph with framework colours, zoom/pan,
   error badges from analysis. No force-directed or Sugiyama layout yet.
 - **Path Excavator:** **Not implemented.** No root→node path query CLI or viz
   highlight. Reachability computed internally for orphan detection only.
 - **Framework Boundary Probe:** `GraphAnalyzer.FindLeaked` + `FrameworkBoundaryModel`
   — built into `dcs analyze`; built-in WinUI/Avalonia/WPF/ASP.NET tags. Custom
-  `--frameworks` JSON deferred Phase 5.
+  frameworks additive via `--frameworks <path>` (JSON config).
 - **Drift Scanner:** `dcs diff --from --to` — added/removed/renamed/modified nodes
   and edges; breaking-change exit code.
 - **Migration Diff:** Same engine as Drift Scanner; migration interpretation is

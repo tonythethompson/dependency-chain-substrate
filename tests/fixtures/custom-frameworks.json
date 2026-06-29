@@ -1,0 +1,8 @@
+{
+  "frameworks": [
+    {
+      "tag": "maui",
+      "namespace_prefixes": ["Microsoft.Maui.", "Microsoft.Maui.Controls."]
+    }
+  ]
+}
