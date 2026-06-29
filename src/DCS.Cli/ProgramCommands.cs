@@ -3,6 +3,7 @@ using DCS.Core.IR;
 using DCS.Core.Parsing;
 using DCS.Core.Serialization;
 using DCS.Diff;
+using DCS.Fix;
 using DCS.Viz;
 
 namespace DCS.Cli;
@@ -143,6 +144,55 @@ internal static class ProgramCommands
         }
     }
 
+    internal static Task<int> RunFix(string[] args)
+    {
+        var options = CliArgParser.ParseFixCommand(args);
+        if (options.RepoPath == null) return Task.FromResult(ErrorExit("fix requires <repo-path>"));
+
+        if (RepoLanguageDetector.Resolve(options.RepoPath, options.Language) != RepoLanguage.CSharp)
+            return Task.FromResult(ErrorExit("fix currently supports C# DI registrations only."));
+
+        if (options.Commit != null)
+            return Task.FromResult(ErrorExit("fix operates on the working directory; omit --commit."));
+
+        try
+        {
+            var graph = ExtractGraph(options);
+            var analysis = new GraphAnalyzer(graph, LoadBoundaries(options.FrameworksPath), options.RootClass).Analyze();
+
+            if (analysis.Duplicates.Count == 0)
+            {
+                Console.Error.WriteLine("[DCS] No duplicate registrations found.");
+                return Task.FromResult(0);
+            }
+
+            var tokenFilter = options.FixAllDuplicates ? null : options.FixToken ?? analysis.Duplicates[0].AbstractTokenName;
+            FixResult result;
+
+            if (options.ApplyFix)
+            {
+                result = FixEngine.ApplyDuplicateFixes(
+                    options.RepoPath,
+                    graph,
+                    analysis,
+                    tokenFilter,
+                    options.ForceFix);
+                Console.Error.WriteLine($"[DCS] Applied {result.Proposals.Count} duplicate fix(es).");
+            }
+            else
+            {
+                result = FixEngine.BuildDuplicateFixes(options.RepoPath, graph, analysis, tokenFilter);
+            }
+
+            Console.WriteLine(FixEngine.FormatPreview(result));
+            return Task.FromResult(0);
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(ErrorExit(ex.Message));
+        }
+    }
+
     internal static async Task<int> RunViz(string[] args)
     {
         var options = CliArgParser.ParseVizCommand(args);
@@ -200,6 +250,7 @@ internal static class ProgramCommands
               dump-ir <repo-path> [options]           Extract IR as JSON (no analysis)
               diff    <repo-path> --from <sha> --to <sha> [options]
                                                       Diff two commits
+              fix     <repo-path> [options]           Preview/apply DUPLICATE registration removal
               viz     <source> [options]              Generate self-contained HTML visualization
 
             SHARED REPO OPTIONS
@@ -219,6 +270,13 @@ internal static class ProgramCommands
               --from <sha>          Base commit SHA
               --to <sha>            Target commit SHA
 
+            FIX OPTIONS (working directory only; C# repos)
+              --preview             Show unified diff without writing (default)
+              --apply               Write patched files (requires clean git tree)
+              --force               Apply even when git working tree is dirty
+              --token <name>        Fix a specific duplicate abstract token
+              --all-duplicates      Fix every duplicate group in one run
+
             VIZ OPTIONS
               <repo-path>           Extract from repo (also runs analysis)
               --commit <sha>        Extract specific commit
@@ -232,7 +290,8 @@ internal static class ProgramCommands
               2   Usage error
 
             EXAMPLES
-              dcs analyze /path/to/spring-boot-repo --language java
+              dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
+              dcs fix /path/to/repo --apply --force
               dcs analyze /path/to/repo --commit abc1234
               dcs atlas /path/to/repo --commit abc1234
               dcs diff /path/to/repo --from abc1234 --to def5678 --frameworks fw.json

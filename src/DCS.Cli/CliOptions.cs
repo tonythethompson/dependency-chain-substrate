@@ -16,6 +16,10 @@ internal sealed record CliOptions
     public RepoLanguage Language { get; init; } = RepoLanguage.Auto;
     public string? ContextId { get; init; }
     public IReadOnlyList<string>? ContextRoot { get; init; }
+    public bool ApplyFix { get; init; }
+    public bool ForceFix { get; init; }
+    public string? FixToken { get; init; }
+    public bool FixAllDuplicates { get; init; }
 }
 
 internal static class CliArgParser
@@ -137,6 +141,46 @@ internal static class CliArgParser
             Language = language,
             ContextId = contextId,
             ContextRoot = contextRoot == null ? null : [contextRoot]
+        };
+    }
+
+    public static CliOptions ParseFixCommand(string[] args)
+    {
+        var baseOptions = ParseRepoCommand(args, allowCommit: false, allowRoot: false);
+        var apply = false;
+        var force = false;
+        var fixAll = false;
+        string? token = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--apply":
+                    apply = true;
+                    break;
+                case "--preview":
+                    apply = false;
+                    break;
+                case "--force":
+                    force = true;
+                    break;
+                case "--all-duplicates":
+                    fixAll = true;
+                    break;
+                case "--token" when i + 1 < args.Length:
+                    token = args[++i];
+                    break;
+            }
+        }
+
+        return baseOptions with
+        {
+            ApplyFix = apply,
+            ForceFix = force,
+            FixToken = token,
+            FixAllDuplicates = fixAll,
+            Language = baseOptions.Language == RepoLanguage.Auto ? RepoLanguage.CSharp : baseOptions.Language
         };
     }
 

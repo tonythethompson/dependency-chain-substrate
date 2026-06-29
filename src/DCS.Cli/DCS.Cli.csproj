@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DCS.Core\DCS.Core.csproj" />
+    <ProjectReference Include="..\DCS.Fix\DCS.Fix.csproj" />
     <ProjectReference Include="..\DCS.Parser.CSharp\DCS.Parser.CSharp.csproj" />
     <ProjectReference Include="..\DCS.Parser.Java\DCS.Parser.Java.csproj" />
     <ProjectReference Include="..\DCS.Analysis\DCS.Analysis.csproj" />

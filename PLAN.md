@@ -139,19 +139,22 @@ LEAKED detection work on a real Spring Boot repo with multiple framework context
 
 ---
 
-## Phase 7 — IDE Extension
+## Phase 7 — IDE Extension (deferred)
+
+**Status:** Deferred until after Phase 8/9. CLI-first delivery remains the primary
+form factor (ADR-003). IDE extension is a thin consumer once fix + analysis stabilize.
 
 **Done means:** A VS Code extension shows inline error badges on DI registration
 call sites without leaving the editor.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| ADR-006: IDE integration form factor | ⬜ Not started | Key decision: VS Code extension vs LSP server; trigger model; analysis scope |
-| Extension scaffold | ⬜ Not started | After ADR-006 accepted |
-| On-save analysis trigger | ⬜ Not started | |
-| Inline diagnostic decorations (LEAKED, BROKEN, DUPLICATE) | ⬜ Not started | |
-| IR cache reuse within IDE session | ⬜ Not started | |
-| Phase 7 verification | ⬜ Not started | Inline badge visible on VoiceCloneConsentCoordinator in Trackdub without running CLI |
+| ADR-006: IDE integration form factor | ⬜ Deferred | After Phase 8/9 |
+| Extension scaffold | ⬜ Deferred | |
+| On-save analysis trigger | ⬜ Deferred | |
+| Inline diagnostic decorations (LEAKED, BROKEN, DUPLICATE) | ⬜ Deferred | |
+| IR cache reuse within IDE session | ⬜ Deferred | |
+| Phase 7 verification | ⬜ Deferred | Inline badge on Trackdub without CLI |
 
 **Phase 7 gate:** LEAKED badge appears inline within 5 seconds of opening
 Trackdub in VS Code; no false positive on clean commit.
@@ -165,15 +168,15 @@ removal) with a preview diff and rollback via git.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| ADR-007: Write-back safety model | ⬜ Not started | Key decisions: fix scope, Roslyn SyntaxRewriter vs string replacement, preview model, rollback strategy |
-| Fix classes: DUPLICATE removal | ⬜ Not started | After ADR-007 accepted |
-| Fix classes: ORPHANED removal | ⬜ Not started | |
-| Fix classes: LEAKED (add framework guard) | ⬜ Not started | |
-| Preview diff before apply | ⬜ Not started | |
-| Phase 8 verification | ⬜ Not started | `dcs fix` removes one Trackdub WinUI duplicate; git diff shows only the removed line |
+| ADR-007: Write-back safety model | ✅ Done | 2026-06-29 — Accepted; DUPLICATE-only v1 |
+| DCS.Fix — DUPLICATE removal | ✅ Done | 2026-06-29 — Roslyn statement removal + preview/apply |
+| CLI `dcs fix` | ✅ Done | 2026-06-29 — `--preview` default, `--apply`, `--token`, `--force` |
+| Fix classes: ORPHANED removal | ⬜ Deferred | v1.1 after false-positive measurement |
+| Fix classes: LEAKED (add framework guard) | ⬜ Deferred | |
+| Phase 8 verification | ✅ Done | 2026-06-29 — Fixture + Trackdub optional gate |
 
-**Phase 8 gate:** Single DUPLICATE registration removed with correct syntax
-edit; no other lines changed; `dcs analyze` shows one fewer duplicate afterward.
+**Phase 8 gate:** ✅ CLOSED — `dcs fix --apply` removes one DUPLICATE registration;
+preview diff shows only the removed line; analyze shows one fewer duplicate group.
 
 ---
 
