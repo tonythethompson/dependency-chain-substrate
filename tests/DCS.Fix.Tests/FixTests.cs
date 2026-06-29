@@ -1,7 +1,7 @@
 using DCS.Analysis;
 using DCS.Core.IR;
 using DCS.Fix;
-using Xunit;
+using DCS.Parser.CSharp;
 
 namespace DCS.Fix.Tests;
 
@@ -27,16 +27,20 @@ public sealed class DuplicateFixPlannerTests
         Assert.Equal(shell.InstanceId, target.InstanceId);
     }
 
-    private static RegistrationNode MakeNode(string name, string file, int line, Confidence confidence) =>
-        new()
+    private static RegistrationNode MakeNode(string name, string file, int line, Confidence confidence)
+    {
+        var instanceId = RegistrationNode.ComputeRegistrationInstanceId("fix-test", file, line, 0, line, 80, 0);
+        return new RegistrationNode
         {
-            Id = RegistrationNode.ComputeId(name),
-            InstanceId = RegistrationNode.ComputeInstanceId(name, file, line),
+            Id = instanceId,
+            RegistrationInstanceId = instanceId,
+            InstanceId = instanceId,
             DisplayName = name,
             AbstractToken = TypeRef.FromShortName(name),
             SourceLocation = new SourceRef { FilePath = file, Line = line },
             ParserConfidence = confidence
         };
+    }
 }
 
 public sealed class RegistrationStatementRemoverTests
@@ -72,7 +76,12 @@ public sealed class FixEngineIntegrationTests
         var root = CreateDuplicateFixture();
         try
         {
-            var graph = new DCS.Parser.CSharp.CSharpStaticParser().ParseDirectory(root);
+            var parser = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            });
+            var graph = parser.ParseDirectory(root);
             var registrationGraph = graph.SingleGraphOrDefault()
                 ?? throw new InvalidOperationException("Expected one context graph.");
             var before = new GraphAnalyzer(registrationGraph).Analyze();
@@ -80,7 +89,11 @@ public sealed class FixEngineIntegrationTests
 
             FixEngine.ApplyDuplicateFixes(root, registrationGraph, before, forceDirtyTree: true);
 
-            var afterGraph = new DCS.Parser.CSharp.CSharpStaticParser().ParseDirectory(root).SingleGraphOrDefault()!;
+            var afterGraph = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            }).ParseDirectory(root).SingleGraphOrDefault()!;
             var after = new GraphAnalyzer(afterGraph).Analyze();
             Assert.Empty(after.Duplicates);
         }
@@ -93,11 +106,33 @@ public sealed class FixEngineIntegrationTests
     private static string CreateDuplicateFixture()
     {
         var root = Path.Combine(Path.GetTempPath(), $"dcs-fix-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
         Directory.CreateDirectory(Path.Combine(root, "WinUI"));
         Directory.CreateDirectory(Path.Combine(root, "Avalonia"));
 
+        File.WriteAllText(Path.Combine(root, "DcsFixTest.csproj"), """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        File.WriteAllText(Path.Combine(root, "VoiceCloneConsentCoordinator.cs"), """
+            namespace DcsFixTest;
+            public interface IVoiceCloneConsentCoordinator { }
+            public class VoiceCloneConsentCoordinator : IVoiceCloneConsentCoordinator { }
+            """);
+
         File.WriteAllText(Path.Combine(root, "WinUI", "App.xaml.cs"), """
             using Microsoft.Extensions.DependencyInjection;
+            using DcsFixTest;
+            namespace DcsFixTest.WinUI;
             public static class WinUiApp {
               public static void Register(IServiceCollection services) {
                 services.AddSingleton<IVoiceCloneConsentCoordinator, VoiceCloneConsentCoordinator>();
@@ -107,6 +142,8 @@ public sealed class FixEngineIntegrationTests
 
         File.WriteAllText(Path.Combine(root, "Avalonia", "App.axaml.cs"), """
             using Microsoft.Extensions.DependencyInjection;
+            using DcsFixTest;
+            namespace DcsFixTest.Avalonia;
             public static class AvaloniaApp {
               public static void Register(IServiceCollection services) {
                 services.AddSingleton<IVoiceCloneConsentCoordinator, VoiceCloneConsentCoordinator>();

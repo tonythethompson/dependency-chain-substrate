@@ -322,6 +322,14 @@ internal static class ProgramCommands
         foreach (var d in result.Duplicates)
             w.WriteLine($"  [WARN]  DUPLICATE: {d.AbstractTokenName} registered {d.NodeIds.Count}× (may indicate leaked migration state)");
 
+        WriteSection(w, "POSSIBLE DUPLICATES", result.PossibleDuplicates.Count);
+        foreach (var d in result.PossibleDuplicates)
+            w.WriteLine($"  [WARN]  POSSIBLE DUPLICATE: {d.AbstractTokenName} registered {d.NodeIds.Count}× (semantic eligibility not met)");
+
+        WriteSection(w, "UNRESOLVED DEPENDENCIES", result.TotalUnresolvedInjections);
+        foreach (var u in graph.UnresolvedInjections)
+            w.WriteLine($"  [WARN]  UNRESOLVED DEPENDENCY: {u.DeclaredType.ShortName} from {u.FromRegistrationId} ({u.Reason})");
+
         WriteSection(w, "ORPHANED", result.Orphaned.Count);
         foreach (var o in result.Orphaned)
             w.WriteLine($"  [WARN]  ORPHANED: {o.DisplayName} {FormatLoc(o.SourceFile, o.SourceLine)}");
@@ -342,7 +350,8 @@ internal static class ProgramCommands
         w.WriteLine();
         w.WriteLine($"SUMMARY: {(result.HasErrors ? "ERRORS FOUND" : "no errors")} | " +
                     $"{result.Leaked.Count} leaked | {result.BrokenChains.Count} broken | " +
-                    $"{result.Duplicates.Count} duplicate | {result.Orphaned.Count} orphaned | " +
+                    $"{result.Duplicates.Count} duplicate | {result.PossibleDuplicates.Count} possible duplicate | " +
+                    $"{result.TotalUnresolvedInjections} unresolved | {result.Orphaned.Count} orphaned | " +
                     $"{result.TotalBlindSpots} blind spots");
     }
 

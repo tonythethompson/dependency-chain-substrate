@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-29
+Last updated: 2026-06-28
 
 ---
 
@@ -199,7 +199,37 @@ overhead <5% on Trackdub startup.
 
 ---
 
+---
+
+## Phase 10 — Semantic Roslyn Type Resolution
+
+**Done means:** Per-project semantic compilation resolves registration and constructor
+types; strict DUPLICATE uses `DuplicateGroupKey`; Trackdub CI gate passes at pin
+`3c4e374d`.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| ADR-009: Semantic Roslyn resolution | ✅ Draft (Proposed) | Human sign-off pending → Accepted |
+| ADR-002 amendment: identity 1.2.0 | ✅ Draft (Proposed) | |
+| IR schema 1.2.0 (`ResolvedTypeIdentity`, quality dimensions) | ✅ Done | |
+| `ProjectTargetScope` discovery + compilation factory | ✅ Done | |
+| `ReferenceProfileProvider` + closure order | ✅ Done | |
+| Semantic visitors + unresolved injections | ✅ Done | Parser 0.2.0 |
+| GraphAnalyzer strict/possible duplicates | ✅ Done | |
+| GraphDiffer hybrid matching | ✅ Done | |
+| Fix engine instance-id alignment | ✅ Done | |
+| CLI `--target-framework` / `--all-target-frameworks` | ✅ Done | |
+| Unit semantic fixtures | ✅ Done | `SemanticResolutionTests` |
+| Trackdub mandatory CI gate | ✅ Done | `trackdub-semantic` job |
+| DESIGN.md §5 + §6 update | ✅ Done | |
+| Phase 10 Verified (Trackdub metrics) | ⬜ Pending | Blocked on ADR Accepted + CI green on main |
+
+**Phase 10 gate:** `trackdub-semantic` CI job passes; `semantic_type_resolution_rate`,
+`registration_api_verification_rate`, and `project_scope_completeness_rate` reported;
+VoiceCloneConsentCoordinator strict duplicate detected at pin.
+
+---
+
 ## Parked (no phase yet)
 
 - TypeScript / Python parsers (Phase 6 Spring first; TS/Python follow same ADR pattern)
-- Semantic Roslyn upgrade (replace syntactic short-name FQN with full resolved FQN — eliminates duplicate-ID collision class entirely; requires MSBuildWorkspace or in-memory compilation)

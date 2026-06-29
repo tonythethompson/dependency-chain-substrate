@@ -8,4 +8,7 @@ public sealed record CSharpParseOptions
     public string? CacheDirectory { get; init; }
     public bool NoCache { get; init; }
     public Action<string>? OnCacheHit { get; init; }
+    public string? TargetFramework { get; init; }
+    public bool AllTargetFrameworks { get; init; } = true;
+    public string BuildConfiguration { get; init; } = "Debug";
 }

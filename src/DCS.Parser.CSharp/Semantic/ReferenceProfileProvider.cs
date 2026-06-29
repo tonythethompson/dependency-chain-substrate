@@ -1,0 +1,105 @@
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using RoslynParseOptions = Microsoft.CodeAnalysis.CSharp.CSharpParseOptions;
+
+namespace DCS.Parser.CSharp.Semantic;
+
+public sealed record ReferenceProfile
+{
+    public required string ProfileId { get; init; }
+    public required string TargetFramework { get; init; }
+    public required IReadOnlyList<MetadataReference> References { get; init; }
+    public required string Fingerprint { get; init; }
+    public bool ImplicitUsingsInjected { get; init; }
+}
+
+public static class ReferenceProfileProvider
+{
+    private static readonly string[] ImplicitUsingsForNet8 =
+    [
+        "global using System;",
+        "global using System.Collections.Generic;",
+        "global using System.IO;",
+        "global using System.Linq;",
+        "global using System.Net.Http;",
+        "global using System.Threading;",
+        "global using System.Threading.Tasks;"
+    ];
+
+    public static ReferenceProfile Get(ProjectTargetScope scope)
+    {
+        var refs = ResolveFrameworkReferences(scope.TargetFramework);
+        var fingerprintParts = new List<string>
+        {
+            scope.TargetFramework,
+            scope.LangVersion ?? "default",
+            scope.NullableEnabled ? "nullable" : "nonnullable",
+            string.Join(",", scope.DefineConstants.OrderBy(c => c, StringComparer.Ordinal)),
+            scope.ImplicitUsingsEnabled ? "implicit" : "no-implicit"
+        };
+
+        foreach (var r in refs)
+        {
+            if (r.Display?.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) == true &&
+                File.Exists(r.Display))
+            {
+                fingerprintParts.Add(Path.GetFileName(r.Display) + ":" +
+                    Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(r.Display)))[..8]);
+            }
+        }
+
+        var fingerprint = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", fingerprintParts))))[..16];
+
+        return new ReferenceProfile
+        {
+            ProfileId = $"tfm-{scope.TargetFramework}",
+            TargetFramework = scope.TargetFramework,
+            References = refs,
+            Fingerprint = fingerprint,
+            ImplicitUsingsInjected = scope.ImplicitUsingsEnabled && !scope.ImplicitUsingsUnmodeled
+        };
+    }
+
+    public static SyntaxTree? CreateImplicitUsingsTree(ProjectTargetScope scope, RoslynParseOptions? parseOptions = null)
+    {
+        if (!scope.ImplicitUsingsEnabled || scope.ImplicitUsingsUnmodeled)
+            return null;
+
+        var content = string.Join('\n', ImplicitUsingsForNet8) + '\n';
+        return CSharpSyntaxTree.ParseText(content, parseOptions ?? new RoslynParseOptions(), path: "__implicit_usings__.cs");
+    }
+
+    private static List<MetadataReference> ResolveFrameworkReferences(string targetFramework)
+    {
+        var refs = new List<MetadataReference>();
+        var packs = new[]
+        {
+            ("Microsoft.NETCore.App.Ref", targetFramework),
+            ("Microsoft.AspNetCore.App.Ref", targetFramework)
+        };
+
+        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
+
+        foreach (var (packName, tfm) in packs)
+        {
+            var refDir = Path.Combine(dotnetRoot, "packs", packName, "ref", tfm);
+            if (!Directory.Exists(refDir)) continue;
+            foreach (var dll in Directory.EnumerateFiles(refDir, "*.dll", SearchOption.AllDirectories))
+            {
+                try { refs.Add(MetadataReference.CreateFromFile(dll)); }
+                catch { /* skip invalid refs */ }
+            }
+        }
+
+        refs.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+        refs.Add(MetadataReference.CreateFromFile(
+            typeof(Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions).Assembly.Location));
+
+        return refs;
+    }
+}

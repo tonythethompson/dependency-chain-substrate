@@ -6,18 +6,27 @@ namespace DCS.Core.IR;
 public sealed record RegistrationNode
 {
     /// <summary>
-    /// Cross-snapshot identity key: hash(FQN). Stable across commits for the same logical
-    /// registration. Used by the diff engine for rename detection and change matching.
-    /// Two registrations of the same abstract token in different files share this ID.
+    /// Primary graph node key. Alias of <see cref="RegistrationInstanceId"/>.
     /// </summary>
     public required string Id { get; init; }
 
     /// <summary>
-    /// Within-snapshot uniqueness key: hash(FQN + filePath + line). Unique per registration
-    /// site so duplicate registrations (e.g. same interface in WinUI and Avalonia shells)
-    /// are not silently collapsed in analysis. Used by GraphAnalyzer for per-instance tracking.
+    /// Within-snapshot unique registration site identity (same value as <see cref="Id"/>).
+    /// </summary>
+    public string RegistrationInstanceId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Legacy field — converged to <see cref="RegistrationInstanceId"/>.
     /// </summary>
     public string InstanceId { get; init; } = string.Empty;
+
+    public ServiceTypeIdentity? ServiceType { get; init; }
+    public string DuplicateGroupKey { get; init; } = string.Empty;
+    public string CompositionScopeId { get; init; } = string.Empty;
+    public TypeResolutionQuality TypeResolutionQuality { get; init; } = TypeResolutionQuality.SyntacticFallback;
+    public RegistrationRecognitionQuality RegistrationRecognitionQuality { get; init; } =
+        RegistrationRecognitionQuality.SyntaxCandidateUnverified;
+    public string RegistrationStatementFingerprint { get; init; } = string.Empty;
 
     public required string DisplayName { get; init; }
     public required TypeRef AbstractToken { get; init; }
@@ -42,17 +51,42 @@ public sealed record RegistrationNode
     public string? ModuleId { get; init; }
     public SourceSetKind? SourceSet { get; init; }
 
-    /// <summary>Cross-snapshot identity: hash(FQN). Shared by all registrations of the same abstract token.</summary>
-    public static string ComputeId(string fullyQualifiedName)
+    /// <summary>
+    /// Computes primary graph node identity for a registration site.
+    /// </summary>
+    public static string ComputeRegistrationInstanceId(
+        string projectTargetScopeId,
+        string? filePath,
+        int startLine,
+        int startColumn,
+        int endLine,
+        int endColumn,
+        int registrationOrdinal)
     {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(fullyQualifiedName));
-        return Convert.ToHexString(hash)[..16].ToLowerInvariant();
+        var key = $"{projectTargetScopeId}:{filePath ?? string.Empty}:{startLine}:{startColumn}:{endLine}:{endColumn}:{registrationOrdinal}";
+        return HashKey(key);
     }
 
-    /// <summary>Within-snapshot uniqueness: hash(FQN + ":" + filePath + ":" + line). Unique per registration site.</summary>
-    public static string ComputeInstanceId(string fullyQualifiedName, string? filePath, int? line)
+    /// <summary>
+    /// Computes duplicate group key from composition scope and service type identity.
+    /// </summary>
+    public static string ComputeDuplicateGroupKey(string compositionScopeId, ServiceTypeIdentity serviceType) =>
+        HashKey($"{compositionScopeId}|{serviceType.CanonicalKey}");
+
+    /// <summary>
+    /// Legacy helper — prefer <see cref="ComputeRegistrationInstanceId"/>.
+    /// </summary>
+    [Obsolete("Use ComputeRegistrationInstanceId for graph node keys.")]
+    public static string ComputeId(string fullyQualifiedName) => HashKey(fullyQualifiedName);
+
+    /// <summary>
+    /// Legacy helper — converged to registration instance id formula.
+    /// </summary>
+    public static string ComputeInstanceId(string fullyQualifiedName, string? filePath, int? line) =>
+        HashKey($"{fullyQualifiedName}:{filePath ?? string.Empty}:{line?.ToString() ?? string.Empty}");
+
+    private static string HashKey(string key)
     {
-        var key = $"{fullyQualifiedName}:{filePath ?? string.Empty}:{line?.ToString() ?? string.Empty}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
         return Convert.ToHexString(hash)[..16].ToLowerInvariant();
     }

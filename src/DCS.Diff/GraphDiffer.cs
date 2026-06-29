@@ -5,56 +5,53 @@ namespace DCS.Diff;
 public sealed class GraphDiffer
 {
     private const double RenameThreshold = 0.7;
-
-    // Weights from ADR-002 — empirically unvalidated; tune against Trackdub in Phase 1 acceptance.
     private const double NameWeight = 0.5;
     private const double DepJaccardWeight = 0.3;
     private const double LifetimeWeight = 0.2;
 
     public GraphDiff Diff(RegistrationGraph oldGraph, RegistrationGraph newGraph)
     {
-        // Duplicate IDs occur when multiple nodes share the same short name (no semantic FQN).
-        // Take first per ID; duplicates surface separately via FindDuplicates in the analyzer.
-        var oldById = oldGraph.Nodes
-            .GroupBy(n => n.Id, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
-        var newById = newGraph.Nodes
-            .GroupBy(n => n.Id, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var oldNodes = oldGraph.Nodes;
+        var newNodes = newGraph.Nodes;
+
+        var nodeChanges = new List<NodeChange>();
+        var matchedNewIds = new HashSet<string>(StringComparer.Ordinal);
+        var matchedOldIds = new HashSet<string>(StringComparer.Ordinal);
 
         var oldOutEdges = BuildOutEdgeIndex(oldGraph.Edges);
         var newOutEdges = BuildOutEdgeIndex(newGraph.Edges);
 
-        var nodeChanges = new List<NodeChange>();
+        var oldByDupKey = GroupByDuplicateKey(oldNodes);
+        var newByDupKey = GroupByDuplicateKey(newNodes);
 
-        var matchedNewIds = new HashSet<string>(StringComparer.Ordinal);
-
-        // Nodes present in both — check for in-place modifications
-        foreach (var (id, oldNode) in oldById)
+        foreach (var (dupKey, oldGroup) in oldByDupKey)
         {
-            if (!newById.TryGetValue(id, out var newNode)) continue;
+            if (!newByDupKey.TryGetValue(dupKey, out var newGroup))
+                continue;
 
-            matchedNewIds.Add(id);
-
-            var changes = DetectInPlaceChanges(oldNode, newNode);
-            nodeChanges.AddRange(changes);
+            MatchWithinDuplicateKey(oldGroup, newGroup, matchedOldIds, matchedNewIds, nodeChanges);
         }
 
-        // Nodes only in old — removed or renamed
-        var removedCandidates = oldById
-            .Where(kvp => !newById.ContainsKey(kvp.Key))
-            .Select(kvp => kvp.Value)
+        foreach (var oldNode in oldNodes)
+        {
+            if (matchedOldIds.Contains(oldNode.Id)) continue;
+            if (newNodes.Any(n => n.Id == oldNode.Id))
+            {
+                var newNode = newNodes.First(n => n.Id == oldNode.Id);
+                matchedOldIds.Add(oldNode.Id);
+                matchedNewIds.Add(newNode.Id);
+                nodeChanges.AddRange(DetectInPlaceChanges(oldNode, newNode));
+            }
+        }
+
+        var removedCandidates = oldNodes
+            .Where(n => !matchedOldIds.Contains(n.Id))
+            .ToList();
+        var addedCandidates = newNodes
+            .Where(n => !matchedNewIds.Contains(n.Id))
             .ToList();
 
-        // Nodes only in new — added or receiving end of rename
-        var addedCandidates = newById
-            .Where(kvp => !oldById.ContainsKey(kvp.Key) && !matchedNewIds.Contains(kvp.Key))
-            .Select(kvp => kvp.Value)
-            .ToList();
-
-        // Greedy rename matching
         var renames = MatchRenames(removedCandidates, addedCandidates, oldOutEdges, newOutEdges);
-
         var renamedOldIds = new HashSet<string>(renames.Select(r => r.OldNode!.Id), StringComparer.Ordinal);
         var renamedNewIds = new HashSet<string>(renames.Select(r => r.NewNode!.Id), StringComparer.Ordinal);
 
@@ -66,12 +63,9 @@ public sealed class GraphDiffer
         foreach (var node in addedCandidates.Where(n => !renamedNewIds.Contains(n.Id)))
             nodeChanges.Add(new NodeChange(NodeChangeKind.Added, null, node));
 
-        // Edge diff — simple set comparison by ID
         var oldEdgeIds = oldGraph.Edges.Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
         var newEdgeIds = newGraph.Edges.Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
-
         var edgeChanges = new List<EdgeChange>();
-
         var oldEdgeById = oldGraph.Edges.ToDictionary(e => e.Id, StringComparer.Ordinal);
         var newEdgeById = newGraph.Edges.ToDictionary(e => e.Id, StringComparer.Ordinal);
 
@@ -88,6 +82,63 @@ public sealed class GraphDiffer
             NodeChanges = nodeChanges,
             EdgeChanges = edgeChanges
         };
+    }
+
+    private static Dictionary<string, List<RegistrationNode>> GroupByDuplicateKey(IReadOnlyList<RegistrationNode> nodes) =>
+        nodes
+            .Where(n => !string.IsNullOrEmpty(n.DuplicateGroupKey))
+            .GroupBy(n => n.DuplicateGroupKey, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
+    private static void MatchWithinDuplicateKey(
+        List<RegistrationNode> oldGroup,
+        List<RegistrationNode> newGroup,
+        HashSet<string> matchedOldIds,
+        HashSet<string> matchedNewIds,
+        List<NodeChange> nodeChanges)
+    {
+        foreach (var oldNode in oldGroup)
+        {
+            if (matchedOldIds.Contains(oldNode.Id)) continue;
+
+            var candidates = newGroup
+                .Where(n => !matchedNewIds.Contains(n.Id))
+                .Where(n => SameFilePath(oldNode, n))
+                .Where(n => n.RegistrationStatementFingerprint == oldNode.RegistrationStatementFingerprint)
+                .ToList();
+
+            if (candidates.Count == 1)
+            {
+                var newNode = candidates[0];
+                matchedOldIds.Add(oldNode.Id);
+                matchedNewIds.Add(newNode.Id);
+                nodeChanges.AddRange(DetectInPlaceChanges(oldNode, newNode));
+                continue;
+            }
+
+            if (candidates.Count > 1)
+            {
+                var best = candidates
+                    .OrderBy(n => LineDistance(oldNode, n))
+                    .First();
+                matchedOldIds.Add(oldNode.Id);
+                matchedNewIds.Add(best.Id);
+                nodeChanges.AddRange(DetectInPlaceChanges(oldNode, best));
+            }
+        }
+    }
+
+    private static bool SameFilePath(RegistrationNode a, RegistrationNode b) =>
+        string.Equals(
+            a.SourceLocation?.FilePath?.Replace('\\', '/'),
+            b.SourceLocation?.FilePath?.Replace('\\', '/'),
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int LineDistance(RegistrationNode a, RegistrationNode b)
+    {
+        var la = a.SourceLocation?.Line ?? 0;
+        var lb = b.SourceLocation?.Line ?? 0;
+        return Math.Abs(la - lb);
     }
 
     private static IEnumerable<NodeChange> DetectInPlaceChanges(
@@ -116,7 +167,6 @@ public sealed class GraphDiffer
     {
         if (removed.Count == 0 || added.Count == 0) return [];
 
-        // Compute all pairwise similarities
         var pairs = new List<(double score, RegistrationNode old, RegistrationNode newNode)>();
         foreach (var oldNode in removed)
             foreach (var newNode in added)
@@ -126,7 +176,6 @@ public sealed class GraphDiffer
                     pairs.Add((score, oldNode, newNode));
             }
 
-        // Greedy match: highest score first, each node used at most once
         pairs.Sort((a, b) => b.score.CompareTo(a.score));
 
         var usedOld = new HashSet<string>(StringComparer.Ordinal);
@@ -150,13 +199,10 @@ public sealed class GraphDiffer
         Dictionary<string, List<string>> bOutEdges)
     {
         var nameSim = NormalizedLevenshtein(a.DisplayName, b.DisplayName);
-
         var aDeps = aOutEdges.TryGetValue(a.Id, out var ad) ? ad : [];
         var bDeps = bOutEdges.TryGetValue(b.Id, out var bd) ? bd : [];
         var depJaccard = JaccardSimilarity(aDeps, bDeps);
-
         var lifetimeSim = a.Lifetime == b.Lifetime ? 1.0 : 0.0;
-
         return NameWeight * nameSim + DepJaccardWeight * depJaccard + LifetimeWeight * lifetimeSim;
     }
 

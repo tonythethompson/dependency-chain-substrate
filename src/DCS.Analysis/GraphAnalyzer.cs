@@ -20,8 +20,6 @@ public sealed class GraphAnalyzer
 
     public AnalysisResult Analyze()
     {
-        // Duplicate IDs occur when two registrations share the same short name (no semantic FQN).
-        // Take first per ID; duplicates are reported via FindDuplicates() using short name.
         var nodeById = _graph.Nodes
             .GroupBy(n => n.Id, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
@@ -37,17 +35,19 @@ public sealed class GraphAnalyzer
 
         return new AnalysisResult
         {
-            Leaked = FindLeaked(nodeById),
+            Leaked = FindLeaked(),
             Orphaned = string.Equals(_graph.SourceLanguage, "java", StringComparison.OrdinalIgnoreCase)
                 ? []
                 : FindOrphaned(nodeById, inEdges, rootId, reachable),
             BrokenChains = FindBrokenChains(nodeById, outEdges),
-            Duplicates = FindDuplicates(),
+            Duplicates = FindStrictDuplicates(),
+            PossibleDuplicates = FindPossibleDuplicates(),
             Cycles = FindCycles(nodeById, outEdges),
             CompositionRootId = rootId,
             TotalNodes = _graph.Nodes.Count,
             TotalEdges = _graph.Edges.Count,
-            TotalBlindSpots = _graph.BlindSpots.Count
+            TotalBlindSpots = _graph.BlindSpots.Count,
+            TotalUnresolvedInjections = _graph.UnresolvedInjections.Count
         };
     }
 
@@ -103,23 +103,24 @@ public sealed class GraphAnalyzer
         return visited;
     }
 
-    private List<LeakedRegistration> FindLeaked(Dictionary<string, RegistrationNode> nodes)
+    private List<LeakedRegistration> FindLeaked()
     {
         var leaked = new List<LeakedRegistration>();
         var seenPairs = new HashSet<string>(StringComparer.Ordinal);
+        var nodeById = _graph.Nodes
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
-        // Pass 1: cross-framework dependency edges (A depends on B, A and B are different frameworks)
         foreach (var edge in _graph.Edges)
         {
-            if (!nodes.TryGetValue(edge.From, out var from) ||
-                !nodes.TryGetValue(edge.To, out var to))
+            if (!nodeById.TryGetValue(edge.From, out var from) ||
+                !nodeById.TryGetValue(edge.To, out var to))
                 continue;
 
             if (_boundaries.AreDifferentFrameworks(from.FrameworkTags, to.FrameworkTags))
             {
                 leaked.Add(new LeakedRegistration(
-                    from.Id,
-                    from.DisplayName,
+                    from.Id, from.DisplayName,
                     string.Join(",", from.FrameworkTags),
                     string.Join(",", to.FrameworkTags),
                     from.SourceLocation?.FilePath,
@@ -127,12 +128,9 @@ public sealed class GraphAnalyzer
             }
         }
 
-        // Pass 2: same abstract token (same Id / FQN) registered in multiple framework contexts.
-        // This is the primary migration leakage pattern: IFoo registered once in WinUI shell
-        // and once in Avalonia shell — both collapse to the same logical Id but have different
-        // FrameworkTags. Detected by grouping all instances per Id and checking tag conflicts.
         var instanceGroups = _graph.Nodes
-            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .Where(n => !string.IsNullOrEmpty(n.DuplicateGroupKey))
+            .GroupBy(n => n.DuplicateGroupKey, StringComparer.Ordinal)
             .Where(g => g.Count() > 1);
 
         foreach (var group in instanceGroups)
@@ -147,12 +145,11 @@ public sealed class GraphAnalyzer
                     if (!_boundaries.AreDifferentFrameworks(a.FrameworkTags, b.FrameworkTags))
                         continue;
 
-                    var pairKey = $"{a.InstanceId}:{b.InstanceId}";
+                    var pairKey = $"{a.Id}:{b.Id}";
                     if (!seenPairs.Add(pairKey)) continue;
 
                     leaked.Add(new LeakedRegistration(
-                        a.Id,
-                        a.DisplayName,
+                        a.Id, a.DisplayName,
                         string.Join(",", a.FrameworkTags),
                         string.Join(",", b.FrameworkTags),
                         a.SourceLocation?.FilePath,
@@ -183,7 +180,7 @@ public sealed class GraphAnalyzer
             .ToList();
     }
 
-    private List<BrokenChain> FindBrokenChains(
+    private static List<BrokenChain> FindBrokenChains(
         Dictionary<string, RegistrationNode> nodes,
         Dictionary<string, List<DependencyEdge>> outEdges)
     {
@@ -209,11 +206,27 @@ public sealed class GraphAnalyzer
         return broken;
     }
 
-    private List<DuplicateAbstractToken> FindDuplicates() =>
+    private List<DuplicateAbstractToken> FindStrictDuplicates() =>
         _graph.Nodes
+            .Where(StrictDuplicateEligibility.IsEligible)
+            .GroupBy(n => n.DuplicateGroupKey, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => new DuplicateAbstractToken(
+                g.First().DisplayName,
+                g.Select(n => n.Id).ToList(),
+                IsStrict: true))
+            .OrderBy(d => d.AbstractTokenName, StringComparer.Ordinal)
+            .ToList();
+
+    private List<DuplicateAbstractToken> FindPossibleDuplicates() =>
+        _graph.Nodes
+            .Where(n => !StrictDuplicateEligibility.IsEligible(n))
             .GroupBy(n => n.AbstractToken.ShortName, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
-            .Select(g => new DuplicateAbstractToken(g.Key, g.Select(n => n.Id).ToList()))
+            .Select(g => new DuplicateAbstractToken(
+                g.Key,
+                g.Select(n => n.Id).ToList(),
+                IsStrict: false))
             .OrderBy(d => d.AbstractTokenName, StringComparer.Ordinal)
             .ToList();
 

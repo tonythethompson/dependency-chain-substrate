@@ -71,18 +71,22 @@ public static class RegistrationStatementRemover
 
     private static bool TypeSyntaxContainsName(TypeSyntax type, string name)
     {
+        var shortName = name.Contains('.') ? name[(name.LastIndexOf('.') + 1)..] : name;
+
         var text = type.ToString();
-        if (string.Equals(text, name, StringComparison.Ordinal))
+        if (string.Equals(text, name, StringComparison.Ordinal) ||
+            string.Equals(text, shortName, StringComparison.Ordinal))
             return true;
 
-        if (text.StartsWith(name + "<", StringComparison.Ordinal))
+        if (text.StartsWith(name + "<", StringComparison.Ordinal) ||
+            text.StartsWith(shortName + "<", StringComparison.Ordinal))
             return true;
 
         return type switch
         {
-            IdentifierNameSyntax id => string.Equals(id.Identifier.Text, name, StringComparison.Ordinal),
-            GenericNameSyntax gn => string.Equals(gn.Identifier.Text, name, StringComparison.Ordinal),
-            QualifiedNameSyntax qn => string.Equals(qn.Right.ToString(), name, StringComparison.Ordinal) ||
+            IdentifierNameSyntax id => string.Equals(id.Identifier.Text, shortName, StringComparison.Ordinal),
+            GenericNameSyntax gn => string.Equals(gn.Identifier.Text, shortName, StringComparison.Ordinal),
+            QualifiedNameSyntax qn => string.Equals(qn.Right.ToString(), shortName, StringComparison.Ordinal) ||
                                       TypeSyntaxContainsName(qn.Right, name),
             _ => false
         };

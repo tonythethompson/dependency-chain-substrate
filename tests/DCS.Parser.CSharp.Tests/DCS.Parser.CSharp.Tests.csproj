@@ -22,7 +22,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DCS.Core\DCS.Core.csproj" />
+    <ProjectReference Include="..\..\src\DCS.Analysis\DCS.Analysis.csproj" />
     <ProjectReference Include="..\..\src\DCS.Parser.CSharp\DCS.Parser.CSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\verification\TrackdubPin.cs" Link="Verification\TrackdubPin.cs" />
+    <Compile Include="..\verification\TrackdubSemanticMetrics.cs" Link="Verification\TrackdubSemanticMetrics.cs" />
   </ItemGroup>
 
 </Project>

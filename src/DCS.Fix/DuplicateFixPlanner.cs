@@ -25,8 +25,9 @@ public static class DuplicateFixPlanner
 
         foreach (var duplicate in duplicates)
         {
+            var idSet = duplicate.NodeIds.ToHashSet(StringComparer.Ordinal);
             var instances = graph.Nodes
-                .Where(n => string.Equals(n.AbstractToken.ShortName, duplicate.AbstractTokenName, StringComparison.Ordinal))
+                .Where(n => idSet.Contains(n.Id))
                 .Where(n => n.SourceLocation?.FilePath != null && n.SourceLocation.Line > 0)
                 .ToList();
 
@@ -34,9 +35,10 @@ public static class DuplicateFixPlanner
                 continue;
 
             var remove = SelectRemovalTarget(instances);
-            var keep = instances.First(n => n.InstanceId != remove.InstanceId);
+            var keep = instances.First(n => n.Id != remove.Id);
+            var tokenForRemoval = remove.AbstractToken.ShortName;
             proposals.Add(new DuplicateFixProposal(
-                duplicate.AbstractTokenName,
+                tokenForRemoval,
                 remove,
                 keep,
                 remove.SourceLocation!.FilePath!,

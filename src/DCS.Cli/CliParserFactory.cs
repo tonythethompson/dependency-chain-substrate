@@ -31,7 +31,9 @@ internal static class CliParserFactory
                 Boundaries = boundaries,
                 CacheDirectory = options.CacheDir,
                 NoCache = options.NoCache,
-                OnCacheHit = onCacheHit
+                OnCacheHit = onCacheHit,
+                TargetFramework = options.TargetFramework,
+                AllTargetFrameworks = options.AllTargetFrameworks
             }),
             _ => throw new InvalidOperationException($"Unsupported language: {language}")
         };

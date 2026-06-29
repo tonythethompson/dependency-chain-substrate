@@ -191,20 +191,21 @@ CLI `BLIND SPOTS` section lists every report; IR `blind_spots[]` array mirrors s
 > Q: How does Roslyn semantic vs syntactic parsing trade off for this use
 >    case? Which is used, and why?
 
-**Answer:** **Syntactic only** (`CSharpSyntaxTree.ParseText`, `CSharpSyntaxWalker`).
-Semantic model deferred (parked: semantic Roslyn upgrade). Rationale: git-blob
-extraction must not require MSBuild restore, reference assemblies, or a buildable
-project — mid-migration commits often fail compilation. Trade-off: FQN is built from
-short names + `using` heuristics, not resolved symbols; duplicate-ID collisions
-possible (mitigated by `instance_id` + DUPLICATE detector per ADR-002 addendum).
+**Answer:** **Per-`ProjectTargetScope` semantic compilation** (ADR-009, parser 0.2.0).
+Each `.csproj` + target framework → in-memory `CSharpCompilation` with closure-aware
+reference profile (framework ref packs + DI extension assembly). No `MSBuildWorkspace`
+or `dotnet restore`. Git-blob / directory extraction unchanged at the file level;
+types resolved via `SemanticModel` / `ISymbol` when compilation succeeds.
+Syntactic fallback remains when symbols are error types. Factory lambdas still
+BLIND_SPOT. Quality split: resolved edges only; unresolved ctor deps →
+`unresolved_injections[]`.
 
-> Q: How does MSBuildWorkspace vs in-memory compilation trade off? Which is
->    used for git-blob extraction?
+> Q: How does MSBuildWorkspace vs in-memory compilation trade off?
 
-**Answer:** **Neither.** No `MSBuildWorkspace`, no `Compilation` object. Each `.cs`
-blob → `CSharpSyntaxTree.ParseText(content, path)`. Missing references tolerated;
-types stay as parsed syntax names. In-memory compilation would improve resolution
-but reintroduces reference-assembly bundling and build fragility ADR-001 rejects for v1.
+**Answer:** **In-memory compilation per project scope** — not MSBuildWorkspace.
+Reference assemblies from installed .NET ref packs + explicit DI package surface;
+project-reference closure adds prior-scope metadata refs. Orphan files (no csproj)
+get syntactic-only bucket with `project_evaluation_incomplete`.
 
 > Q: How are factory lambdas (`services.AddSingleton<IFoo>(sp => new Foo(sp.GetRequiredService<IBar>()))`)
 >    handled? What is surfaced in output?
@@ -279,31 +280,29 @@ Decision: see `docs/decisions/ADR-002-ir-identity-model.md`.
 > Q: What is the node identity model? (Primary key structure, stability
 >    guarantees, cross-version semantics.)
 
-**Answer:** Dual identity (schema 1.1.0, ADR-002 addendum):
-- **`id`** = first 16 hex chars of SHA256(`fully_qualified_name`) — cross-snapshot
-  diff key; stable when FQN unchanged; collides when syntactic FQN matches across
-  parallel shells (by design until semantic upgrade).
-- **`instance_id`** = SHA256(`FQN:filePath:line`) — unique per registration site;
-  used by LEAKED instance-pass and per-site analysis; not used in diff matching.
+**Answer:** Dual identity (schema **1.2.0**, ADR-002 + ADR-009):
+- **`id`** / **`registration_instance_id`** — SHA256(`scopeId:file:line:col:endLine:endCol:ordinal`);
+  unique per registration **site** within a snapshot; primary graph node key and edge endpoint.
+- **`duplicate_group_key`** — SHA256(`composition_scope_id|service_type.canonical_key`); strict
+  DUPLICATE analysis groups on this key when `StrictDuplicateEligibility` is met (resolved type,
+  `VerifiedMicrosoftDI`, complete project evaluation).
+- **`service_type`** — `ServiceTypeIdentity` with optional `ResolvedTypeIdentity` (assembly-scoped
+  metadata name + type arguments) or syntactic fallback display.
+- Three quality dimensions on each node: `type_resolution_quality`, `registration_recognition_quality`,
+  annotations for `strict_duplicate_eligible`, `project_evaluation_incomplete`, etc.
 - **`DependencyEdge.id`** = hash(`from`, `to`, `injection_index`).
+- Unresolved constructor parameters → `unresolved_injections[]` (no fallback edges).
 
-> Q: How is rename vs delete+add distinguished during diff? Where does this
->    logic live — IR, diff engine, or both?
+> Q: How is rename vs delete+add distinguished during diff?
 
-**Answer:** **Diff engine only** (`GraphDiffer.MatchRenames`). IR stores snapshot-local
-FQN-based `id`. When a node is removed in old and added in new with no ID match,
-greedy pairwise similarity (name edit distance + dependency Jaccard + lifetime match)
-≥ 0.7 → `NodeChangeKind.Renamed`; else separate `Removed` + `Added`. IR does not
-encode rename links.
+**Answer:** **Diff engine** (`GraphDiffer`). Hybrid matching (ADR-009): primary key
+`duplicate_group_key` when strict-eligible; else file path + `registration_statement_fingerprint`
++ ordinal; line proximity last resort. IR does not encode rename links.
 
-> Q: What is the serialisation schema? (Format, schema version field,
->    migration policy for schema changes.)
+> Q: What is the serialisation schema?
 
-**Answer:** **JSON**, indented, snake_case property names, string enums
-(`IrSerializer.Options`). Current `schema_version`: **1.1.0** (`RegistrationGraph`).
-Policy (ADR-002): additive optional fields allowed without major bump; breaking
-changes require major bump and reader rejection of unsupported major versions.
-`parser_version`: **0.1.0**. CLI: `dump-ir`, `--ir-out`, `viz --ir`.
+**Answer:** **JSON**, snake_case. Current `schema_version`: **1.2.0**. C# `parser_version`:
+**0.2.0** (semantic Roslyn per `ProjectTargetScope`). Policy unchanged (ADR-002).
 
 > Q: What validation was run against Spring to confirm cross-language fit?
 >    What revisions were made as a result? (Fill after Spring spike.)
@@ -344,18 +343,15 @@ viz renders alpha 0.3 for blind_spot nodes.
 
 ## 6. C# Language Parser
 
-**Roslyn API:** Syntactic API only for Phase 1 (`CSharpSyntaxTree.ParseText`,
-`CSharpSyntaxWalker`). No `SemanticModel` or `ISymbol` — avoids requiring
-MSBuildWorkspace and bundled reference assemblies. Type names are the short
-names from generic type arguments; namespace resolution uses `using` directives
-collected per file. Semantic model deferred to Phase 2 for factory lambda body
-analysis and cross-file type resolution.
+**Roslyn API:** Syntactic walk + **semantic enrichment** (Phase 10 / ADR-009).
+`ProjectTargetScopeCompilationFactory` builds per-scope `CSharpCompilation`;
+`RegistrationPatternVisitor` and `ConstructorDepVisitor` use `SemanticModel` when
+available. Parser version **0.2.0**. Default CLI: `--all-target-frameworks` (one
+graph per TFM). Override: `--target-framework <tfm>`.
 
-**Workspace loading:** LibGit2Sharp reads each `.cs` file as a blob from the
-git object store at the target commit SHA. Each blob content →
-`CSharpSyntaxTree.ParseText(content, path: filePath)`. No compilation object
-needed for syntactic walking. Files collected by recursive tree walk of the
-commit's tree object, filtered to `*.cs`.
+**Workspace loading:** LibGit2Sharp blob read unchanged. Scope discovery reads
+`.csproj` metadata (`CsprojMetadataReader`); source membership by project directory.
+No repo-wide merged compilation.
 
 **Pattern catalog:**
 

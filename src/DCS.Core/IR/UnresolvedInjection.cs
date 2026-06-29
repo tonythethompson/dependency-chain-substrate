@@ -9,4 +9,8 @@ public sealed record UnresolvedInjection
     public string? ParameterName { get; init; }
     public string Reason { get; init; } = "unresolved";
     public List<string> AmbiguousCandidateIds { get; init; } = [];
+
+    public static string ComputeId(string fromRegistrationId, string dependencyKey, int index) =>
+        RegistrationNode.ComputeRegistrationInstanceId(
+            "unresolved", fromRegistrationId, 0, 0, 0, 0, index) + dependencyKey.GetHashCode().ToString("x8");
 }

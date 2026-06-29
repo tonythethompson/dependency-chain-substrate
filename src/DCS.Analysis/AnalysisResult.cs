@@ -6,11 +6,13 @@ public sealed class AnalysisResult
     public List<OrphanedRegistration> Orphaned { get; init; } = [];
     public List<BrokenChain> BrokenChains { get; init; } = [];
     public List<DuplicateAbstractToken> Duplicates { get; init; } = [];
+    public List<DuplicateAbstractToken> PossibleDuplicates { get; init; } = [];
     public List<List<string>> Cycles { get; init; } = [];
     public string? CompositionRootId { get; init; }
     public int TotalNodes { get; init; }
     public int TotalEdges { get; init; }
     public int TotalBlindSpots { get; init; }
+    public int TotalUnresolvedInjections { get; init; }
     public bool HasErrors => Leaked.Count > 0 || BrokenChains.Count > 0;
 }
 
@@ -37,4 +39,5 @@ public record BrokenChain(
 
 public record DuplicateAbstractToken(
     string AbstractTokenName,
-    IReadOnlyList<string> NodeIds);
+    IReadOnlyList<string> NodeIds,
+    bool IsStrict = true);

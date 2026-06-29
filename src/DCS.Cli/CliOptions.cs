@@ -20,6 +20,8 @@ internal sealed record CliOptions
     public bool ForceFix { get; init; }
     public string? FixToken { get; init; }
     public bool FixAllDuplicates { get; init; }
+    public string? TargetFramework { get; init; }
+    public bool AllTargetFrameworks { get; init; } = true;
 }
 
 internal static class CliArgParser
@@ -30,6 +32,8 @@ internal static class CliArgParser
         string? irOut = null, rootClass = null, contextId = null, contextRoot = null;
         var noCache = false;
         var language = RepoLanguage.Auto;
+        string? targetFramework = null;
+        var allTargetFrameworks = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -37,6 +41,14 @@ internal static class CliArgParser
             {
                 case "--commit" or "-c" when allowCommit && i + 1 < args.Length:
                     commit = args[++i];
+                    break;
+                case "--target-framework" when i + 1 < args.Length:
+                    targetFramework = args[++i];
+                    allTargetFrameworks = false;
+                    break;
+                case "--all-target-frameworks":
+                    allTargetFrameworks = true;
+                    targetFramework = null;
                     break;
                 case "--frameworks" when i + 1 < args.Length:
                     frameworksPath = args[++i];
@@ -80,7 +92,9 @@ internal static class CliArgParser
             RootClass = rootClass,
             Language = language,
             ContextId = contextId,
-            ContextRoot = contextRoot == null ? null : [contextRoot]
+            ContextRoot = contextRoot == null ? null : [contextRoot],
+            TargetFramework = targetFramework,
+            AllTargetFrameworks = allTargetFrameworks
         };
     }
 
@@ -90,6 +104,8 @@ internal static class CliArgParser
         string? irOut = null, contextId = null, contextRoot = null;
         var noCache = false;
         var language = RepoLanguage.Auto;
+        string? targetFramework = null;
+        var allTargetFrameworks = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -97,6 +113,14 @@ internal static class CliArgParser
             {
                 case "--from" when i + 1 < args.Length:
                     fromSha = args[++i];
+                    break;
+                case "--target-framework" when i + 1 < args.Length:
+                    targetFramework = args[++i];
+                    allTargetFrameworks = false;
+                    break;
+                case "--all-target-frameworks":
+                    allTargetFrameworks = true;
+                    targetFramework = null;
                     break;
                 case "--to" when i + 1 < args.Length:
                     toSha = args[++i];
@@ -140,7 +164,9 @@ internal static class CliArgParser
             IrOut = irOut,
             Language = language,
             ContextId = contextId,
-            ContextRoot = contextRoot == null ? null : [contextRoot]
+            ContextRoot = contextRoot == null ? null : [contextRoot],
+            TargetFramework = targetFramework,
+            AllTargetFrameworks = allTargetFrameworks
         };
     }
 

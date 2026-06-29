@@ -31,12 +31,15 @@ public static class ExtractionCache
             ? GetDefaultCacheDirectory()
             : overridePath;
 
-    public static string GetCacheFilePath(string cacheDirectory, string commitSha, string parserVersion) =>
-        Path.Combine(cacheDirectory, $"{commitSha}_{parserVersion}.json");
-
-    public static ParseResult? TryReadResult(string commitSha, string parserVersion, string cacheDirectory)
+    public static string GetCacheFilePath(string cacheDirectory, string commitSha, string parserVersion, string? fingerprint = null)
     {
-        var path = GetCacheFilePath(cacheDirectory, commitSha, parserVersion);
+        var suffix = string.IsNullOrEmpty(fingerprint) ? parserVersion : $"{parserVersion}_{fingerprint[..Math.Min(8, fingerprint.Length)]}";
+        return Path.Combine(cacheDirectory, $"{commitSha}_{suffix}.json");
+    }
+
+    public static ParseResult? TryReadResult(string commitSha, string parserVersion, string cacheDirectory, string? fingerprint = null)
+    {
+        var path = GetCacheFilePath(cacheDirectory, commitSha, parserVersion, fingerprint);
         if (!File.Exists(path))
             return null;
 
@@ -68,10 +71,10 @@ public static class ExtractionCache
         }
     }
 
-    public static RegistrationGraph? TryRead(string commitSha, string parserVersion, string cacheDirectory) =>
-        TryReadResult(commitSha, parserVersion, cacheDirectory)?.SingleGraphOrDefault();
+    public static RegistrationGraph? TryRead(string commitSha, string parserVersion, string cacheDirectory, string? fingerprint = null) =>
+        TryReadResult(commitSha, parserVersion, cacheDirectory, fingerprint)?.SingleGraphOrDefault();
 
-    public static void Write(ParseResult result, string cacheDirectory)
+    public static void Write(ParseResult result, string cacheDirectory, string? fingerprint = null)
     {
         var commitSha = result.ContextGraphs.FirstOrDefault()?.Graph.CommitSha;
         if (string.IsNullOrEmpty(commitSha))
@@ -79,10 +82,10 @@ public static class ExtractionCache
 
         var parserVersion = result.ContextGraphs[0].Graph.ParserVersion;
         Directory.CreateDirectory(cacheDirectory);
-        var path = GetCacheFilePath(cacheDirectory, commitSha, parserVersion);
+        var path = GetCacheFilePath(cacheDirectory, commitSha, parserVersion, fingerprint);
         File.WriteAllText(path, ParseResultSerializer.Serialize(result));
     }
 
-    public static void Write(RegistrationGraph graph, string cacheDirectory) =>
-        Write(CSharpParseResultFactory.Wrap(graph), cacheDirectory);
+    public static void Write(RegistrationGraph graph, string cacheDirectory, string? fingerprint = null) =>
+        Write(CSharpParseResultFactory.Wrap(graph), cacheDirectory, fingerprint);
 }

@@ -1,5 +1,6 @@
 using DCS.Analysis;
 using DCS.Core.IR;
+using DCS.Parser.CSharp.Semantic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,6 +12,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
     private readonly string _filePath;
     private readonly List<string> _usings;
     private readonly FrameworkBoundaryModel _boundaries;
+    private readonly SemanticRegistrationContext? _semantic;
     private readonly List<RegistrationNode> _registrations = [];
     private readonly List<BlindSpotReport> _blindSpots = [];
 
@@ -34,11 +36,13 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
     public RegistrationPatternVisitor(
         string filePath,
         List<string> usings,
-        FrameworkBoundaryModel? boundaries = null)
+        FrameworkBoundaryModel? boundaries = null,
+        SemanticRegistrationContext? semantic = null)
     {
         _filePath = filePath;
         _usings = usings;
         _boundaries = boundaries ?? FrameworkBoundaryModel.Default;
+        _semantic = semantic;
     }
 
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -85,24 +89,21 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         var isTryAdd = methodName.StartsWith("TryAdd", StringComparison.Ordinal);
         var location = LocationOf(node);
         var callArgs = node.ArgumentList.Arguments.ToList();
-
-        // Skip keyed service key argument for type extraction
         var dataArgs = isKeyed ? callArgs.Skip(1).ToList() : callArgs;
 
-        // Case 1: Generic type arguments — AddSingleton<IFoo, FooImpl>()
+        var recognition = _semantic?.Model != null
+            ? RegistrationApiVerifier.Verify(node, _semantic.Model, methodName)
+            : RegistrationRecognitionQuality.SyntaxCandidateUnverified;
+
         if (nameNode is GenericNameSyntax { TypeArgumentList.Arguments: var typeArgs })
         {
             var types = typeArgs.ToList();
-
             if (types.Count >= 2)
             {
                 var firstDataArg = dataArgs.FirstOrDefault();
-                if (firstDataArg?.Expression is LambdaExpressionSyntax or
-                    AnonymousMethodExpressionSyntax)
-                {
-                    return MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, "factory_lambda");
-                }
-                return MakeExplicitNode(types[0], types[1], lifetime, isKeyed, isTryAdd, location);
+                if (firstDataArg?.Expression is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax)
+                    return MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda");
+                return MakeExplicitNode(types[0], types[1], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
             }
 
             if (types.Count == 1)
@@ -111,18 +112,17 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 return firstDataArg?.Expression switch
                 {
                     LambdaExpressionSyntax or AnonymousMethodExpressionSyntax =>
-                        MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, "factory_lambda"),
+                        MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
                     ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax =>
-                        MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, "instance_arg"),
+                        MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "instance_arg"),
                     null =>
-                        MakeExplicitNode(types[0], types[0], lifetime, isKeyed, isTryAdd, location),
+                        MakeExplicitNode(types[0], types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition),
                     _ =>
-                        MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, "unknown_arg")
+                        MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "unknown_arg")
                 };
             }
         }
 
-        // Case 2: typeof() arguments — AddSingleton(typeof(IFoo), typeof(FooImpl))
         var typeOfArgs = callArgs
             .Select(a => a.Expression)
             .OfType<TypeOfExpressionSyntax>()
@@ -130,9 +130,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             .ToList();
 
         if (typeOfArgs.Count >= 2)
-            return MakeExplicitNode(typeOfArgs[0], typeOfArgs[1], lifetime, isKeyed, isTryAdd, location);
+            return MakeExplicitNode(typeOfArgs[0], typeOfArgs[1], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
         if (typeOfArgs.Count == 1)
-            return MakeExplicitNode(typeOfArgs[0], typeOfArgs[0], lifetime, isKeyed, isTryAdd, location);
+            return MakeExplicitNode(typeOfArgs[0], typeOfArgs[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
 
         _blindSpots.Add(new BlindSpotReport
         {
@@ -145,80 +145,129 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
 
     private RegistrationNode MakeExplicitNode(
         TypeSyntax abstractType, TypeSyntax concreteType,
-        Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location)
+        Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition)
     {
-        var abstractRef = ToTypeRef(abstractType);
-        var concreteRef = ToTypeRef(concreteType);
-        return new RegistrationNode
-        {
-            Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
-            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
-            DisplayName = abstractRef.ShortName,
-            AbstractToken = abstractRef,
-            ConcreteImpl = abstractRef.FullyQualifiedName == concreteRef.FullyQualifiedName ? null : concreteRef,
-            Lifetime = lifetime,
-            SourceLocation = location,
-            ParserConfidence = Confidence.Explicit,
-            FrameworkTags = InferFrameworkTags(abstractRef),
-            Annotations = BuildAnnotations(isKeyed, isTryAdd, null)
-        };
+        var abstractResolved = ResolveType(abstractType);
+        var concreteResolved = ResolveType(concreteType);
+        return BuildNode(abstractResolved, concreteResolved, lifetime, isKeyed, isTryAdd, location,
+            invocation, methodName, recognition, Confidence.Explicit, null);
     }
 
     private RegistrationNode MakeDegradedNode(
         TypeSyntax abstractType, Lifetime lifetime,
-        bool isKeyed, bool isTryAdd, SourceRef location, string reason)
-    {
-        var abstractRef = ToTypeRef(abstractType);
-        return new RegistrationNode
-        {
-            Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
-            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
-            DisplayName = abstractRef.ShortName,
-            AbstractToken = abstractRef,
-            Lifetime = lifetime,
-            SourceLocation = location,
-            ParserConfidence = Confidence.Degraded,
-            FrameworkTags = InferFrameworkTags(abstractRef),
-            Annotations = BuildAnnotations(isKeyed, isTryAdd, reason)
-        };
-    }
+        bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition, string reason) =>
+        BuildNode(ResolveType(abstractType), null, lifetime, isKeyed, isTryAdd, location,
+            invocation, methodName, recognition, Confidence.Degraded, reason);
 
     private RegistrationNode MakeBlindSpotNode(
         TypeSyntax abstractType, Lifetime lifetime,
-        bool isKeyed, bool isTryAdd, SourceRef location, string reason)
+        bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition, string reason)
     {
-        var abstractRef = ToTypeRef(abstractType);
+        var abstractResolved = ResolveType(abstractType);
         _blindSpots.Add(new BlindSpotReport
         {
             Pattern = reason,
             Location = location,
-            Description = $"{abstractRef.ShortName} — registered via {reason}, dependencies not resolvable"
+            Description = $"{abstractResolved.TypeRef.ShortName} — registered via {reason}, dependencies not resolvable"
         });
-        return new RegistrationNode
-        {
-            Id = RegistrationNode.ComputeId(abstractRef.FullyQualifiedName),
-            InstanceId = RegistrationNode.ComputeInstanceId(abstractRef.FullyQualifiedName, location.FilePath, location.Line),
-            DisplayName = abstractRef.ShortName,
-            AbstractToken = abstractRef,
-            Lifetime = lifetime,
-            SourceLocation = location,
-            ParserConfidence = Confidence.BlindSpot,
-            FrameworkTags = InferFrameworkTags(abstractRef),
-            Annotations = BuildAnnotations(isKeyed, isTryAdd, reason)
-        };
+        return BuildNode(abstractResolved, null, lifetime, isKeyed, isTryAdd, location,
+            invocation, methodName, recognition, Confidence.BlindSpot, reason);
     }
 
-    private TypeRef ToTypeRef(TypeSyntax type)
+    private RegistrationNode BuildNode(
+        TypeResolutionResult abstractResolved,
+        TypeResolutionResult? concreteResolved,
+        Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition, Confidence confidence, string? reason)
+    {
+        var span = invocation.GetLocation().GetLineSpan();
+        var ordinal = _semantic?.RegistrationOrdinal ?? 0;
+        if (_semantic != null) _semantic.RegistrationOrdinal++;
+
+        var scopeId = _semantic?.Scope.ScopeId ?? "syntactic";
+        var instanceId = RegistrationNode.ComputeRegistrationInstanceId(
+            scopeId, location.FilePath,
+            span.StartLinePosition.Line + 1, span.StartLinePosition.Character + 1,
+            span.EndLinePosition.Line + 1, span.EndLinePosition.Character + 1,
+            ordinal);
+
+        var duplicateGroupKey = RegistrationNode.ComputeDuplicateGroupKey(
+            _semantic?.Scope.CompositionScopeId ?? scopeId,
+            abstractResolved.ServiceType);
+
+        var fingerprint = RegistrationStatementFingerprint.Compute(
+            methodName, lifetime, abstractResolved.TypeRef.ShortName);
+
+        var annotations = BuildAnnotations(isKeyed, isTryAdd, reason);
+        if (_semantic?.Scope.ProjectEvaluationIncomplete == true)
+            annotations["project_evaluation_incomplete"] = "true";
+        if (_semantic?.Scope.ImplicitUsingsUnmodeled == true)
+            annotations["implicit_usings_unmodeled"] = "true";
+        if (abstractResolved.Quality == TypeResolutionQuality.SyntacticFallback)
+            annotations["type_identity_quality"] = "syntactic_fallback";
+        if (recognition == RegistrationRecognitionQuality.SyntaxCandidateUnverified)
+            annotations["registration_api"] = "unverified";
+
+        var node = new RegistrationNode
+        {
+            Id = instanceId,
+            RegistrationInstanceId = instanceId,
+            InstanceId = instanceId,
+            ServiceType = abstractResolved.ServiceType,
+            DuplicateGroupKey = duplicateGroupKey,
+            CompositionScopeId = _semantic?.Scope.CompositionScopeId ?? scopeId,
+            TypeResolutionQuality = abstractResolved.Quality,
+            RegistrationRecognitionQuality = recognition,
+            RegistrationStatementFingerprint = fingerprint,
+            DisplayName = abstractResolved.TypeRef.ShortName,
+            AbstractToken = abstractResolved.TypeRef,
+            ConcreteImpl = concreteResolved != null &&
+                           concreteResolved.TypeRef.ShortName != abstractResolved.TypeRef.ShortName
+                ? concreteResolved.TypeRef
+                : null,
+            Lifetime = lifetime,
+            SourceLocation = location,
+            ParserConfidence = confidence,
+            FrameworkTags = InferFrameworkTags(abstractResolved.TypeRef),
+            Annotations = annotations
+        };
+
+        if (StrictDuplicateEligibility.IsEligible(node))
+            node.Annotations[StrictDuplicateEligibility.AnnotationKey] = "true";
+
+        return node;
+    }
+
+    private TypeResolutionResult ResolveType(TypeSyntax type)
+    {
+        if (_semantic?.Resolver != null)
+            return _semantic.Resolver.Resolve(type);
+        return SyntacticResolve(type);
+    }
+
+    private static TypeResolutionResult SyntacticResolve(TypeSyntax type)
     {
         var name = GetTypeName(type);
         var isGeneric = name.Contains('<');
         var baseName = isGeneric ? name[..name.IndexOf('<')] : name;
-
-        return new TypeRef
+        var typeRef = new TypeRef
         {
-            FullyQualifiedName = name,
+            FullyQualifiedName = string.Empty,
             ShortName = baseName,
             IsGeneric = isGeneric
+        };
+        return new TypeResolutionResult
+        {
+            Quality = TypeResolutionQuality.SyntacticFallback,
+            ServiceType = ServiceTypeIdentity.FromSyntactic(baseName),
+            TypeRef = typeRef
         };
     }
 

@@ -27,6 +27,37 @@ jobs:
         env:
           CI: true
 
+  trackdub-semantic:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Clone Trackdub pin
+        run: |
+          git clone --depth 1 https://github.com/tonythethompson/Trackdub.git $env:TEMP\dcs-trackdub-pin
+          cd $env:TEMP\dcs-trackdub-pin
+          git fetch --depth 1 origin 3c4e374d
+          git checkout 3c4e374d
+        shell: pwsh
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Trackdub semantic gate
+        run: dotnet test tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj --no-build --filter "FullyQualifiedName~TrackdubSemanticGateTests" --verbosity normal
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          TRACKDUB_PATH: ${{ runner.temp }}/dcs-trackdub-pin
+
   petclinic-linux:
     runs-on: ubuntu-latest
     steps:
