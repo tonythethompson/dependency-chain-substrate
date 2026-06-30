@@ -6,56 +6,17 @@ using DCS.Verification;
 
 namespace DCS.Parser.Java.Tests;
 
+[Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.JavaSpring)]
 public sealed class SpringPetClinicIntegrationTests
 {
-    private static string? ResolvePetClinicPath()
-    {
-        var env = Environment.GetEnvironmentVariable("PETCLINIC_PATH");
-        if (!string.IsNullOrWhiteSpace(env) && Directory.Exists(env))
-            return env;
-
-        if (!string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        var cloneDir = Path.Combine(Path.GetTempPath(), "dcs-petclinic-pin");
-        if (!Directory.Exists(Path.Combine(cloneDir, ".git")))
-        {
-            if (Directory.Exists(cloneDir))
-                Directory.Delete(cloneDir, recursive: true);
-
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"clone {PetClinicPin.RepositoryUrl} \"{cloneDir}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            };
-            using var proc = System.Diagnostics.Process.Start(psi)
-                ?? throw new InvalidOperationException("Failed to start git clone.");
-            proc.WaitForExit();
-            if (proc.ExitCode != 0)
-                throw new InvalidOperationException($"git clone failed: {proc.StandardError.ReadToEnd()}");
-
-            var checkout = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"checkout {PetClinicPin.CommitSha}",
-                WorkingDirectory = cloneDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            };
-            using var checkoutProc = System.Diagnostics.Process.Start(checkout)
-                ?? throw new InvalidOperationException("Failed to start git checkout.");
-            checkoutProc.WaitForExit();
-            if (checkoutProc.ExitCode != 0)
-                throw new InvalidOperationException($"git checkout failed: {checkoutProc.StandardError.ReadToEnd()}");
-        }
-
-        return cloneDir;
-    }
+    private static string? ResolvePetClinicPath() =>
+        CorpusPathResolver.ResolveWithDefaults(
+            primaryEnvVar: "CORPUS_JAVA_SPRING_PATH",
+            legacyEnvVar: "PETCLINIC_PATH",
+            defaultLocalPath: string.Empty,
+            tempCloneDirName: "corpus-java-spring",
+            workspaceRelativeCheckoutPath: PetClinicPin.CheckoutPath);
 
     [Fact]
     public void PetClinic_structural_gate()

@@ -220,24 +220,29 @@ Trackdub pin: `3c4e374d23fe3941ed7ca376775937941973b313`
 
 ### Running corpus gates locally
 
-**Trackdub (C#):**
+Corpus pins and CI matrix entries are defined in [`ci/corpus-gates.json`](ci/corpus-gates.json). Gate tests are tagged with xUnit traits — not filtered by class name.
+
+**C# migration corpus (`csharp-migration`):**
 
 ```bash
-# Clone Trackdub and point at it
-git clone https://github.com/tonythethompson/Trackdub.git
-set TRACKDUB_PATH=A:\Trackdub   # Windows
-# or: export TRACKDUB_PATH=/path/to/Trackdub
+set CORPUS_CSHARP_MIGRATION_PATH=A:\Trackdub   # Windows
+# or: export CORPUS_CSHARP_MIGRATION_PATH=/path/to/trackdub
 
-dotnet test tests/DCS.Parser.CSharp.Tests --filter "FullyQualifiedName~TrackdubSemanticGateTests"
+dotnet test tests/DCS.Parser.CSharp.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
 ```
 
-CI clones Trackdub into `dcs-trackdub-pin/` using the `TRACKDUB_PAT` repository secret.
+Legacy `TRACKDUB_PATH` is still supported.
 
-**PetClinic (Java):**
+**Java Spring corpus (`java-spring`):**
 
 ```bash
-dotnet test tests/DCS.Parser.Java.Tests --filter "FullyQualifiedName~SpringPetClinicIntegrationTests"
+set CORPUS_JAVA_SPRING_PATH=/path/to/spring-petclinic
+dotnet test tests/DCS.Parser.Java.Tests --filter "Category=CorpusGate&CorpusId=java-spring"
 ```
+
+Legacy `PETCLINIC_PATH` is still supported.
+
+CI checks out each corpus under `corpus/<id>/` and sets `DCS_CORPUS_PATH`. Private repos require the `CORPUS_CHECKOUT_PAT` repository secret (or legacy `TRACKDUB_PAT`).
 
 ---
 
@@ -249,13 +254,13 @@ dotnet build
 dotnet test
 ```
 
-CI runs three jobs on push/PR:
+CI runs three job types on push/PR:
 
-1. **build-test** (Windows, .NET 8) — full test suite excluding optional corpus gates
-2. **trackdub-semantic** (Windows, .NET 10) — Trackdub semantic gate at pin SHA
-3. **petclinic-linux** (Ubuntu, .NET 8) — Spring PetClinic gate
+1. **build-test** (Windows, .NET 8) — unit and fixture tests, excluding corpus gates
+2. **corpus-matrix** — loads gate definitions from [`ci/corpus-gates.json`](ci/corpus-gates.json)
+3. **corpus-gate** — one matrix leg per configured ground-truth corpus (runner and SDK vary by gate)
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+See [`ci/README.md`](ci/README.md) for adding gates or running them locally.
 
 ### Agent and design discipline
 
@@ -291,7 +296,7 @@ Track progress in [`PLAN.md`](PLAN.md).
 
 1. Read [`AGENTS.md`](AGENTS.md) and the relevant ADRs before architectural changes.
 2. Keep changes focused; do not advance milestone status without test evidence.
-3. For Trackdub gate work, ensure `TRACKDUB_PATH` or `dcs-trackdub-pin/` is at the pin SHA.
+3. For corpus gate work, set the path env var from [`ci/corpus-gates.json`](ci/corpus-gates.json) or use legacy `TRACKDUB_PATH` / `PETCLINIC_PATH`.
 4. Conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`) are preferred.
 
 Issues and pull requests are welcome.

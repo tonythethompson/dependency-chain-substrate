@@ -25,28 +25,43 @@ jobs:
       - name: Test
         run: >
           dotnet test --no-build --verbosity normal
-          --filter "FullyQualifiedName!~TrackdubSemanticGateTests&FullyQualifiedName!~PetClinic_parse_stats_when_available"
+          --filter "Category!=CorpusGate"
         env:
           CI: true
 
-  trackdub-semantic:
-    runs-on: windows-latest
+  corpus-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      gates: ${{ steps.load.outputs.gates }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load corpus gate matrix
+        id: load
+        run: echo "gates=$(jq -c '.gates' ci/corpus-gates.json)" >> "$GITHUB_OUTPUT"
+
+  corpus-gate:
+    needs: corpus-matrix
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.corpus-matrix.outputs.gates) }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: ${{ matrix.dotnet }}
 
-      - name: Clone Trackdub pin
+      - name: Checkout corpus
         uses: actions/checkout@v4
         with:
-          repository: tonythethompson/Trackdub
-          ref: 3c4e374d23fe3941ed7ca376775937941973b313
-          path: dcs-trackdub-pin
-          token: ${{ secrets.TRACKDUB_PAT }}
-          fetch-depth: 1
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: ${{ matrix.checkoutPath }}
+          token: ${{ matrix.privateCheckout && (secrets.CORPUS_CHECKOUT_PAT || secrets.TRACKDUB_PAT) || github.token }}
 
       - name: Restore
         run: dotnet restore
@@ -54,31 +69,11 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
 
-      - name: Trackdub semantic gate
-        run: dotnet test tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj --no-build --filter "FullyQualifiedName~TrackdubSemanticGateTests" --verbosity normal
+      - name: Corpus gate (${{ matrix.id }})
+        run: >
+          dotnet test ${{ matrix.testProject }} --no-build --verbosity normal
+          --filter "Category=CorpusGate&CorpusId=${{ matrix.id }}"
         env:
           CI: true
           GITHUB_ACTIONS: true
-          TRACKDUB_PATH: ${{ github.workspace }}/dcs-trackdub-pin
-
-  petclinic-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --no-restore
-
-      - name: PetClinic gate
-        run: dotnet test tests/DCS.Parser.Java.Tests/DCS.Parser.Java.Tests.csproj --no-build --filter "FullyQualifiedName~SpringPetClinicIntegrationTests" --verbosity normal
-        env:
-          CI: true
-          GITHUB_ACTIONS: true
+          DCS_CORPUS_PATH: ${{ github.workspace }}/${{ matrix.checkoutPath }}

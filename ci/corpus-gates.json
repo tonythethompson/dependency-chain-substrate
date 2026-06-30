@@ -1,0 +1,26 @@
+{
+  "gates": [
+    {
+      "id": "csharp-migration",
+      "runner": "windows-latest",
+      "dotnet": "10.0.x",
+      "testProject": "tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj",
+      "repository": "tonythethompson/Trackdub",
+      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "checkoutPath": "corpus/csharp-migration",
+      "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
+      "privateCheckout": true
+    },
+    {
+      "id": "java-spring",
+      "runner": "ubuntu-latest",
+      "dotnet": "8.0.x",
+      "testProject": "tests/DCS.Parser.Java.Tests/DCS.Parser.Java.Tests.csproj",
+      "repository": "spring-projects/spring-petclinic",
+      "ref": "b3ee2c53e76e9267f03551a7cd36b0983c859c56",
+      "checkoutPath": "corpus/java-spring",
+      "pathEnv": "CORPUS_JAVA_SPRING_PATH",
+      "privateCheckout": false
+    }
+  ]
+}

@@ -401,8 +401,8 @@ FodyWeavers.xsd
 *.sln.iml
 .serena/project.yml
 
-# CI Trackdub pin checkout (local mirror of trackdub-semantic job)
-dcs-trackdub-pin/
+# CI corpus checkouts (see ci/corpus-gates.json)
+corpus/
 
 # Local dcs analyze/path output at repo root (regenerated)
 /report.json

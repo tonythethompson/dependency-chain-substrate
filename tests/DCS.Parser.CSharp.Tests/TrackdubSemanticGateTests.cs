@@ -7,6 +7,8 @@ using Xunit.Abstractions;
 
 namespace DCS.Parser.CSharp.Tests;
 
+[Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubSemanticGateTests
 {
     // Phase 13: lock Phase 12 semantic gains (actual ~91.6% aggregate / ~91.5% windows).

@@ -24,6 +24,8 @@
 
   <ItemGroup>
     <Compile Include="..\verification\PetClinicPin.cs" Link="Verification\PetClinicPin.cs" />
+    <Compile Include="..\verification\CorpusGateTraits.cs" Link="Verification\CorpusGateTraits.cs" />
+    <Compile Include="..\verification\CorpusPathResolver.cs" Link="Verification\CorpusPathResolver.cs" />
   </ItemGroup>
 
 </Project>

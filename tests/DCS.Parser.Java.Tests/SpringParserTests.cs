@@ -4,6 +4,7 @@ using DCS.Core.Serialization;
 using DCS.Parser.Java;
 using DCS.Parser.Java.Naming;
 using DCS.Parser.Java.Parsing;
+using DCS.Verification;
 
 namespace DCS.Parser.Java.Tests;
 
@@ -65,7 +66,7 @@ public sealed class TreeSitterJavaParserTests
     [Fact]
     public void Parses_vet_controller_constructor_for_diagnostic()
     {
-        var path = Path.Combine(Path.GetTempPath(), "dcs-petclinic-pin",
+        var path = Path.Combine(Path.GetTempPath(), "corpus-java-spring",
             "src", "main", "java", "org", "springframework", "samples", "petclinic", "vet", "VetController.java");
         if (!File.Exists(path))
             return;
@@ -80,10 +81,17 @@ public sealed class TreeSitterJavaParserTests
     }
 
     [Fact]
+    [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+    [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.JavaSpring)]
     public void PetClinic_parse_stats_when_available()
     {
-        var path = Path.Combine(Path.GetTempPath(), "dcs-petclinic-pin");
-        if (!Directory.Exists(Path.Combine(path, ".git")))
+        var path = CorpusPathResolver.ResolveWithDefaults(
+            primaryEnvVar: "CORPUS_JAVA_SPRING_PATH",
+            legacyEnvVar: "PETCLINIC_PATH",
+            defaultLocalPath: string.Empty,
+            tempCloneDirName: "corpus-java-spring",
+            workspaceRelativeCheckoutPath: PetClinicPin.CheckoutPath);
+        if (path == null)
             return;
 
         var result = new SpringStaticParser().ParseDirectory(path);

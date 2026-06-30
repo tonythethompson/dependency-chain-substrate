@@ -6,6 +6,8 @@ using Xunit;
 
 namespace DCS.Parser.CSharp.Tests;
 
+[Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubPathGateTests
 {
     [Fact]
