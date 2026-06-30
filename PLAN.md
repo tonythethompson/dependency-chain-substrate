@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-30
+Last updated: 2026-06-30 (Phase 11 closed)
 
 ---
 
@@ -247,6 +247,31 @@ fixture/Trackdub gates asserting file:line sites.
 | DESIGN.md §11 update | ✅ Done | |
 
 **Phase 10b gate:** ✅ CLOSED — merged PR #1 (`4644863`); `dotnet test` green; Trackdub @ pin report lists VoiceClone homonym sites with `file:line`; `--format json --report-out` validates against `analysis-report-1.0.json`.
+
+**CI contributor note:** The `trackdub-semantic` job checks out the private Trackdub repo at pin `3c4e374d23fe3941ed7ca376775937941973b313` into `dcs-trackdub-pin/` (gitignored locally). Add a GitHub repository secret `TRACKDUB_PAT` with a PAT that can read `tonythethompson/Trackdub`. Locally, set `TRACKDUB_PATH` to your Trackdub clone (see `.claude/settings.local.json`) or clone into `dcs-trackdub-pin/` at the pin SHA.
+
+---
+
+## Phase 11 — Parser fidelity and ground-truth hardening
+
+**Done means:** Trackdub @ pin shows measurably better extraction quality; Avalonia
+shell `MainWindow` block factory is recognised (not `unrecognized_pattern`); gate
+floors raised from Phase 10c baseline; technical debt cleaned.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Investigate `app.axaml.cs` shell composition blind spots | ✅ Done | Root cause: block-bodied `AddSingleton(sp => { return new MainWindow(...); })` |
+| `ShallowFactoryLambdaExtractor` block-lambda support | ✅ Done | Parser 0.3.1 |
+| Fixture regression (`DiPatternRegistrations` + unit tests) | ✅ Done | Block factory lambda tests |
+| Raise `TrackdubSemanticGateTests` metric floors | ✅ Done | Semantic 54%, API 95%, scope 80% |
+| Avalonia `MainWindow` shell gate assertion | ✅ Done | No `unrecognized_pattern` at shell site |
+| `ComputeId` → `ComputeRegistrationInstanceId` migration | ✅ Done | Test + Java parser helpers |
+| `.gitignore` `dcs-trackdub-pin/` | ✅ Done | |
+| `TRACKDUB_PAT` contributor docs | ✅ Done | See Phase 10b CI note above |
+| DESIGN.md §6 factory-lambda catalog | ✅ Done | Block-bodied shallow extraction |
+| Phase 11 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — 54.6% / 100% / 100% (335 nodes, 6 scopes); MainWindow shallow factory registered |
+
+**Phase 11 gate:** ✅ CLOSED — `dotnet test` green; Trackdub @ pin `3c4e374d23fe3941ed7ca376775937941973b313`: semantic 54.6% (+0.2pp vs Phase 10c baseline 54.4%), API verification 100%, scope completeness 100%; Avalonia `MainWindow` block factory recognised as `factory_lambda_shallow` (not `unrecognized_pattern`); VoiceClone file:line assertions unchanged. **Aspirational +5pp semantic target (~59.4%) deferred** — remaining blind spots are mostly `factory_lambda` / `factory_lambda_shallow` at other sites, not shell composition.
 
 ---
 

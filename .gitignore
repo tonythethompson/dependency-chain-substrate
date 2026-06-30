@@ -400,3 +400,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 .serena/project.yml
+
+# CI Trackdub pin checkout (local mirror of trackdub-semantic job)
+dcs-trackdub-pin/

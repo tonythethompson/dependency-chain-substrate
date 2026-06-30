@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.0";
+    public const string ParserVersion = "0.3.1";
 
     private readonly CSharpParseOptions _options;
 

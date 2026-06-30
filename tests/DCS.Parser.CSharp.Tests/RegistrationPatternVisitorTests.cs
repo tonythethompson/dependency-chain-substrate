@@ -89,6 +89,38 @@ public sealed class RegistrationPatternVisitorTests
     }
 
     [Fact]
+    public void Block_factory_lambda_registers_returned_created_type()
+    {
+        var (nodes, spots) = Parse("""
+            services.AddSingleton(sp =>
+            {
+                var vm = sp.GetRequiredService<MainWindowViewModel>();
+                return new MainWindow(vm);
+            });
+            """);
+        Assert.Single(nodes);
+        Assert.Equal("MainWindow", nodes[0].DisplayName);
+        Assert.DoesNotContain(spots, s => s.Pattern == "unrecognized_pattern");
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+    }
+
+    [Fact]
+    public void Block_factory_lambda_with_local_variable_registers_created_type()
+    {
+        var (nodes, spots) = Parse("""
+            services.AddTransient(sp =>
+            {
+                var window = new DevLogWindow();
+                return window;
+            });
+            """);
+        Assert.Single(nodes);
+        Assert.Equal("DevLogWindow", nodes[0].DisplayName);
+        Assert.DoesNotContain(spots, s => s.Pattern == "unrecognized_pattern");
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+    }
+
+    [Fact]
     public void Extension_method_produces_blind_spot_report()
     {
         var (nodes, spots) = Parse("services.AddLogging();");

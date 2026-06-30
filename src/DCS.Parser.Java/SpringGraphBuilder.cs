@@ -419,10 +419,14 @@ internal sealed class SpringGraphBuilder
                 annotations["conditional_key"] = n;
         }
 
+        var instanceId = RegistrationNode.ComputeRegistrationInstanceId(
+            membership.ContextId, unit.FilePath, line, 0, line, 80, 0);
+
         return new RegistrationNode
         {
-            Id = RegistrationNode.ComputeId(fqn),
-            InstanceId = RegistrationNode.ComputeInstanceId(fqn, unit.FilePath, line),
+            Id = instanceId,
+            RegistrationInstanceId = instanceId,
+            InstanceId = instanceId,
             DisplayName = primaryBeanName,
             AbstractToken = exposed,
             ConcreteImpl = implementation,

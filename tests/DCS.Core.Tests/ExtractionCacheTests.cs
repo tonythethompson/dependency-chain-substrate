@@ -13,6 +13,7 @@ public sealed class ExtractionCacheTests
 
         try
         {
+            var instanceId = RegistrationNode.ComputeRegistrationInstanceId("cache-test", "App.cs", 1, 0, 1, 80, 0);
             var graph = new RegistrationGraph
             {
                 ParserVersion = "0.1.0-test",
@@ -21,8 +22,9 @@ public sealed class ExtractionCacheTests
                 [
                     new RegistrationNode
                     {
-                        Id = RegistrationNode.ComputeId("IFoo"),
-                        InstanceId = RegistrationNode.ComputeInstanceId("IFoo", "App.cs", 1),
+                        Id = instanceId,
+                        RegistrationInstanceId = instanceId,
+                        InstanceId = instanceId,
                         DisplayName = "IFoo",
                         AbstractToken = TypeRef.FromShortName("IFoo")
                     }

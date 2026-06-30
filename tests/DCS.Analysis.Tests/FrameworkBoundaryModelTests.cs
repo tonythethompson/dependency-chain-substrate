@@ -30,8 +30,8 @@ public sealed class FrameworkBoundaryModelTests
         var path = Path.Combine(AppContext.BaseDirectory, "fixtures", "custom-frameworks.json");
         var model = FrameworkBoundaryModel.LoadFromJson(path);
 
-        var mauiNode = MakeNode("IMauiService", ["maui"]);
-        var avaloniaNode = MakeNode("IAvaloniaService", ["avalonia"]);
+        var mauiNode = MakeNode("IMauiService", ["maui"], line: 1);
+        var avaloniaNode = MakeNode("IAvaloniaService", ["avalonia"], line: 2);
         var graph = new RegistrationGraph
         {
             Nodes = [mauiNode, avaloniaNode],
@@ -107,13 +107,17 @@ public sealed class FrameworkBoundaryModelTests
         Assert.Contains("avalonia", tags);
     }
 
-    private static RegistrationNode MakeNode(string shortName, string[] frameworks) =>
-        new()
+    private static RegistrationNode MakeNode(string shortName, string[] frameworks, int line = 1)
+    {
+        var instanceId = RegistrationNode.ComputeRegistrationInstanceId("fw-test", "Test.cs", line, 0, line, 80, 0);
+        return new()
         {
-            Id = RegistrationNode.ComputeId(shortName),
-            InstanceId = RegistrationNode.ComputeInstanceId(shortName, "Test.cs", 1),
+            Id = instanceId,
+            RegistrationInstanceId = instanceId,
+            InstanceId = instanceId,
             DisplayName = shortName,
             AbstractToken = TypeRef.FromShortName(shortName),
             FrameworkTags = [.. frameworks]
         };
+    }
 }

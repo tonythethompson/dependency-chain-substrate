@@ -7,32 +7,20 @@ internal static class ShallowFactoryLambdaExtractor
 {
     public static TypeSyntax? TryExtractCreatedType(LambdaExpressionSyntax lambda)
     {
-        var body = lambda.Body;
-        ExpressionSyntax? expression = body switch
+        return lambda.Body switch
         {
-            ExpressionSyntax expr => expr,
-            BlockSyntax block when block.Statements.Count == 1 &&
-                                   block.Statements[0] is ReturnStatementSyntax { Expression: { } ret } =>
-                ret,
-            _ => null
-        };
-
-        return expression switch
-        {
-            ObjectCreationExpressionSyntax { Type: { } type } => type,
-            ImplicitObjectCreationExpressionSyntax =>
-                null,
+            ExpressionSyntax expr => TryExtractTypeFromExpression(expr),
+            BlockSyntax block => TryExtractTypeFromBlock(block),
             _ => null
         };
     }
 
     public static TypeSyntax? TryExtractCreatedType(AnonymousMethodExpressionSyntax lambda)
     {
-        if (lambda.Block.Statements.Count != 1 ||
-            lambda.Block.Statements[0] is not ReturnStatementSyntax { Expression: ObjectCreationExpressionSyntax { Type: { } type } })
+        if (lambda.Block.Statements.Count == 0)
             return null;
 
-        return type;
+        return TryExtractTypeFromBlock(lambda.Block);
     }
 
     public static bool UsesGetRequiredService(LambdaExpressionSyntax lambda)
@@ -47,11 +35,68 @@ internal static class ShallowFactoryLambdaExtractor
             {
                 if (statement is ReturnStatementSyntax { Expression: { } ret } && ContainsGetRequiredService(ret))
                     return true;
+
+                if (ContainsGetRequiredService(statement))
+                    return true;
             }
         }
 
         return false;
     }
+
+    private static TypeSyntax? TryExtractTypeFromBlock(BlockSyntax block)
+    {
+        for (var i = block.Statements.Count - 1; i >= 0; i--)
+        {
+            if (block.Statements[i] is not ReturnStatementSyntax { Expression: { } ret })
+                continue;
+
+            var fromReturn = TryExtractTypeFromExpression(ret);
+            if (fromReturn != null)
+                return fromReturn;
+
+            if (ret is IdentifierNameSyntax idName)
+            {
+                var fromLocal = FindObjectCreationTypeForVariable(block, idName.Identifier.Text);
+                if (fromLocal != null)
+                    return fromLocal;
+            }
+        }
+
+        return null;
+    }
+
+    private static TypeSyntax? FindObjectCreationTypeForVariable(BlockSyntax block, string variableName)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            if (stmt is not LocalDeclarationStatementSyntax local)
+                continue;
+
+            foreach (var variable in local.Declaration.Variables)
+            {
+                if (variable.Identifier.Text != variableName)
+                    continue;
+
+                if (variable.Initializer?.Value is ObjectCreationExpressionSyntax { Type: { } createdType })
+                    return createdType;
+
+                if (local.Declaration.Type is TypeSyntax declaredType &&
+                    variable.Initializer?.Value is ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax)
+                    return declaredType;
+            }
+        }
+
+        return null;
+    }
+
+    private static TypeSyntax? TryExtractTypeFromExpression(ExpressionSyntax expression) =>
+        expression switch
+        {
+            ObjectCreationExpressionSyntax { Type: { } type } => type,
+            ImplicitObjectCreationExpressionSyntax => null,
+            _ => null
+        };
 
     private static bool ContainsGetRequiredService(SyntaxNode node)
     {

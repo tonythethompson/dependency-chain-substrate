@@ -34,14 +34,18 @@ public sealed class AtlasReporterTests
         Assert.Contains("3 registrations", output);
     }
 
-    private static RegistrationNode MakeNode(string name, string file, int line) =>
-        new()
+    private static RegistrationNode MakeNode(string name, string file, int line)
+    {
+        var instanceId = RegistrationNode.ComputeRegistrationInstanceId("atlas-test", file, line, 0, line, 80, 0);
+        return new()
         {
-            Id = RegistrationNode.ComputeId(name),
-            InstanceId = RegistrationNode.ComputeInstanceId(name, file, line),
+            Id = instanceId,
+            RegistrationInstanceId = instanceId,
+            InstanceId = instanceId,
             DisplayName = name,
             AbstractToken = TypeRef.FromShortName(name),
             SourceLocation = new SourceRef { FilePath = file, Line = line },
             FrameworkTags = ["avalonia"]
         };
+    }
 }

@@ -9,6 +9,12 @@ namespace DCS.Parser.CSharp.Tests;
 
 public sealed class TrackdubSemanticGateTests
 {
+    // Phase 10c verified baseline @ pin 3c4e374d: 54.4% semantic, 100% API, 100% scope.
+    // Phase 11 raised floors from 45% to baseline to lock gains; +5pp aspirational target in PLAN.md.
+    private const double MinSemanticTypeResolutionRate = 0.54;
+    private const double MinRegistrationApiVerificationRate = 0.95;
+    private const double MinProjectScopeCompletenessRate = 0.80;
+
     private readonly ITestOutputHelper _output;
 
     public TrackdubSemanticGateTests(ITestOutputHelper output) => _output = output;
@@ -44,12 +50,28 @@ public sealed class TrackdubSemanticGateTests
         var metrics = TrackdubSemanticMetrics.Compute(allNodes);
         _output.WriteLine(metrics.ToString());
 
-        Assert.True(metrics.SemanticTypeResolutionRate >= 0.45,
+        Assert.True(metrics.SemanticTypeResolutionRate >= MinSemanticTypeResolutionRate,
             $"semantic_type_resolution_rate too low: {metrics.SemanticTypeResolutionRate:P}");
-        Assert.True(metrics.RegistrationApiVerificationRate >= 0.45,
+        Assert.True(metrics.RegistrationApiVerificationRate >= MinRegistrationApiVerificationRate,
             $"registration_api_verification_rate too low: {metrics.RegistrationApiVerificationRate:P}");
-        Assert.True(metrics.ProjectScopeCompletenessRate >= 0.80,
+        Assert.True(metrics.ProjectScopeCompletenessRate >= MinProjectScopeCompletenessRate,
             $"project_scope_completeness_rate too low: {metrics.ProjectScopeCompletenessRate:P}");
+
+        var avaloniaShellBlindSpots = result.ContextGraphs
+            .SelectMany(c => c.Graph.BlindSpots)
+            .Where(b => b.Location?.FilePath?.Contains("trackdub.app.avalonia/app.axaml.cs", StringComparison.OrdinalIgnoreCase) == true)
+            .ToList();
+        Assert.DoesNotContain(avaloniaShellBlindSpots, b =>
+            b.Pattern == "unrecognized_pattern" &&
+            b.Description.Contains("AddSingleton", StringComparison.Ordinal));
+
+        var mainWindowShellRegistration = allNodes.Any(n =>
+            n.SourceLocation?.FilePath?.Contains("trackdub.app.avalonia/app.axaml.cs", StringComparison.OrdinalIgnoreCase) == true &&
+            (n.DisplayName.Contains("MainWindow", StringComparison.Ordinal) ||
+             n.AbstractToken.ShortName == "MainWindow" ||
+             n.ConcreteImpl?.ShortName == "MainWindow"));
+        Assert.True(mainWindowShellRegistration,
+            "Expected Avalonia shell MainWindow block factory lambda to register as shallow factory node.");
 
         var consentSignal = allNodes.Any(n =>
                 n.DisplayName.Contains("IConsentService", StringComparison.Ordinal) ||

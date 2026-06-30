@@ -211,10 +211,20 @@ get syntactic-only bucket with `project_evaluation_incomplete`.
 >    handled? What is surfaced in output?
 
 **Answer:** Detected when first data arg is `LambdaExpressionSyntax` or
-`AnonymousMethodExpressionSyntax`. Produces one `RegistrationNode` with
-`abstract_token=IFoo`, `concrete_impl=null`, `parser_confidence=BLIND_SPOT`,
-annotation `blind_spot_reason=factory_lambda`. No edges from lambda body.
-Contributes to `BROKEN_CHAIN` if a consumer depends on unresolved deps inside lambda.
+`AnonymousMethodExpressionSyntax`. `ShallowFactoryLambdaExtractor` extracts the
+created type from:
+- expression-bodied lambdas: `sp => new MainWindow(...)`
+- block-bodied lambdas: `sp => { return new MainWindow(...); }`
+- block-bodied locals: `sp => { var w = new MainWindow(...); return w; }`
+When a created type is found, produces one `RegistrationNode` with
+`abstract_token` and `concrete_impl` set to that type, `parser_confidence=BLIND_SPOT`,
+annotation `blind_spot_reason=factory_lambda_shallow`, plus
+`BlindSpotReport{pattern:"factory_lambda_shallow"}`. Generic overloads
+(`AddSingleton<IFoo>(sp => ...)`) still use abstract type from type args with
+`factory_lambda` blind spot when body deps are not shallow-extractable. No edges
+from lambda body. Contributes to `BROKEN_CHAIN` if a consumer depends on
+unresolved deps inside lambda. Parser 0.3.1 adds block-bodied shallow extraction
+(Phase 11 — Trackdub Avalonia `MainWindow` shell composition).
 
 > Q: How are assembly-scanning registrations
 >    (`services.AddServicesFromAssembly(...)`) handled?

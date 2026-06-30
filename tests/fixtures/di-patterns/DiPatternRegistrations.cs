@@ -23,6 +23,11 @@ public static class DiPatternRegistrations
         services.TryAddSingleton(storagePaths);
         services.AddScoped(sp => new Handler(sp.GetRequiredService<IStoragePaths>()));
         services.AddSingleton(sp => new MainWindow(sp.GetRequiredService<IHandler>()));
+        services.AddSingleton(sp =>
+        {
+            var handler = sp.GetRequiredService<IHandler>();
+            return new MainWindow(handler);
+        });
         services.TryAddSingleton<IHandler, Handler>();
         services.AddSingleton<IHandler, Handler>();
     }
