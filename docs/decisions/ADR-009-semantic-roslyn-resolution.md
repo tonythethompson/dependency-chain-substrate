@@ -1,7 +1,8 @@
 # ADR-009: Semantic Roslyn Type Resolution
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-29
+**Accepted:** 2026-06-30
 **Effort:** High (Opus-class; see AGENTS.md routing matrix)
 **Supersedes:** DESIGN.md §5 parked answer ("syntactic only / neither Compilation")
 

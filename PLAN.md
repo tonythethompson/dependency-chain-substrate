@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-28
+Last updated: 2026-06-30
 
 ---
 
@@ -209,8 +209,8 @@ types; strict DUPLICATE uses `DuplicateGroupKey`; Trackdub CI gate passes at pin
 
 | Task | Status | Notes |
 |------|--------|-------|
-| ADR-009: Semantic Roslyn resolution | ✅ Draft (Proposed) | Human sign-off pending → Accepted |
-| ADR-002 amendment: identity 1.2.0 | ✅ Draft (Proposed) | |
+| ADR-009: Semantic Roslyn resolution | ✅ Accepted | 2026-06-30 |
+| ADR-002 amendment: identity 1.2.0 | ✅ Accepted | 2026-06-30 |
 | IR schema 1.2.0 (`ResolvedTypeIdentity`, quality dimensions) | ✅ Done | |
 | `ProjectTargetScope` discovery + compilation factory | ✅ Done | |
 | `ReferenceProfileProvider` + closure order | ✅ Done | |
@@ -220,13 +220,11 @@ types; strict DUPLICATE uses `DuplicateGroupKey`; Trackdub CI gate passes at pin
 | Fix engine instance-id alignment | ✅ Done | |
 | CLI `--target-framework` / `--all-target-frameworks` | ✅ Done | |
 | Unit semantic fixtures | ✅ Done | `SemanticResolutionTests` |
-| Trackdub mandatory CI gate | ✅ Done | `trackdub-semantic` job |
+| Trackdub mandatory CI gate | ✅ Done | `trackdub-semantic` job green on PR #1 (run 28415499373) |
 | DESIGN.md §5 + §6 update | ✅ Done | |
-| Phase 10 Verified (Trackdub metrics) | ⬜ Pending | Blocked on ADR Accepted + CI green on main |
+| Phase 10 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — local gate: 54.4% / 100% / 100% (333 nodes, 6 scopes); VoiceClone file:line in WinUI+Avalonia shells |
 
-**Phase 10 gate:** `trackdub-semantic` CI job passes; `semantic_type_resolution_rate`,
-`registration_api_verification_rate`, and `project_scope_completeness_rate` reported;
-VoiceCloneConsentCoordinator possible duplicate detected at pin with file:line sites.
+**Phase 10 gate:** ✅ CLOSED — `trackdub-semantic` CI green on main (merge `4644863`); metrics at pin `3c4e374d23fe3941ed7ca376775937941973b313`: semantic 54.4%, API verification 100%, scope completeness 100%; VoiceCloneConsentCoordinator possible duplicate with file:line sites.
 
 ---
 
@@ -248,8 +246,7 @@ fixture/Trackdub gates asserting file:line sites.
 | Trackdub gate file:line assertions | ✅ Done | VoiceClone sites |
 | DESIGN.md §11 update | ✅ Done | |
 
-**Phase 10b gate:** `dotnet test` green; Trackdub @ `3c4e374d` report lists VoiceClone
-homonym sites with `file:line`; `--format json --report-out` validates against schema.
+**Phase 10b gate:** ✅ CLOSED — merged PR #1 (`4644863`); `dotnet test` green; Trackdub @ pin report lists VoiceClone homonym sites with `file:line`; `--format json --report-out` validates against `analysis-report-1.0.json`.
 
 ---
 

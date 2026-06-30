@@ -1,7 +1,8 @@
 # ADR-002 Amendment: Semantic Identity Model (schema 1.2.0)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-29
+**Accepted:** 2026-06-30
 **Parent:** ADR-002 IR Identity Model
 **Companion:** ADR-009 Semantic Roslyn Type Resolution
 
