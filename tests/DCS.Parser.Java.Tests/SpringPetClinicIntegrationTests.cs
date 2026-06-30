@@ -6,6 +6,7 @@ using DCS.Verification;
 
 namespace DCS.Parser.Java.Tests;
 
+[Collection(CorpusGateCollection.JavaSpring)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.JavaSpring)]
 public sealed class SpringPetClinicIntegrationTests

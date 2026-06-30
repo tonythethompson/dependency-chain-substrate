@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 
 namespace DCS.Parser.CSharp.Tests;
 
+[Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubSemanticGateTests

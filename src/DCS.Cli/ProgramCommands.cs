@@ -368,6 +368,29 @@ internal static class ProgramCommands
             var graph = ExtractGraph(options);
             var analysis = new GraphAnalyzer(graph, LoadBoundaries(options.FrameworksPath), options.RootClass).Analyze();
 
+            if (options.FixClass == FixClass.Orphaned)
+            {
+                if (options.ApplyFix)
+                    return Task.FromResult(ErrorExit("orphaned fix --apply is disabled in Phase 8.1a (preview only)."));
+
+                var measurement = OrphanedFixMeasurement.Measure(graph, analysis, options.RootClass);
+                Console.Error.WriteLine(
+                    $"[DCS] Orphaned measurement: total={measurement.TotalOrphaned}, " +
+                    $"explicit_with_site={measurement.ExplicitWithSite}, eligible={measurement.EligibleForFixPreview}");
+
+                if (measurement.EligibleForFixPreview == 0)
+                {
+                    Console.WriteLine("No eligible orphaned registration fixes available.");
+                    Console.WriteLine(measurement.FormatSummary());
+                    return Task.FromResult(0);
+                }
+
+                var tokenFilter = options.FixToken;
+                var result = FixEngine.BuildOrphanedFixes(options.RepoPath!, graph, analysis, options.RootClass, tokenFilter);
+                Console.WriteLine(FixEngine.FormatOrphanedPreview(result, measurement));
+                return Task.FromResult(0);
+            }
+
             if (analysis.Duplicates.Count == 0)
             {
                 Console.Error.WriteLine("[DCS] No duplicate registrations found.");
@@ -427,7 +450,25 @@ internal static class ProgramCommands
             }
 
             Console.Error.WriteLine($"[DCS] Generating viz for {graph.Nodes.Count} nodes...");
-            var html = HtmlVizGenerator.Generate(graph, analysis);
+
+            VizPathHighlight? pathHighlight = null;
+            if (!string.IsNullOrWhiteSpace(options.PathTo))
+            {
+                var pathResult = GraphPathFinder.FindPath(
+                    graph, options.PathFrom, options.PathTo!, options.RootClass);
+                if (pathResult.IsAmbiguous)
+                    Console.Error.WriteLine($"[DCS] Warning: ambiguous path — {pathResult.Error}");
+                else if (!pathResult.Success)
+                    Console.Error.WriteLine($"[DCS] Warning: no path found — {pathResult.Error}");
+                else
+                {
+                    pathHighlight = VizPathHighlight.FromResult(pathResult);
+                    Console.Error.WriteLine(
+                        $"[DCS] Path highlight: {pathResult.Nodes.Count} nodes, {pathResult.Edges.Count} edges");
+                }
+            }
+
+            var html = HtmlVizGenerator.Generate(graph, analysis, pathHighlight);
 
             if (options.OutPath != null)
             {

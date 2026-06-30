@@ -37,6 +37,13 @@ internal sealed record CliOptions
     public bool ContextAll { get; init; }
     public string? PathFrom { get; init; }
     public string? PathTo { get; init; }
+    public FixClass FixClass { get; init; } = FixClass.Duplicate;
+}
+
+internal enum FixClass
+{
+    Duplicate,
+    Orphaned
 }
 
 internal enum OutputFormat
@@ -285,6 +292,7 @@ internal static class CliArgParser
         var force = false;
         var fixAll = false;
         string? token = null;
+        var fixClass = FixClass.Duplicate;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -302,6 +310,9 @@ internal static class CliArgParser
                 case "--all-duplicates":
                     fixAll = true;
                     break;
+                case "--fix-class" when i + 1 < args.Length:
+                    fixClass = ParseFixClass(args[++i]);
+                    break;
                 case "--token" when i + 1 < args.Length:
                     token = args[++i];
                     break;
@@ -314,6 +325,7 @@ internal static class CliArgParser
             ForceFix = force,
             FixToken = token,
             FixAllDuplicates = fixAll,
+            FixClass = fixClass,
             Language = baseOptions.Language == RepoLanguage.Auto ? RepoLanguage.CSharp : baseOptions.Language
         };
     }
@@ -425,6 +437,7 @@ internal static class CliArgParser
     {
         string? source = null, outPath = null, commit = null, rootClass = null;
         string? frameworksPath = null, cacheDir = null, contextId = null, contextRoot = null;
+        string? pathFrom = null, pathTo = null;
         var fromIr = false;
         var noCache = false;
         var language = RepoLanguage.Auto;
@@ -460,6 +473,12 @@ internal static class CliArgParser
                 case "--context-root" when i + 1 < args.Length:
                     contextRoot = args[++i];
                     break;
+                case "--path-from" when i + 1 < args.Length:
+                    pathFrom = args[++i];
+                    break;
+                case "--path-to" when i + 1 < args.Length:
+                    pathTo = args[++i];
+                    break;
                 case "--ir":
                     fromIr = true;
                     break;
@@ -482,7 +501,16 @@ internal static class CliArgParser
             FromIr = fromIr,
             Language = language,
             ContextId = contextId,
-            ContextRoot = contextRoot == null ? null : [contextRoot]
+            ContextRoot = contextRoot == null ? null : [contextRoot],
+            PathFrom = pathFrom,
+            PathTo = pathTo
         };
     }
+
+    public static FixClass ParseFixClass(string value) => value.ToLowerInvariant() switch
+    {
+        "duplicate" or "duplicates" => FixClass.Duplicate,
+        "orphaned" or "orphan" => FixClass.Orphaned,
+        _ => throw new ArgumentException($"Unknown fix class '{value}'. Use duplicate or orphaned.")
+    };
 }

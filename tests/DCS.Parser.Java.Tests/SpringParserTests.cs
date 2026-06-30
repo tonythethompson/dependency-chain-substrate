@@ -5,6 +5,7 @@ using DCS.Parser.Java;
 using DCS.Parser.Java.Naming;
 using DCS.Parser.Java.Parsing;
 using DCS.Verification;
+using Xunit;
 
 namespace DCS.Parser.Java.Tests;
 

@@ -30,6 +30,7 @@
     <Compile Include="..\verification\TrackdubPin.cs" Link="Verification\TrackdubPin.cs" />
     <Compile Include="..\verification\TrackdubSemanticMetrics.cs" Link="Verification\TrackdubSemanticMetrics.cs" />
     <Compile Include="..\verification\CorpusGateTraits.cs" Link="Verification\CorpusGateTraits.cs" />
+    <Compile Include="..\verification\CorpusGateCollection.cs" Link="Verification\CorpusGateCollection.cs" />
     <Compile Include="..\verification\CorpusPathResolver.cs" Link="Verification\CorpusPathResolver.cs" />
   </ItemGroup>
 

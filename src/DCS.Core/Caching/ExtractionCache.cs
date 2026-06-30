@@ -7,6 +7,8 @@ namespace DCS.Core.Caching;
 
 public static class ExtractionCache
 {
+    private static readonly object WriteLock = new();
+
     public static string GetDefaultCacheDirectory()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -45,7 +47,7 @@ public static class ExtractionCache
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = ReadAllTextWithRetry(path);
             var result = ParseResultSerializer.Deserialize(json);
             if (result == null)
                 return null;
@@ -83,7 +85,40 @@ public static class ExtractionCache
         var parserVersion = result.ContextGraphs[0].Graph.ParserVersion;
         Directory.CreateDirectory(cacheDirectory);
         var path = GetCacheFilePath(cacheDirectory, commitSha, parserVersion, fingerprint);
-        File.WriteAllText(path, ParseResultSerializer.Serialize(result));
+        var payload = ParseResultSerializer.Serialize(result);
+
+        lock (WriteLock)
+        {
+            var tempPath = path + ".tmp." + Guid.NewGuid().ToString("N");
+            try
+            {
+                File.WriteAllText(tempPath, payload);
+                File.Move(tempPath, path, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+        }
+    }
+
+    private static string ReadAllTextWithRetry(string path)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                return File.ReadAllText(path);
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(50 * attempt);
+            }
+        }
+
+        return File.ReadAllText(path);
     }
 
     public static void Write(RegistrationGraph graph, string cacheDirectory, string? fingerprint = null) =>

@@ -8,11 +8,22 @@ namespace DCS.Viz;
 
 public static class HtmlVizGenerator
 {
-    public static string Generate(RegistrationGraph graph, AnalysisResult? analysis = null)
+    public static string Generate(
+        RegistrationGraph graph,
+        AnalysisResult? analysis = null,
+        VizPathHighlight? pathHighlight = null)
     {
         var graphJson = IrSerializer.Serialize(graph);
         var analysisJson = analysis != null
             ? JsonSerializer.Serialize(analysis, IrSerializer.Options)
+            : "null";
+        var pathHighlightJson = pathHighlight != null
+            ? JsonSerializer.Serialize(new
+            {
+                node_ids = pathHighlight.NodeIds,
+                edge_keys = pathHighlight.EdgeKeys,
+                hop_count = Math.Max(0, pathHighlight.NodeIds.Count - 1)
+            }, IrSerializer.Options)
             : "null";
 
         var commit = graph.CommitSha ?? "working directory";
@@ -38,6 +49,9 @@ public static class HtmlVizGenerator
             #node-detail .det-name{font-weight:700;font-size:13px;color:#f8fafc;margin-bottom:4px}
             #node-detail .det-row{display:flex;gap:6px;color:#94a3b8}
             #node-detail .det-val{color:#e2e8f0}
+            #path-panel{margin-top:8px;padding:10px;background:#0f172a;border-radius:6px;font-size:12px;line-height:1.5;display:none;border:1px solid #0891b2}
+            #path-panel .path-title{font-weight:700;color:#22d3ee;margin-bottom:6px}
+            #path-panel .path-hop{color:#94a3b8;padding:2px 0}
             #canvas-wrap{flex:1;position:relative;overflow:hidden}
             canvas{display:block;width:100%;height:100%}
             #hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:12px;color:#475569;pointer-events:none}
@@ -53,6 +67,7 @@ public static class HtmlVizGenerator
               <div id="legend"></div>
               <h1 style="margin-top:8px">Selected Node</h1>
               <div id="node-detail"><em style="color:#64748b">Click a node to inspect</em></div>
+              <div id="path-panel"></div>
             </div>
             <div id="canvas-wrap">
               <canvas id="c"></canvas>
@@ -61,6 +76,7 @@ public static class HtmlVizGenerator
             <script>
             const GRAPH = {{graphJson}};
             const ANALYSIS = {{analysisJson}};
+            const PATH_HIGHLIGHT = {{pathHighlightJson}};
 
             const FW_COLORS = {
               winui:         '#ef4444',
@@ -215,11 +231,41 @@ public static class HtmlVizGenerator
                 if (!count) return '';
                 return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${tag} <span style="color:#64748b;margin-left:auto">${count}</span></div>`;
               }).join('');
+
+              const pathPanel = document.getElementById('path-panel');
+              if (PATH_HIGHLIGHT && PATH_HIGHLIGHT.node_ids && PATH_HIGHLIGHT.node_ids.length) {
+                pathPanel.style.display = '';
+                const hops = PATH_HIGHLIGHT.hop_count ?? Math.max(0, PATH_HIGHLIGHT.node_ids.length - 1);
+                const hopHtml = PATH_HIGHLIGHT.node_ids.map((id, i) => {
+                  const n = nodeMap[id];
+                  if (!n) return '';
+                  return `<div class="path-hop">${i + 1}. ${esc(n.display_name)}</div>`;
+                }).join('');
+                pathPanel.innerHTML = `<div class="path-title">Path highlight (${hops} hop${hops === 1 ? '' : 's'})</div>${hopHtml}`;
+              } else {
+                pathPanel.style.display = 'none';
+              }
             }
             buildSidebar();
 
             // ── Drawing ────────────────────────────────────────────────────────
             const NODE_R = 6;
+            const PATH_EDGE = '#22d3ee';
+            const PATH_NODE_RING = '#f8fafc';
+
+            function pathNodeSet() {
+              return PATH_HIGHLIGHT && PATH_HIGHLIGHT.node_ids
+                ? new Set(PATH_HIGHLIGHT.node_ids)
+                : null;
+            }
+
+            function pathEdgeSet() {
+              return PATH_HIGHLIGHT && PATH_HIGHLIGHT.edge_keys
+                ? new Set(PATH_HIGHLIGHT.edge_keys)
+                : null;
+            }
+
+            function edgeKey(from, to) { return from + '|' + to; }
 
             function nodeColor(n) {
               const tag = (n.framework_tags && n.framework_tags[0]) || 'none';
@@ -234,6 +280,10 @@ public static class HtmlVizGenerator
               ctx.translate(panX, panY);
               ctx.scale(zoom, zoom);
 
+              const pathNodes = pathNodeSet();
+              const pathEdges = pathEdgeSet();
+              const pathMode = pathNodes && pathNodes.size > 0;
+
               const selectedNeighborIds = selected ? new Set([
                 ...(outEdges[selected.id]||[]).map(e => e.to),
                 ...(inEdges[selected.id] ||[]).map(e => e.from),
@@ -243,13 +293,24 @@ public static class HtmlVizGenerator
               GRAPH.edges.forEach(e => {
                 const src = nodeMap[e.from], dst = nodeMap[e.to];
                 if (!src || !dst) return;
+                const onPath = pathEdges && pathEdges.has(edgeKey(e.from, e.to));
                 const highlight = selected && (e.from === selected.id || e.to === selected.id);
                 ctx.beginPath();
                 ctx.moveTo(src._x, src._y);
                 ctx.lineTo(dst._x, dst._y);
-                ctx.strokeStyle = highlight ? '#f59e0b' : '#334155';
-                ctx.lineWidth = highlight ? 1.5 / zoom : 0.5 / zoom;
-                ctx.globalAlpha = highlight ? 0.9 : 0.4;
+                if (onPath) {
+                  ctx.strokeStyle = PATH_EDGE;
+                  ctx.lineWidth = 2.5 / zoom;
+                  ctx.globalAlpha = 1;
+                } else if (highlight) {
+                  ctx.strokeStyle = '#f59e0b';
+                  ctx.lineWidth = 1.5 / zoom;
+                  ctx.globalAlpha = 0.9;
+                } else {
+                  ctx.strokeStyle = '#334155';
+                  ctx.lineWidth = 0.5 / zoom;
+                  ctx.globalAlpha = pathMode ? 0.12 : 0.4;
+                }
                 ctx.stroke();
                 ctx.globalAlpha = 1;
               });
@@ -258,20 +319,25 @@ public static class HtmlVizGenerator
               GRAPH.nodes.forEach(n => {
                 const isSelected = selected && n.id === selected.id;
                 const isNeighbor = selectedNeighborIds && selectedNeighborIds.has(n.id);
+                const onPath = pathNodes && pathNodes.has(n.id);
                 const isError = leakedIds.has(n.id) || brokenIds.has(n.id);
                 const isWarn = orphanIds.has(n.id);
-                const alpha = selected ? (isSelected || isNeighbor ? 1 : 0.25) : (CONF_ALPHA[n.parser_confidence] || 0.7);
+                let alpha = selected
+                  ? (isSelected || isNeighbor ? 1 : 0.25)
+                  : (CONF_ALPHA[n.parser_confidence] || 0.7);
+                if (pathMode && !onPath && !isSelected)
+                  alpha = Math.min(alpha, 0.18);
 
                 ctx.globalAlpha = alpha;
                 ctx.beginPath();
-                const r = isSelected ? NODE_R * 1.6 : NODE_R;
+                const r = isSelected ? NODE_R * 1.6 : (onPath ? NODE_R * 1.35 : NODE_R);
                 ctx.arc(n._x, n._y, r, 0, 2 * Math.PI);
                 ctx.fillStyle = isError ? '#ef4444' : isWarn ? '#f59e0b' : nodeColor(n);
                 ctx.fill();
 
-                if (isSelected) {
-                  ctx.strokeStyle = '#f8fafc';
-                  ctx.lineWidth = 2 / zoom;
+                if (isSelected || onPath) {
+                  ctx.strokeStyle = onPath ? PATH_NODE_RING : '#f8fafc';
+                  ctx.lineWidth = (onPath ? 2.5 : 2) / zoom;
                   ctx.stroke();
                 }
                 ctx.globalAlpha = 1;
@@ -284,9 +350,10 @@ public static class HtmlVizGenerator
                 GRAPH.nodes.forEach(n => {
                   const isSelected = selected && n.id === selected.id;
                   const isNeighbor = selectedNeighborIds && selectedNeighborIds.has(n.id);
-                  if (!isSelected && !isNeighbor && zoom < 2) return;
-                  ctx.globalAlpha = selected ? (isSelected || isNeighbor ? 1 : 0) : 0.9;
-                  ctx.fillStyle = '#e2e8f0';
+                  const onPath = pathNodes && pathNodes.has(n.id);
+                  if (!isSelected && !isNeighbor && !onPath && zoom < 2) return;
+                  ctx.globalAlpha = selected ? (isSelected || isNeighbor ? 1 : 0) : (onPath ? 1 : 0.9);
+                  ctx.fillStyle = onPath ? PATH_EDGE : '#e2e8f0';
                   ctx.fillText(n.display_name, n._x, n._y - NODE_R - 3);
                   ctx.globalAlpha = 1;
                 });
