@@ -403,3 +403,9 @@ FodyWeavers.xsd
 
 # CI Trackdub pin checkout (local mirror of trackdub-semantic job)
 dcs-trackdub-pin/
+
+# Local dcs analyze/path output at repo root (regenerated)
+/report.json
+/report.txt
+/tmp-ir.json
+/tmp-*.json
