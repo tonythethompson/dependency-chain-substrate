@@ -2,6 +2,29 @@ namespace DCS.Analysis;
 
 public static class AnalysisReportPrinter
 {
+    public static async Task WriteToFileAsync(
+        AnalysisReport report,
+        string path,
+        ReportVerbosity verbosity,
+        bool verboseBlindSpots,
+        CancellationToken ct = default)
+    {
+        await using var writer = new StreamWriter(path);
+        Print(report, writer, verbosity, verboseBlindSpots);
+        await writer.FlushAsync(ct);
+    }
+
+    public static async Task WriteToFileAsync(
+        MultiContextAnalysisReport multi,
+        string path,
+        ReportVerbosity verbosity,
+        CancellationToken ct = default)
+    {
+        await using var writer = new StreamWriter(path);
+        PrintMultiContext(multi, writer, verbosity);
+        await writer.FlushAsync(ct);
+    }
+
     public static void Print(AnalysisReport report, TextWriter writer, ReportVerbosity verbosity, bool verboseBlindSpots)
     {
         writer.WriteLine();

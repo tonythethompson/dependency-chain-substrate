@@ -33,6 +33,7 @@ internal sealed record CliOptions
     public bool Metrics { get; init; }
     public OutputFormat Format { get; init; } = OutputFormat.Text;
     public string? ReportOut { get; init; }
+    public string? TextOut { get; init; }
     public bool ContextAll { get; init; }
 }
 
@@ -60,6 +61,7 @@ internal static class CliArgParser
         var metrics = false;
         var format = OutputFormat.Text;
         string? reportOut = null;
+        string? textOut = null;
         var contextAll = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -137,6 +139,9 @@ internal static class CliArgParser
                 case "--report-out" when i + 1 < args.Length:
                     reportOut = args[++i];
                     break;
+                case "--text-out" when i + 1 < args.Length:
+                    textOut = args[++i];
+                    break;
                 default:
                     if (!args[i].StartsWith('-') && repoPath == null)
                         repoPath = args[i];
@@ -166,6 +171,7 @@ internal static class CliArgParser
             Metrics = metrics,
             Format = format,
             ReportOut = reportOut,
+            TextOut = textOut,
             ContextAll = contextAll
         };
     }

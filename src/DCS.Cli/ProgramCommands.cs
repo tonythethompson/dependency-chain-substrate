@@ -146,37 +146,61 @@ internal static class ProgramCommands
     private static async Task EmitAnalyzeOutput(AnalysisReport report, CliOptions options)
     {
         if (options.Format == OutputFormat.Json)
+            Console.WriteLine(AnalysisReportSerializer.Serialize(report));
+        else
         {
-            var json = AnalysisReportSerializer.Serialize(report);
-            if (options.ReportOut != null)
-                await AnalysisReportSerializer.WriteToFileAsync(report, options.ReportOut);
-            Console.WriteLine(json);
-            return;
+            AnalysisReportPrinter.Print(report, Console.Out, options.Verbosity, options.VerboseBlindSpots);
+            if (report.Metrics != null)
+                AnalysisReportPrinter.PrintMetrics(report.Metrics, Console.Error);
         }
 
-        AnalysisReportPrinter.Print(report, Console.Out, options.Verbosity, options.VerboseBlindSpots);
-
-        if (report.Metrics != null)
-            AnalysisReportPrinter.PrintMetrics(report.Metrics, Console.Error);
-
-        if (options.ReportOut != null)
-            await AnalysisReportSerializer.WriteToFileAsync(report, options.ReportOut);
+        await WriteAnalyzeReportFilesAsync(report, options);
     }
 
     private static async Task EmitAnalyzeOutput(MultiContextAnalysisReport multi, CliOptions options)
     {
         if (options.Format == OutputFormat.Json)
+            Console.WriteLine(AnalysisReportSerializer.Serialize(multi));
+        else
+            AnalysisReportPrinter.PrintMultiContext(multi, Console.Out, options.Verbosity);
+
+        await WriteAnalyzeReportFilesAsync(multi, options);
+    }
+
+    private static async Task WriteAnalyzeReportFilesAsync(AnalysisReport report, CliOptions options)
+    {
+        if (options.ReportOut != null)
         {
-            var json = AnalysisReportSerializer.Serialize(multi);
-            if (options.ReportOut != null)
-                await AnalysisReportSerializer.WriteToFileAsync(multi, options.ReportOut);
-            Console.WriteLine(json);
-            return;
+            if (options.Format == OutputFormat.Json)
+                await AnalysisReportSerializer.WriteToFileAsync(report, options.ReportOut);
+            else
+                await AnalysisReportPrinter.WriteToFileAsync(
+                    report, options.ReportOut, options.Verbosity, options.VerboseBlindSpots);
         }
 
-        AnalysisReportPrinter.PrintMultiContext(multi, Console.Out, options.Verbosity);
+        if (options.TextOut != null &&
+            !string.Equals(options.TextOut, options.ReportOut, StringComparison.OrdinalIgnoreCase))
+        {
+            await AnalysisReportPrinter.WriteToFileAsync(
+                report, options.TextOut, options.Verbosity, options.VerboseBlindSpots);
+        }
+    }
+
+    private static async Task WriteAnalyzeReportFilesAsync(MultiContextAnalysisReport multi, CliOptions options)
+    {
         if (options.ReportOut != null)
-            await AnalysisReportSerializer.WriteToFileAsync(multi, options.ReportOut);
+        {
+            if (options.Format == OutputFormat.Json)
+                await AnalysisReportSerializer.WriteToFileAsync(multi, options.ReportOut);
+            else
+                await AnalysisReportPrinter.WriteToFileAsync(multi, options.ReportOut, options.Verbosity);
+        }
+
+        if (options.TextOut != null &&
+            !string.Equals(options.TextOut, options.ReportOut, StringComparison.OrdinalIgnoreCase))
+        {
+            await AnalysisReportPrinter.WriteToFileAsync(multi, options.TextOut, options.Verbosity);
+        }
     }
 
     private static void PrintContextBanner(ParseResult parseResult)
@@ -404,7 +428,8 @@ internal static class ProgramCommands
               --verbose-blind-spots List informational blind spots in text output
               --metrics             Print extraction quality metrics on stderr
               --format <fmt>        text (default) | json
-              --report-out <path>   Write structured analysis report JSON
+              --report-out <path>   Write analysis report file (format follows --format)
+              --text-out <path>     Write human-readable report (with --format json)
               --no-cache            Bypass extraction cache (recommended after parser updates)
 
             PowerShell: quote pipe in context — --context "csharp|net10.0"
@@ -436,6 +461,8 @@ internal static class ProgramCommands
               dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
               dcs fix /path/to/repo --apply --force
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json
+              dcs analyze /path/to/repo --commit abc1234 --format text --report-out report.txt
+              dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json --text-out report.txt
               dcs analyze /path/to/repo --commit abc1234 --context all --verbosity summary
               dcs atlas /path/to/repo --commit abc1234
               dcs diff /path/to/repo --from abc1234 --to def5678 --frameworks fw.json

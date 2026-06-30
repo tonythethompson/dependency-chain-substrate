@@ -51,4 +51,73 @@ public sealed class AnalyzeReportTests
         Assert.Contains("dipatternregistrations.cs:", text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("from unresolved", text, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task Report_out_text_format_writes_human_readable_file()
+    {
+        var report = BuildFixtureReport();
+        var path = Path.Combine(Path.GetTempPath(), $"dcs-report-text-{Guid.NewGuid():N}.txt");
+
+        try
+        {
+            await AnalysisReportPrinter.WriteToFileAsync(
+                report, path, ReportVerbosity.Actionable, verboseBlindSpots: false);
+
+            var text = await File.ReadAllTextAsync(path);
+            Assert.Contains("=== DCS Analysis Report ===", text);
+            Assert.Contains("dipatternregistrations.cs:", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"schema_version\"", text);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Report_out_json_format_writes_schema_json()
+    {
+        var report = BuildFixtureReport();
+        var path = Path.Combine(Path.GetTempPath(), $"dcs-report-json-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await AnalysisReportSerializer.WriteToFileAsync(report, path);
+
+            var json = await File.ReadAllTextAsync(path);
+            Assert.Contains("\"schema_version\": \"1.0\"", json);
+            Assert.Contains("\"finding_id\"", json);
+            Assert.DoesNotContain("=== DCS Analysis Report ===", json);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Parse_analyze_args_accepts_text_out_flag()
+    {
+        var options = CliArgParser.ParseRepoCommand([
+            "/tmp/repo",
+            "--format", "json",
+            "--report-out", "report.json",
+            "--text-out", "report.txt"
+        ]);
+
+        Assert.Equal(OutputFormat.Json, options.Format);
+        Assert.Equal("report.json", options.ReportOut);
+        Assert.Equal("report.txt", options.TextOut);
+    }
+
+    private static AnalysisReport BuildFixtureReport()
+    {
+        var parseResult = new CSharpStaticParser(new CSharpParseOptions { IncludeTests = false })
+            .ParseDirectory(FixturePath);
+        var graph = parseResult.ContextGraphs.First(c => c.Graph.Nodes.Count > 0).Graph;
+        var analysis = new GraphAnalyzer(graph).Analyze();
+        return AnalysisReportBuilder.Build(graph, analysis);
+    }
 }
