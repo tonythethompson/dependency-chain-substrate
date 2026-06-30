@@ -23,6 +23,40 @@ internal static class ShallowFactoryLambdaExtractor
         return TryExtractTypeFromBlock(lambda.Block);
     }
 
+    public static IReadOnlyList<TypeSyntax> TryExtractServiceRequestTypes(LambdaExpressionSyntax lambda) =>
+        ExtractServiceRequestTypes(lambda.Body);
+
+    public static IReadOnlyList<TypeSyntax> TryExtractServiceRequestTypes(AnonymousMethodExpressionSyntax lambda) =>
+        ExtractServiceRequestTypes(lambda.Block);
+
+    private static IReadOnlyList<TypeSyntax> ExtractServiceRequestTypes(SyntaxNode body)
+    {
+        var results = new List<TypeSyntax>();
+        foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            TypeSyntax? typeArg = invocation.Expression switch
+            {
+                MemberAccessExpressionSyntax
+                {
+                    Name: GenericNameSyntax { Identifier.Text: "GetRequiredService" or "GetService" } genericName
+                } => genericName.TypeArgumentList.Arguments.FirstOrDefault(),
+                _ => null
+            };
+
+            if (typeArg == null &&
+                invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" or "GetService" } &&
+                invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is TypeOfExpressionSyntax typeOf)
+            {
+                typeArg = typeOf.Type;
+            }
+
+            if (typeArg != null)
+                results.Add(typeArg);
+        }
+
+        return results;
+    }
+
     public static bool UsesGetRequiredService(LambdaExpressionSyntax lambda)
     {
         var body = lambda.Body;

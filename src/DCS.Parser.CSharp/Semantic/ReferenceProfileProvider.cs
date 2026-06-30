@@ -75,24 +75,17 @@ public static class ReferenceProfileProvider
     private static List<MetadataReference> ResolveFrameworkReferences(string targetFramework)
     {
         var refs = new List<MetadataReference>();
-        var packs = new[]
-        {
-            ("Microsoft.NETCore.App.Ref", targetFramework),
-            ("Microsoft.AspNetCore.App.Ref", targetFramework)
-        };
-
         var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
 
-        foreach (var (packName, tfm) in packs)
+        AddRefPackAssemblies(refs, dotnetRoot, "Microsoft.NETCore.App.Ref", targetFramework);
+        AddRefPackAssemblies(refs, dotnetRoot, "Microsoft.AspNetCore.App.Ref", targetFramework);
+
+        if (targetFramework.Contains('-', StringComparison.Ordinal))
         {
-            var refDir = Path.Combine(dotnetRoot, "packs", packName, "ref", tfm);
-            if (!Directory.Exists(refDir)) continue;
-            foreach (var dll in Directory.EnumerateFiles(refDir, "*.dll", SearchOption.AllDirectories))
-            {
-                try { refs.Add(MetadataReference.CreateFromFile(dll)); }
-                catch { /* skip invalid refs */ }
-            }
+            var portableTfm = CrossTfmProjectReferenceResolver.GetPortableTargetFrameworkMoniker(targetFramework);
+            AddRefPackAssemblies(refs, dotnetRoot, "Microsoft.WindowsDesktop.App.Ref", portableTfm);
+            AddRefPackAssemblies(refs, dotnetRoot, "Microsoft.WindowsDesktop.App.Ref", targetFramework);
         }
 
         refs.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
@@ -107,6 +100,37 @@ public static class ReferenceProfileProvider
         AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Configuration.IConfiguration).Assembly);
 
         return refs;
+    }
+
+    private static void AddRefPackAssemblies(
+        List<MetadataReference> refs,
+        string dotnetRoot,
+        string packName,
+        string targetFramework)
+    {
+        var packRoot = Path.Combine(dotnetRoot, "packs", packName);
+        if (!Directory.Exists(packRoot))
+            return;
+
+        foreach (var versionDir in Directory.GetDirectories(packRoot).OrderByDescending(Path.GetFileName, StringComparer.Ordinal))
+        {
+            var refDir = Path.Combine(versionDir, "ref", targetFramework);
+            if (!Directory.Exists(refDir))
+                continue;
+
+            foreach (var dll in Directory.EnumerateFiles(refDir, "*.dll", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (refs.Any(r => string.Equals(r.Display, dll, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                    refs.Add(MetadataReference.CreateFromFile(dll));
+                }
+                catch { /* skip invalid refs */ }
+            }
+
+            return;
+        }
     }
 
     private static void AddAssemblyIfPresent(List<MetadataReference> refs, System.Reflection.Assembly assembly)

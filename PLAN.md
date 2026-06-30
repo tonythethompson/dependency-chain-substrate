@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-30 (Phase 11 closed)
+Last updated: 2026-06-30 (Phase 12 closed)
 
 ---
 
@@ -272,6 +272,24 @@ floors raised from Phase 10c baseline; technical debt cleaned.
 | Phase 11 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — 54.6% / 100% / 100% (335 nodes, 6 scopes); MainWindow shallow factory registered |
 
 **Phase 11 gate:** ✅ CLOSED — `dotnet test` green; Trackdub @ pin `3c4e374d23fe3941ed7ca376775937941973b313`: semantic 54.6% (+0.2pp vs Phase 10c baseline 54.4%), API verification 100%, scope completeness 100%; Avalonia `MainWindow` block factory recognised as `factory_lambda_shallow` (not `unrecognized_pattern`); VoiceClone file:line assertions unchanged. **Aspirational +5pp semantic target (~59.4%) deferred** — remaining blind spots are mostly `factory_lambda` / `factory_lambda_shallow` at other sites, not shell composition.
+
+---
+
+## Phase 12 — Semantic resolution hardening (windows TFM + factory deps)
+
+**Done means:** Windows TFM semantic cliff closed via cross-TFM project-reference compilation
+closure; factory-lambda `GetRequiredService` deps traced; aggregate + per-context gate floors raised.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Investigate windows TFM semantic cliff (15.9% vs 91.8% portable) | ✅ Done | Root cause: portable-only deps not compiled into windows TFM graph |
+| `CrossTfmProjectReferenceResolver` scope expansion | ✅ Done | MSBuild-compatible portable→windows ref fallback |
+| Fix `ReferenceProfileProvider` ref-pack paths (`{version}/ref/{tfm}`) | ✅ Done | + WindowsDesktop pack for `-windows` TFMs |
+| Factory-lambda `GetRequiredService` edge tracing | ✅ Done | Parser 0.3.2; `factory_lambda_service_keys` annotation |
+| Per-context gate metrics + raised floors (57% aggregate, 40% windows) | ✅ Done | Actual: 91.6% aggregate, 91.5% windows |
+| Phase 12 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — 91.6% / 100% / 100% (335 nodes, 6 scopes) |
+
+**Phase 12 gate:** ✅ CLOSED — `dotnet test` green; Trackdub @ pin: aggregate semantic **91.6%**, windows TFM **91.5%**, portable **91.8%**; MainWindow + VoiceClone assertions unchanged; cross-TFM compilation closure verified via `CrossTfmProjectReferenceResolverTests`.
 
 ---
 

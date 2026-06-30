@@ -9,9 +9,9 @@ namespace DCS.Parser.CSharp.Tests;
 
 public sealed class TrackdubSemanticGateTests
 {
-    // Phase 10c verified baseline @ pin 3c4e374d: 54.4% semantic, 100% API, 100% scope.
-    // Phase 11 raised floors from 45% to baseline to lock gains; +5pp aspirational target in PLAN.md.
-    private const double MinSemanticTypeResolutionRate = 0.54;
+    // Phase 12: raised aggregate floor after cross-TFM compilation closure + ref-pack fix.
+    private const double MinSemanticTypeResolutionRate = 0.57;
+    private const double MinWindowsSemanticTypeResolutionRate = 0.40;
     private const double MinRegistrationApiVerificationRate = 0.95;
     private const double MinProjectScopeCompletenessRate = 0.80;
 
@@ -48,7 +48,13 @@ public sealed class TrackdubSemanticGateTests
         Assert.True(allNodes.Count >= 150, $"Expected substantial registration count; got {allNodes.Count}");
 
         var metrics = TrackdubSemanticMetrics.Compute(allNodes);
-        _output.WriteLine(metrics.ToString());
+        _output.WriteLine($"aggregate {metrics}");
+
+        foreach (var context in result.ContextGraphs)
+        {
+            var contextMetrics = TrackdubSemanticMetrics.Compute(context.Graph.Nodes);
+            _output.WriteLine($"{context.ContextId} {contextMetrics}");
+        }
 
         Assert.True(metrics.SemanticTypeResolutionRate >= MinSemanticTypeResolutionRate,
             $"semantic_type_resolution_rate too low: {metrics.SemanticTypeResolutionRate:P}");
@@ -56,6 +62,15 @@ public sealed class TrackdubSemanticGateTests
             $"registration_api_verification_rate too low: {metrics.RegistrationApiVerificationRate:P}");
         Assert.True(metrics.ProjectScopeCompletenessRate >= MinProjectScopeCompletenessRate,
             $"project_scope_completeness_rate too low: {metrics.ProjectScopeCompletenessRate:P}");
+
+        var windowsContext = result.ContextGraphs.FirstOrDefault(c =>
+            c.ContextId.Contains("windows", StringComparison.OrdinalIgnoreCase));
+        if (windowsContext != null)
+        {
+            var windowsMetrics = TrackdubSemanticMetrics.Compute(windowsContext.Graph.Nodes);
+            Assert.True(windowsMetrics.SemanticTypeResolutionRate >= MinWindowsSemanticTypeResolutionRate,
+                $"windows semantic_type_resolution_rate too low: {windowsMetrics.SemanticTypeResolutionRate:P}");
+        }
 
         var avaloniaShellBlindSpots = result.ContextGraphs
             .SelectMany(c => c.Graph.BlindSpots)

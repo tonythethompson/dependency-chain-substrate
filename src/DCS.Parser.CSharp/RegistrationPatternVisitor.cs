@@ -170,7 +170,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 if (shallowType != null)
                 {
                     return MakeShallowFactoryNode(
-                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, lambda);
                 }
             }
             else if (argExpr is AnonymousMethodExpressionSyntax anonLambda)
@@ -179,7 +179,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 if (shallowType != null)
                 {
                     return MakeShallowFactoryNode(
-                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, anonLambda: anonLambda);
                 }
             }
             else if (argExpr is not LambdaExpressionSyntax and not AnonymousMethodExpressionSyntax)
@@ -230,7 +230,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         TypeSyntax abstractType, TypeSyntax concreteType,
         Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location,
         InvocationExpressionSyntax invocation, string methodName,
-        RegistrationRecognitionQuality recognition)
+        RegistrationRecognitionQuality recognition,
+        LambdaExpressionSyntax? lambda = null,
+        AnonymousMethodExpressionSyntax? anonLambda = null)
     {
         var abstractResolved = ResolveType(abstractType);
         var concreteResolved = ResolveType(concreteType);
@@ -240,8 +242,25 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             Location = location,
             Description = $"{abstractResolved.TypeRef.ShortName} — shallow factory lambda (dependencies partially traced)"
         });
-        return BuildNode(abstractResolved, concreteResolved, lifetime, isKeyed, isTryAdd, location,
+        var node = BuildNode(abstractResolved, concreteResolved, lifetime, isKeyed, isTryAdd, location,
             invocation, methodName, recognition, Confidence.BlindSpot, "factory_lambda_shallow");
+
+        var serviceRequests = lambda != null
+            ? ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(lambda)
+            : anonLambda != null
+                ? ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(anonLambda)
+                : [];
+
+        var serviceKeys = serviceRequests
+            .Select(t => ResolveType(t).ServiceType.CanonicalKey)
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (serviceKeys.Count > 0)
+            node.Annotations["factory_lambda_service_keys"] = string.Join(";", serviceKeys);
+
+        return node;
     }
 
     private RegistrationNode MakeExplicitNode(

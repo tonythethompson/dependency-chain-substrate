@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.1";
+    public const string ParserVersion = "0.3.2";
 
     private readonly CSharpParseOptions _options;
 
@@ -88,9 +88,10 @@ public sealed class CSharpStaticParser : IStaticParser
         SemanticExtractionOptions semanticOptions,
         IReadOnlyDictionary<string, string>? commitCsprojContents = null)
     {
-        var scopes = ProjectTargetScopeDiscovery.DiscoverScopes(
+        var allDiscoveredScopes = ProjectTargetScopeDiscovery.DiscoverScopes(
             sourceFiles, repoRoot, semanticOptions, commitCsprojContents);
 
+        var scopes = allDiscoveredScopes;
         if (!semanticOptions.AllTargetFrameworks)
         {
             var tfm = semanticOptions.TargetFramework;
@@ -113,7 +114,7 @@ public sealed class CSharpStaticParser : IStaticParser
         foreach (var tfmGroup in tfmGroups)
         {
             var scopeSubset = tfmGroup.ToList();
-            var graph = BuildGraphForScopes(sourceFiles, scopeSubset, commitSha);
+            var graph = BuildGraphForScopes(sourceFiles, scopeSubset, commitSha, allDiscoveredScopes);
             graph.Metadata["target_framework"] = tfmGroup.Key;
             contextGraphs.Add(new ContextGraph
             {
@@ -125,7 +126,7 @@ public sealed class CSharpStaticParser : IStaticParser
 
         if (contextGraphs.Count == 0)
         {
-            var empty = BuildGraphForScopes(sourceFiles, scopes.ToList(), commitSha);
+            var empty = BuildGraphForScopes(sourceFiles, scopes.ToList(), commitSha, allDiscoveredScopes);
             return CSharpParseResultFactory.Wrap(empty);
         }
 
@@ -134,10 +135,13 @@ public sealed class CSharpStaticParser : IStaticParser
 
     private RegistrationGraph BuildGraphForScopes(
         IReadOnlyList<(string path, string content)> sourceFiles,
-        IReadOnlyList<ProjectTargetScope> scopes,
-        string? commitSha)
+        IReadOnlyList<ProjectTargetScope> activeScopes,
+        string? commitSha,
+        IReadOnlyList<ProjectTargetScope> allScopes)
     {
-        var orderedScopes = ProjectReferenceClosureOrder.SortTopologically(scopes);
+        var extractionScopeIds = activeScopes.Select(s => s.ScopeId).ToHashSet(StringComparer.Ordinal);
+        var compilationScopes = CrossTfmProjectReferenceResolver.ExpandWithReferencedScopes(activeScopes, allScopes);
+        var orderedScopes = ProjectReferenceClosureOrder.SortTopologically(compilationScopes);
         var fileContents = sourceFiles.ToDictionary(
             f => f.path.Replace('\\', '/'),
             f => f.content,
@@ -151,8 +155,8 @@ public sealed class CSharpStaticParser : IStaticParser
             var additionalRefs = scope.ProjectReferences
                 .Select(pref =>
                 {
-                    var match = orderedScopes.FirstOrDefault(s =>
-                        s.CsprojPath.Equals(pref, StringComparison.OrdinalIgnoreCase));
+                    var match = CrossTfmProjectReferenceResolver.FindScopeForProjectReference(
+                        pref, scope.TargetFramework, orderedScopes);
                     return match != null && projectAssemblyRefs.TryGetValue(match.ScopeId, out var r) ? r : null;
                 })
                 .Where(r => r != null)
@@ -177,6 +181,9 @@ public sealed class CSharpStaticParser : IStaticParser
 
         foreach (var scope in orderedScopes)
         {
+            if (!extractionScopeIds.Contains(scope.ScopeId))
+                continue;
+
             if (!scopeCompilations.TryGetValue(scope.ScopeId, out var scopeResult))
                 continue;
 
@@ -330,6 +337,46 @@ public sealed class CSharpStaticParser : IStaticParser
                     To = depNode.Id,
                     InjectionMechanism = Mechanism.Constructor,
                     ParameterName = param.SyntacticName,
+                    ParserConfidence =
+                        node.ParserConfidence == Confidence.Explicit &&
+                        depNode.ParserConfidence == Confidence.Explicit
+                            ? Confidence.Explicit
+                            : Confidence.Inferred
+                });
+            }
+        }
+
+        foreach (var node in nodes)
+        {
+            if (!node.Annotations.TryGetValue("factory_lambda_service_keys", out var keysRaw))
+                continue;
+
+            var factoryEdgeIndex = 0;
+            foreach (var serviceKey in keysRaw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!byServiceIdentity.TryGetValue(serviceKey, out var candidates))
+                {
+                    unresolved.Add(new UnresolvedInjection
+                    {
+                        Id = UnresolvedInjection.ComputeId(node.Id, serviceKey, edgeIndexGlobal++),
+                        FromRegistrationId = node.Id,
+                        DeclaredType = TypeRef.FromShortName(serviceKey),
+                        ParameterName = serviceKey,
+                        Reason = "no_matching_registration"
+                    });
+                    continue;
+                }
+
+                var depNode = candidates.FirstOrDefault(c =>
+                    c.CompositionScopeId == node.CompositionScopeId) ?? candidates.First();
+
+                edges.Add(new DependencyEdge
+                {
+                    Id = DependencyEdge.ComputeId(node.Id, depNode.Id, factoryEdgeIndex++),
+                    From = node.Id,
+                    To = depNode.Id,
+                    InjectionMechanism = Mechanism.FactoryParameter,
+                    ParameterName = depNode.DisplayName,
                     ParserConfidence =
                         node.ParserConfidence == Confidence.Explicit &&
                         depNode.ParserConfidence == Confidence.Explicit

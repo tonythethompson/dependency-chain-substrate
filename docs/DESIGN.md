@@ -203,9 +203,11 @@ BLIND_SPOT. Quality split: resolved edges only; unresolved ctor deps →
 > Q: How does MSBuildWorkspace vs in-memory compilation trade off?
 
 **Answer:** **In-memory compilation per project scope** — not MSBuildWorkspace.
-Reference assemblies from installed .NET ref packs + explicit DI package surface;
-project-reference closure adds prior-scope metadata refs. Orphan files (no csproj)
-get syntactic-only bucket with `project_evaluation_incomplete`.
+Reference assemblies from installed .NET ref packs (`{pack}/{version}/ref/{tfm}`) +
+`Microsoft.WindowsDesktop.App.Ref` for `-windows` TFMs; explicit DI package surface;
+project-reference closure adds prior-scope metadata refs with **cross-TFM fallback**
+(portable `net10.0` assets satisfy `net10.0-windows…` consumers per MSBuild). Orphan
+files (no csproj) get syntactic-only bucket with `project_evaluation_incomplete`.
 
 > Q: How are factory lambdas (`services.AddSingleton<IFoo>(sp => new Foo(sp.GetRequiredService<IBar>()))`)
 >    handled? What is surfaced in output?
@@ -224,7 +226,10 @@ annotation `blind_spot_reason=factory_lambda_shallow`, plus
 `factory_lambda` blind spot when body deps are not shallow-extractable. No edges
 from lambda body. Contributes to `BROKEN_CHAIN` if a consumer depends on
 unresolved deps inside lambda. Parser 0.3.1 adds block-bodied shallow extraction
-(Phase 11 — Trackdub Avalonia `MainWindow` shell composition).
+(Phase 11 — Trackdub Avalonia `MainWindow` shell composition). Parser 0.3.2 traces
+`GetRequiredService<T>()` calls inside shallow factory bodies as
+`factory_lambda_service_keys` and emits `FactoryParameter` dependency edges when
+targets resolve (Phase 12).
 
 > Q: How are assembly-scanning registrations
 >    (`services.AddServicesFromAssembly(...)`) handled?

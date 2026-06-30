@@ -102,6 +102,17 @@ public sealed class RegistrationPatternVisitorTests
         Assert.Equal("MainWindow", nodes[0].DisplayName);
         Assert.DoesNotContain(spots, s => s.Pattern == "unrecognized_pattern");
         Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+        Assert.True(nodes[0].Annotations.TryGetValue("factory_lambda_service_keys", out var keys));
+        Assert.Contains("MainWindowViewModel", keys, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Shallow_factory_lambda_records_get_required_service_keys()
+    {
+        var (nodes, _) = Parse("services.AddSingleton(sp => new MainWindow(sp.GetRequiredService<IHandler>()));");
+        Assert.Single(nodes);
+        Assert.True(nodes[0].Annotations.TryGetValue("factory_lambda_service_keys", out var keys));
+        Assert.Contains("IHandler", keys, StringComparison.Ordinal);
     }
 
     [Fact]
