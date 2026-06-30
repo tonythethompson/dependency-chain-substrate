@@ -585,13 +585,12 @@ Decision: see `docs/decisions/ADR-003-form-factor.md`.
 > Q: What is the minimal text output for Phase 1 CLI? (What fields, what
 >    format, what sort order?)
 
-**Answer:** Implemented in `Program.PrintReport`. Header: commit, node/edge/blind-spot
-counts. Sections in order: **LEAKED** (ERROR) → **BROKEN CHAINS** (ERROR) →
-**DUPLICATE REGISTRATIONS** (WARN) → **ORPHANED** (WARN) → **CYCLES** (WARN) →
-**BLIND SPOTS** (WARN). Line format: `[SEVERITY] CATEGORY: displayName (detail) [file:line]`.
-Footer **SUMMARY** with counts and `ERRORS FOUND` vs `no errors`. Progress on stderr.
-Note: §7 design listed LEAKED before ORPHANED but omitted DUPLICATE; implementation
-adds DUPLICATE (required for migration verifier).
+**Answer:** Implemented in `AnalysisReportPrinter` / `AnalysisReportBuilder`. Header: commit,
+context, node/edge counts. Sections in order: **LEAKED** (ERROR) → **BROKEN CHAINS** (ERROR) →
+**DUPLICATE REGISTRATIONS** (WARN) → **POSSIBLE DUPLICATES** (WARN) → **UNRESOLVED DEPENDENCIES**
+(WARN) → **ORPHANED** (WARN) → **CYCLES** (WARN) → **BLIND SPOTS** (WARN). Each finding lists
+`file:line` sites; footer **SUMMARY** + **TIERS** breakdown. Default `--verbosity actionable`
+hides informational/parser_limit tiers. Progress and context banner on stderr.
 
 > Q: What is the Phase 3 interactive visualisation? What rendering library?
 
@@ -617,9 +616,17 @@ legend, click-to-inspect node detail. ~220KB for 186-node Trackdub graph (Phase 
 
 **Answer:**
 - **IR JSON:** `dcs dump-ir`, `dcs analyze --ir-out`, schema 1.1.0 snake_case JSON.
+- **Analysis report JSON:** `dcs analyze --format json --report-out report.json`, schema
+  `docs/schemas/analysis-report-1.0.json` (v1.0). Findings include `finding_id`, `category`,
+  `severity`, `tier` (`actionable` | `informational` | `parser_limit` | `intentional`), and
+  `sites[]` with `file_path` + `line`. Separate from IR dump.
+- **Text report:** `dcs analyze` (default). Sections filtered by `--verbosity`
+  (`summary` | `actionable` | `full`). Every WARN/ERROR line cites at least one `file:line`
+  site (or tier annotation). `--strict` disables `FindingPolicy` suppressions; `--metrics`
+  prints extraction quality on stderr.
+- **Multi-context:** `--context all` emits per-context summary table (text) or
+  `context_reports[]` (JSON).
 - **Diff JSON:** `dcs diff --ir-out` → serialised `GraphDiff`.
-- **Analysis JSON:** embedded when viz runs from repo (analysis object in HTML);
-  serialisable via `AnalysisResult` using same `IrSerializer.Options`.
 - **HTML viz:** `dcs viz --out graph.html` or stdout.
 - **Exit codes:** 0 success / 1 errors or breaking diff / 2 usage error.
 

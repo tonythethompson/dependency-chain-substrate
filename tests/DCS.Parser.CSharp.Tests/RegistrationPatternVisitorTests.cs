@@ -66,14 +66,26 @@ public sealed class RegistrationPatternVisitorTests
     }
 
     [Fact]
-    public void Factory_lambda_produces_blind_spot()
+    public void Factory_lambda_produces_shallow_factory_blind_spot()
     {
         var (nodes, spots) = Parse("""
             services.AddSingleton<IFoo>(sp => new FooImpl());
             """);
         Assert.Single(nodes);
         Assert.Equal(Confidence.BlindSpot, nodes[0].ParserConfidence);
-        Assert.Contains(spots, s => s.Pattern == "factory_lambda");
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+        Assert.Equal("factory_lambda_shallow", nodes[0].Annotations.GetValueOrDefault("pattern"));
+    }
+
+    [Fact]
+    public void Non_generic_shallow_factory_lambda_registers_created_type()
+    {
+        var (nodes, spots) = Parse("""
+            services.AddSingleton(sp => new MainWindow());
+            """);
+        Assert.Single(nodes);
+        Assert.Equal("MainWindow", nodes[0].DisplayName);
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
     }
 
     [Fact]

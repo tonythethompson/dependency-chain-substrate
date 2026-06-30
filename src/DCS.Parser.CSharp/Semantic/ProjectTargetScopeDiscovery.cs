@@ -5,9 +5,10 @@ public static class ProjectTargetScopeDiscovery
     public static IReadOnlyList<ProjectTargetScope> DiscoverScopes(
         IReadOnlyList<(string path, string content)> sourceFiles,
         string repoRoot,
-        SemanticExtractionOptions options)
+        SemanticExtractionOptions options,
+        IReadOnlyDictionary<string, string>? commitCsprojContents = null)
     {
-        var csprojFiles = FindCsprojFiles(repoRoot, sourceFiles);
+        var csprojFiles = FindCsprojFiles(repoRoot, sourceFiles, options, commitCsprojContents);
         if (csprojFiles.Count == 0)
             return [CreateOrphanScope(sourceFiles, repoRoot, options)];
 
@@ -17,7 +18,14 @@ public static class ProjectTargetScopeDiscovery
             CsprojMetadata meta;
             try
             {
-                meta = CsprojMetadataReader.Read(csproj, options.BuildConfiguration);
+                var relativeCsproj = NormalizePath(Path.GetRelativePath(repoRoot, csproj));
+                if (commitCsprojContents != null &&
+                    commitCsprojContents.TryGetValue(relativeCsproj, out var content))
+                    meta = CsprojMetadataReader.ReadFromContent(csproj, content, options.BuildConfiguration);
+                else if (File.Exists(csproj))
+                    meta = CsprojMetadataReader.Read(csproj, options.BuildConfiguration);
+                else
+                    continue;
             }
             catch
             {
@@ -54,7 +62,8 @@ public static class ProjectTargetScopeDiscovery
                     ImplicitUsingsEnabled = meta.ImplicitUsings ?? true,
                     AllowUnsafeBlocks = meta.AllowUnsafeBlocks ?? false,
                     ProjectEvaluationIncomplete = meta.HasConditionalItems,
-                    ImplicitUsingsUnmodeled = false
+                    ImplicitUsingsUnmodeled = false,
+                    IsTestProject = meta.IsTestProject
                 });
             }
         }
@@ -137,40 +146,64 @@ public static class ProjectTargetScopeDiscovery
 
     private static List<string> FindCsprojFiles(
         string repoRoot,
-        IReadOnlyList<(string path, string content)> sourceFiles)
+        IReadOnlyList<(string path, string content)> sourceFiles,
+        SemanticExtractionOptions options,
+        IReadOnlyDictionary<string, string>? commitCsprojContents = null)
     {
-        if (Directory.Exists(repoRoot))
+        List<string> found;
+        if (commitCsprojContents != null)
         {
-            return Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories)
+            found = commitCsprojContents.Keys
+                .Select(relativePath => Path.GetFullPath(
+                    Path.Combine(repoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar))))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        else if (Directory.Exists(repoRoot))
+        {
+            found = Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories)
                 .Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") &&
                             !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
                 .Select(Path.GetFullPath)
                 .ToList();
         }
-
-        var dirs = sourceFiles
-            .Select(f => Path.GetDirectoryName(f.path.Replace('/', Path.DirectorySeparatorChar)))
-            .Where(d => !string.IsNullOrEmpty(d))
-            .Distinct()
-            .ToList();
-
-        var found = new List<string>();
-        foreach (var dir in dirs)
+        else
         {
-            var parts = dir!.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-            for (var i = parts.Length; i >= 1; i--)
-            {
-                var candidate = string.Join(Path.DirectorySeparatorChar, parts.Take(i));
-                var csproj = Directory.EnumerateFiles(candidate, "*.csproj").FirstOrDefault();
-                if (csproj != null)
-                {
-                    found.Add(Path.GetFullPath(csproj));
-                    break;
-                }
-            }
+            found = [];
         }
 
-        return found.Distinct().ToList();
+        if (found.Count == 0 && commitCsprojContents == null)
+        {
+            var dirs = sourceFiles
+                .Select(f => Path.GetDirectoryName(f.path.Replace('/', Path.DirectorySeparatorChar)))
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct()
+                .ToList();
+
+            foreach (var dir in dirs)
+            {
+                var parts = dir!.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                for (var i = parts.Length; i >= 1; i--)
+                {
+                    var candidate = string.Join(Path.DirectorySeparatorChar, parts.Take(i));
+                    var csproj = Directory.EnumerateFiles(candidate, "*.csproj").FirstOrDefault();
+                    if (csproj != null)
+                    {
+                        found.Add(Path.GetFullPath(csproj));
+                        break;
+                    }
+                }
+            }
+
+            found = found.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        if (options.IncludeTests)
+            return found;
+
+        return found
+            .Where(p => !ShellCompositionScope.IsTestCsprojPath(p))
+            .ToList();
     }
 
     private static string NormalizePath(string path) =>
@@ -182,4 +215,5 @@ public sealed record SemanticExtractionOptions
     public string BuildConfiguration { get; init; } = "Debug";
     public string? TargetFramework { get; init; }
     public bool AllTargetFrameworks { get; init; } = true;
+    public bool IncludeTests { get; init; }
 }

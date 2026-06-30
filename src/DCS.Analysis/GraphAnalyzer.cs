@@ -7,15 +7,18 @@ public sealed class GraphAnalyzer
     private readonly RegistrationGraph _graph;
     private readonly FrameworkBoundaryModel _boundaries;
     private readonly string? _rootOverride;
+    private readonly FindingPolicyOptions _policy;
 
     public GraphAnalyzer(
         RegistrationGraph graph,
         FrameworkBoundaryModel? boundaries = null,
-        string? rootClassOverride = null)
+        string? rootClassOverride = null,
+        FindingPolicyOptions? policy = null)
     {
         _graph = graph;
         _boundaries = boundaries ?? FrameworkBoundaryModel.Default;
         _rootOverride = rootClassOverride;
+        _policy = policy ?? FindingPolicyOptions.Default;
     }
 
     public AnalysisResult Analyze()
@@ -31,7 +34,10 @@ public sealed class GraphAnalyzer
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
         var rootId = FindCompositionRoot(nodeById, outEdges);
-        var reachable = FindReachable(rootId, outEdges);
+        var reachable = FindReachableFromRoots(FindReachabilitySeeds(nodeById), outEdges);
+
+        var actionableBlindSpots = FindingPolicy.ActionableBlindSpots(_graph.BlindSpots, _policy).Count();
+        var actionableUnresolved = CountActionableUnresolved();
 
         return new AnalysisResult
         {
@@ -46,9 +52,26 @@ public sealed class GraphAnalyzer
             CompositionRootId = rootId,
             TotalNodes = _graph.Nodes.Count,
             TotalEdges = _graph.Edges.Count,
-            TotalBlindSpots = _graph.BlindSpots.Count,
-            TotalUnresolvedInjections = _graph.UnresolvedInjections.Count
+            TotalBlindSpots = actionableBlindSpots,
+            TotalUnresolvedInjections = actionableUnresolved
         };
+    }
+
+    private int CountActionableUnresolved() =>
+        _graph.UnresolvedInjections.Count(u =>
+            FindingPolicy.IsActionableUnresolved(
+                u.DeclaredType.ShortName,
+                u.DeclaredType.FullyQualifiedName,
+                _policy));
+
+    private static List<string> FindReachabilitySeeds(Dictionary<string, RegistrationNode> nodes)
+    {
+        var seeds = FindCompositionRootCandidates(nodes);
+        var secondary = nodes.Values
+            .Where(n => FindingPolicy.IsSecondaryReachabilityRootFile(n.SourceLocation?.FilePath))
+            .Select(n => n.Id);
+
+        return seeds.Concat(secondary).Distinct(StringComparer.Ordinal).ToList();
     }
 
     private string? FindCompositionRoot(
@@ -64,20 +87,62 @@ public sealed class GraphAnalyzer
         }
 
         var priorityFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "Program.cs", "Startup.cs", "AppHost.cs", "ServiceRegistration.cs", "DependencyInjection.cs" };
+        {
+            "Program.cs", "Startup.cs", "AppHost.cs", "ServiceRegistration.cs",
+            "DependencyInjection.cs", "CompositionRoot.cs", "App.axaml.cs", "App.xaml.cs"
+        };
 
         return nodes.Values
             .OrderByDescending(n =>
             {
-                var edgeCount = outEdges.TryGetValue(n.Id, out var edges) ? edges.Count : 0;
                 var fileName = Path.GetFileName(n.SourceLocation?.FilePath ?? string.Empty);
-                var simpleName = n.ExposedType?.ShortName ?? n.DisplayName;
-                var boost = priorityFiles.Contains(fileName) ? 2
-                    : simpleName.EndsWith("Application", StringComparison.Ordinal) ? 2
+                var filePath = n.SourceLocation?.FilePath?.Replace('\\', '/').ToLowerInvariant() ?? string.Empty;
+                var boost = priorityFiles.Contains(fileName) ? 4
+                    : filePath.Contains("compositionroot", StringComparison.Ordinal) ? 4
                     : 1;
-                return edgeCount * boost;
+                return boost;
             })
             .FirstOrDefault()?.Id;
+    }
+
+    private static List<string> FindCompositionRootCandidates(Dictionary<string, RegistrationNode> nodes)
+    {
+        var priorityFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "CompositionRoot.cs", "App.axaml.cs", "App.xaml.cs", "Program.cs", "Startup.cs"
+        };
+
+        var candidates = nodes.Values
+            .Where(n =>
+            {
+                var fileName = Path.GetFileName(n.SourceLocation?.FilePath ?? string.Empty);
+                return priorityFiles.Contains(fileName);
+            })
+            .Select(n => n.Id)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (candidates.Count > 0)
+            return candidates;
+
+        var fallback = nodes.Values
+            .OrderByDescending(n => Path.GetFileName(n.SourceLocation?.FilePath ?? string.Empty), StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault()?.Id;
+        return fallback != null ? [fallback] : [];
+    }
+
+    private static HashSet<string> FindReachableFromRoots(
+        IReadOnlyList<string> rootIds,
+        Dictionary<string, List<DependencyEdge>> outEdges)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rootId in rootIds)
+        {
+            foreach (var id in FindReachable(rootId, outEdges))
+                visited.Add(id);
+        }
+
+        return visited;
     }
 
     private static HashSet<string> FindReachable(
@@ -171,13 +236,29 @@ public sealed class GraphAnalyzer
             .Where(n =>
                 n.Id != rootId &&
                 !inEdges.ContainsKey(n.Id) &&
-                !reachable.Contains(n.Id))
+                !reachable.Contains(n.Id) &&
+                !IsFrameworkInfrastructure(n))
             .Select(n => new OrphanedRegistration(
                 n.Id, n.DisplayName,
                 n.SourceLocation?.FilePath,
                 n.SourceLocation?.Line))
             .OrderBy(o => o.DisplayName, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static bool IsFrameworkInfrastructure(RegistrationNode node)
+    {
+        var name = node.DisplayName;
+        if (string.IsNullOrEmpty(name))
+            return false;
+
+        return name.StartsWith("ILogger", StringComparison.Ordinal) ||
+               name.StartsWith("IHostEnvironment", StringComparison.Ordinal) ||
+               name.StartsWith("IConfiguration", StringComparison.Ordinal) ||
+               name.StartsWith("IServiceProvider", StringComparison.Ordinal) ||
+               name.StartsWith("IHttpClientFactory", StringComparison.Ordinal) ||
+               name.StartsWith("IStringLocalizer", StringComparison.Ordinal) ||
+               name.StartsWith("IOptions", StringComparison.Ordinal);
     }
 
     private static List<BrokenChain> FindBrokenChains(
@@ -210,7 +291,7 @@ public sealed class GraphAnalyzer
         _graph.Nodes
             .Where(StrictDuplicateEligibility.IsEligible)
             .GroupBy(n => n.DuplicateGroupKey, StringComparer.Ordinal)
-            .Where(g => g.Count() > 1)
+            .Where(g => g.Count() > 1 && !FindingPolicy.IsIntentionalTryAddOverride(g.ToList(), _policy))
             .Select(g => new DuplicateAbstractToken(
                 g.First().DisplayName,
                 g.Select(n => n.Id).ToList(),
@@ -220,9 +301,17 @@ public sealed class GraphAnalyzer
 
     private List<DuplicateAbstractToken> FindPossibleDuplicates() =>
         _graph.Nodes
-            .Where(n => !StrictDuplicateEligibility.IsEligible(n))
             .GroupBy(n => n.AbstractToken.ShortName, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
+            .Where(g =>
+            {
+                var distinctKeys = g
+                    .Select(n => n.DuplicateGroupKey)
+                    .Where(k => !string.IsNullOrEmpty(k))
+                    .Distinct(StringComparer.Ordinal)
+                    .Count();
+                return distinctKeys == 0 || distinctKeys > 1;
+            })
             .Select(g => new DuplicateAbstractToken(
                 g.Key,
                 g.Select(n => n.Id).ToList(),

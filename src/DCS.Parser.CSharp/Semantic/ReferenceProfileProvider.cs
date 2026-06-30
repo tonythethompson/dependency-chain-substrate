@@ -100,6 +100,24 @@ public static class ReferenceProfileProvider
         refs.Add(MetadataReference.CreateFromFile(
             typeof(Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions).Assembly.Location));
 
+        AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Logging.ILogger).Assembly);
+        AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Hosting.IHostEnvironment).Assembly);
+        AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Options.IOptions<>).Assembly);
+        AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Localization.IStringLocalizer).Assembly);
+        AddAssemblyIfPresent(refs, typeof(Microsoft.Extensions.Configuration.IConfiguration).Assembly);
+
         return refs;
+    }
+
+    private static void AddAssemblyIfPresent(List<MetadataReference> refs, System.Reflection.Assembly assembly)
+    {
+        var location = assembly.Location;
+        if (string.IsNullOrEmpty(location) || !File.Exists(location))
+            return;
+
+        if (refs.Any(r => string.Equals(r.Display, location, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        refs.Add(MetadataReference.CreateFromFile(location));
     }
 }

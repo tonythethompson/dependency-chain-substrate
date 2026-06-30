@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.2.0";
+    public const string ParserVersion = "0.3.0";
 
     private readonly CSharpParseOptions _options;
 
@@ -44,8 +44,10 @@ public sealed class CSharpStaticParser : IStaticParser
             ?? throw new ArgumentException($"Commit {commitSha} not found in {repoPath}");
 
         var sourceFiles = new List<(string path, string content)>();
-        CollectCSharpFiles(commit.Tree, "", sourceFiles);
-        var result = BuildParseResult(sourceFiles, repoPath, commitSha, semanticOptions);
+        var commitCsprojContents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        CollectCSharpFiles(commit.Tree, "", sourceFiles, _options.IncludeTests);
+        CollectCsprojFiles(commit.Tree, "", commitCsprojContents, _options.IncludeTests);
+        var result = BuildParseResult(sourceFiles, repoPath, commitSha, semanticOptions, commitCsprojContents);
 
         if (cacheDir != null)
             ExtractionCache.Write(result, cacheDir, cacheFingerprint);
@@ -58,23 +60,24 @@ public sealed class CSharpStaticParser : IStaticParser
         var semanticOptions = CreateSemanticOptions();
         var sourceFiles = Directory
             .EnumerateFiles(directoryPath, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !IsExcludedPath(f))
+            .Where(f => !IsExcludedPath(f, _options.IncludeTests))
             .Select(f => (path: Path.GetRelativePath(directoryPath, f), content: File.ReadAllText(f)))
             .ToList();
 
-        return BuildParseResult(sourceFiles, directoryPath, commitSha: null, semanticOptions);
+        return BuildParseResult(sourceFiles, directoryPath, commitSha: null, semanticOptions, commitCsprojContents: null);
     }
 
     private SemanticExtractionOptions CreateSemanticOptions() => new()
     {
         BuildConfiguration = _options.BuildConfiguration,
         TargetFramework = _options.TargetFramework,
-        AllTargetFrameworks = _options.AllTargetFrameworks
+        AllTargetFrameworks = _options.AllTargetFrameworks,
+        IncludeTests = _options.IncludeTests
     };
 
     private static string ComputeExtractionFingerprint(SemanticExtractionOptions options)
     {
-        var key = $"{options.BuildConfiguration}|{options.TargetFramework ?? "*"}|{options.AllTargetFrameworks}";
+        var key = $"{options.BuildConfiguration}|{options.TargetFramework ?? "*"}|{options.AllTargetFrameworks}|tests={options.IncludeTests}";
         return RegistrationNode.ComputeDuplicateGroupKey("extraction", ServiceTypeIdentity.FromSyntactic(key));
     }
 
@@ -82,16 +85,29 @@ public sealed class CSharpStaticParser : IStaticParser
         IReadOnlyList<(string path, string content)> sourceFiles,
         string repoRoot,
         string? commitSha,
-        SemanticExtractionOptions semanticOptions)
+        SemanticExtractionOptions semanticOptions,
+        IReadOnlyDictionary<string, string>? commitCsprojContents = null)
     {
-        var scopes = ProjectTargetScopeDiscovery.DiscoverScopes(sourceFiles, repoRoot, semanticOptions);
+        var scopes = ProjectTargetScopeDiscovery.DiscoverScopes(
+            sourceFiles, repoRoot, semanticOptions, commitCsprojContents);
 
-        if (!semanticOptions.AllTargetFrameworks && !string.IsNullOrWhiteSpace(semanticOptions.TargetFramework))
-            scopes = scopes.Where(s => s.TargetFramework == semanticOptions.TargetFramework).ToList();
+        if (!semanticOptions.AllTargetFrameworks)
+        {
+            var tfm = semanticOptions.TargetFramework;
+            if (string.IsNullOrWhiteSpace(tfm))
+            {
+                tfm = TargetFrameworkSelector.SelectPrimaryTargetFramework(
+                    scopes.Select(s => s.TargetFramework));
+            }
 
-        var tfmGroups = semanticOptions.AllTargetFrameworks
-            ? scopes.GroupBy(s => s.TargetFramework, StringComparer.OrdinalIgnoreCase).ToList()
-            : [scopes.GroupBy(s => s.TargetFramework).First()];
+            scopes = scopes
+                .Where(s => string.Equals(s.TargetFramework, tfm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        var tfmGroups = scopes
+            .GroupBy(s => s.TargetFramework, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var contextGraphs = new List<ContextGraph>();
         foreach (var tfmGroup in tfmGroups)
@@ -214,7 +230,7 @@ public sealed class CSharpStaticParser : IStaticParser
         };
     }
 
-    private static void CollectCSharpFiles(Tree tree, string prefix, List<(string, string)> files)
+    private static void CollectCSharpFiles(Tree tree, string prefix, List<(string, string)> files, bool includeTests)
     {
         foreach (var entry in tree)
         {
@@ -223,10 +239,11 @@ public sealed class CSharpStaticParser : IStaticParser
             switch (entry.TargetType)
             {
                 case TreeEntryTargetType.Tree:
-                    CollectCSharpFiles((Tree)entry.Target, entryPath, files);
+                    CollectCSharpFiles((Tree)entry.Target, entryPath, files, includeTests);
                     break;
                 case TreeEntryTargetType.Blob when entry.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase):
-                    files.Add((entryPath, ((Blob)entry.Target).GetContentText()));
+                    if (!IsExcludedPath(entryPath, includeTests))
+                        files.Add((entryPath, ((Blob)entry.Target).GetContentText()));
                     break;
             }
         }
@@ -241,15 +258,29 @@ public sealed class CSharpStaticParser : IStaticParser
             .GroupBy(n => n.ServiceType!.CanonicalKey, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
+        var depsByShortName = constructorDeps.Values
+            .GroupBy(d => d.ImplementationShortName, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
         var edges = new List<DependencyEdge>();
         var unresolved = new List<UnresolvedInjection>();
         var edgeIndexGlobal = 0;
 
         foreach (var node in nodes.Where(n => n.ConcreteImpl != null))
         {
-            var implShort = node.ConcreteImpl!.ShortName;
-            var depEntry = constructorDeps.Values.FirstOrDefault(d =>
-                d.ImplementationShortName.Equals(implShort, StringComparison.Ordinal));
+            var concrete = node.ConcreteImpl!;
+            var implShort = concrete.ShortName;
+
+            ConstructorDependency? depEntry = null;
+            if (depsByShortName.TryGetValue(implShort, out var byShort))
+            {
+                depEntry = byShort.Count == 1
+                    ? byShort[0]
+                    : byShort.FirstOrDefault(d =>
+                        d.ImplementationIdentity != null &&
+                        MatchesConcreteImplementation(d.ImplementationIdentity, concrete));
+                depEntry ??= byShort[0];
+            }
 
             if (depEntry == null)
                 continue;
@@ -257,6 +288,11 @@ public sealed class CSharpStaticParser : IStaticParser
             var edgeIndex = 0;
             foreach (var param in depEntry.Parameters)
             {
+                if (FrameworkProvidedServices.IsFrameworkProvided(
+                        param.SyntacticName,
+                        param.Identity?.MetadataName))
+                    continue;
+
                 if (param.Quality != TypeResolutionQuality.Resolved || param.Identity == null)
                 {
                     unresolved.Add(new UnresolvedInjection
@@ -306,8 +342,58 @@ public sealed class CSharpStaticParser : IStaticParser
         return (edges, unresolved);
     }
 
-    private static bool IsExcludedPath(string path) =>
-        path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") ||
-        path.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}") ||
-        path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}");
+    private static bool MatchesConcreteImplementation(ResolvedTypeIdentity identity, TypeRef concrete)
+    {
+        if (string.Equals(identity.MetadataName, concrete.FullyQualifiedName, StringComparison.Ordinal))
+            return true;
+
+        if (string.Equals(identity.MetadataName, concrete.ShortName, StringComparison.Ordinal))
+            return true;
+
+        return identity.MetadataName.EndsWith(
+            $".{concrete.ShortName}",
+            StringComparison.Ordinal);
+    }
+
+    private static void CollectCsprojFiles(
+        Tree tree,
+        string prefix,
+        Dictionary<string, string> files,
+        bool includeTests)
+    {
+        foreach (var entry in tree)
+        {
+            var entryPath = string.IsNullOrEmpty(prefix) ? entry.Name : $"{prefix}/{entry.Name}";
+
+            switch (entry.TargetType)
+            {
+                case TreeEntryTargetType.Tree:
+                    CollectCsprojFiles((Tree)entry.Target, entryPath, files, includeTests);
+                    break;
+                case TreeEntryTargetType.Blob when entry.Name.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase):
+                    if (includeTests || !ShellCompositionScope.IsTestCsprojPath(entryPath))
+                        files[entryPath.Replace('\\', '/')] = ((Blob)entry.Target).GetContentText();
+                    break;
+            }
+        }
+    }
+
+    private static bool IsExcludedPath(string path, bool includeTests)
+    {
+        if (path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") ||
+            path.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}") ||
+            path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            return true;
+
+        if (includeTests)
+            return false;
+
+        var normalized = path.Replace('\\', '/');
+        if (normalized.Contains("/tests/fixtures/", StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith("tests/fixtures/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return normalized.Contains("/tests/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith("tests/", StringComparison.OrdinalIgnoreCase);
+    }
 }

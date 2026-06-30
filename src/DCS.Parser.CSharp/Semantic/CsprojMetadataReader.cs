@@ -19,13 +19,20 @@ public sealed record CsprojMetadata
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
     public bool HasConditionalItems { get; init; }
     public bool HasUnresolvedImports { get; init; }
+    public bool IsTestProject { get; init; }
 }
 
 public static class CsprojMetadataReader
 {
-    public static CsprojMetadata Read(string csprojPath, string buildConfiguration = "Debug")
+    public static CsprojMetadata Read(string csprojPath, string buildConfiguration = "Debug") =>
+        ReadFromContent(csprojPath, File.ReadAllText(csprojPath), buildConfiguration);
+
+    public static CsprojMetadata ReadFromContent(
+        string csprojPath,
+        string csprojContent,
+        string buildConfiguration = "Debug")
     {
-        var doc = XDocument.Load(csprojPath);
+        var doc = XDocument.Parse(csprojContent);
         var root = doc.Root ?? throw new InvalidOperationException($"Empty csproj: {csprojPath}");
         var ns = root.Name.Namespace;
 
@@ -112,7 +119,9 @@ public static class CsprojMetadataReader
             CompileRemoves = compileRemoves,
             ProjectReferences = projectRefs,
             HasConditionalItems = hasConditional,
-            HasUnresolvedImports = hasUnresolvedImports
+            HasUnresolvedImports = hasUnresolvedImports,
+            IsTestProject = ParseBool(PickProperty("IsTestProject")) == true ||
+                            ShellCompositionScope.IsTestCsprojPath(csprojPath)
         };
     }
 

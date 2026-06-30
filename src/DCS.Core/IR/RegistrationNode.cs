@@ -71,7 +71,7 @@ public sealed record RegistrationNode
     /// Computes duplicate group key from composition scope and service type identity.
     /// </summary>
     public static string ComputeDuplicateGroupKey(string compositionScopeId, ServiceTypeIdentity serviceType) =>
-        HashKey($"{compositionScopeId}|{serviceType.CanonicalKey}");
+        HashKey($"{compositionScopeId}|{serviceType.DuplicateGroupingKey}");
 
     /// <summary>
     /// Legacy helper — prefer <see cref="ComputeRegistrationInstanceId"/>.

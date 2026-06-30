@@ -226,7 +226,30 @@ types; strict DUPLICATE uses `DuplicateGroupKey`; Trackdub CI gate passes at pin
 
 **Phase 10 gate:** `trackdub-semantic` CI job passes; `semantic_type_resolution_rate`,
 `registration_api_verification_rate`, and `project_scope_completeness_rate` reported;
-VoiceCloneConsentCoordinator strict duplicate detected at pin.
+VoiceCloneConsentCoordinator possible duplicate detected at pin with file:line sites.
+
+---
+
+## Phase 10b — Actionable CLI
+
+**Done means:** Structured analysis report with tiered findings, enriched text output,
+generalized `FindingPolicy`, parser 0.3.0 instance + shallow factory patterns, and
+fixture/Trackdub gates asserting file:line sites.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `AnalysisReport` + builder + printer | ✅ Done | Tiers, sites, summary |
+| CLI flags (`--verbosity`, `--strict`, `--format json`, etc.) | ✅ Done | |
+| `analysis-report-1.0.json` schema | ✅ Done | `docs/schemas/` |
+| `FindingPolicy` (replaces `AnalysisNoise`) | ✅ Done | Convention-based reachability roots |
+| Parser 0.3.0: instance TryAdd + shallow factory | ✅ Done | |
+| `--context all` multi-context summary | ✅ Done | |
+| Fixture + golden CLI/JSON tests | ✅ Done | `tests/fixtures/di-patterns/` |
+| Trackdub gate file:line assertions | ✅ Done | VoiceClone sites |
+| DESIGN.md §11 update | ✅ Done | |
+
+**Phase 10b gate:** `dotnet test` green; Trackdub @ `3c4e374d` report lists VoiceClone
+homonym sites with `file:line`; `--format json --report-out` validates against schema.
 
 ---
 

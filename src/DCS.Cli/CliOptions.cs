@@ -1,5 +1,7 @@
 namespace DCS.Cli;
 
+using DCS.Analysis;
+
 internal sealed record CliOptions
 {
     public string? RepoPath { get; init; }
@@ -21,7 +23,24 @@ internal sealed record CliOptions
     public string? FixToken { get; init; }
     public bool FixAllDuplicates { get; init; }
     public string? TargetFramework { get; init; }
-    public bool AllTargetFrameworks { get; init; } = true;
+    public bool AllTargetFrameworks { get; init; }
+    /// <summary>When true, excludes test/benchmark projects (default for analyze).</summary>
+    public bool ProductionOnly { get; init; } = true;
+    public bool IncludeTests { get; init; }
+    public ReportVerbosity Verbosity { get; init; } = ReportVerbosity.Actionable;
+    public bool Strict { get; init; }
+    public bool VerboseBlindSpots { get; init; }
+    public bool Metrics { get; init; }
+    public OutputFormat Format { get; init; } = OutputFormat.Text;
+    public string? ReportOut { get; init; }
+    public string? TextOut { get; init; }
+    public bool ContextAll { get; init; }
+}
+
+internal enum OutputFormat
+{
+    Text,
+    Json
 }
 
 internal static class CliArgParser
@@ -33,7 +52,17 @@ internal static class CliArgParser
         var noCache = false;
         var language = RepoLanguage.Auto;
         string? targetFramework = null;
-        var allTargetFrameworks = true;
+        var allTargetFrameworks = false;
+        var productionOnly = true;
+        var includeTests = false;
+        var verbosity = ReportVerbosity.Actionable;
+        var strict = false;
+        var verboseBlindSpots = false;
+        var metrics = false;
+        var format = OutputFormat.Text;
+        string? reportOut = null;
+        string? textOut = null;
+        var contextAll = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -41,6 +70,15 @@ internal static class CliArgParser
             {
                 case "--commit" or "-c" when allowCommit && i + 1 < args.Length:
                     commit = args[++i];
+                    break;
+                case "--production-only":
+                    productionOnly = true;
+                    includeTests = false;
+                    allTargetFrameworks = false;
+                    break;
+                case "--include-tests":
+                    includeTests = true;
+                    productionOnly = false;
                     break;
                 case "--target-framework" when i + 1 < args.Length:
                     targetFramework = args[++i];
@@ -69,10 +107,40 @@ internal static class CliArgParser
                     language = RepoLanguageDetector.ParseLanguageFlag(args[++i]);
                     break;
                 case "--context" when i + 1 < args.Length:
-                    contextId = args[++i];
+                    var ctxVal = args[++i];
+                    if (string.Equals(ctxVal, "all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        contextAll = true;
+                        contextId = null;
+                    }
+                    else
+                    {
+                        contextId = ctxVal;
+                    }
                     break;
                 case "--context-root" when i + 1 < args.Length:
                     contextRoot = args[++i];
+                    break;
+                case "--verbosity" when i + 1 < args.Length:
+                    verbosity = ParseVerbosity(args[++i]);
+                    break;
+                case "--strict":
+                    strict = true;
+                    break;
+                case "--verbose-blind-spots":
+                    verboseBlindSpots = true;
+                    break;
+                case "--metrics":
+                    metrics = true;
+                    break;
+                case "--format" when i + 1 < args.Length:
+                    format = ParseFormat(args[++i]);
+                    break;
+                case "--report-out" when i + 1 < args.Length:
+                    reportOut = args[++i];
+                    break;
+                case "--text-out" when i + 1 < args.Length:
+                    textOut = args[++i];
                     break;
                 default:
                     if (!args[i].StartsWith('-') && repoPath == null)
@@ -94,9 +162,34 @@ internal static class CliArgParser
             ContextId = contextId,
             ContextRoot = contextRoot == null ? null : [contextRoot],
             TargetFramework = targetFramework,
-            AllTargetFrameworks = allTargetFrameworks
+            AllTargetFrameworks = allTargetFrameworks,
+            ProductionOnly = productionOnly,
+            IncludeTests = includeTests || !productionOnly,
+            Verbosity = verbosity,
+            Strict = strict,
+            VerboseBlindSpots = verboseBlindSpots,
+            Metrics = metrics,
+            Format = format,
+            ReportOut = reportOut,
+            TextOut = textOut,
+            ContextAll = contextAll
         };
     }
+
+    private static ReportVerbosity ParseVerbosity(string value) => value.ToLowerInvariant() switch
+    {
+        "summary" => ReportVerbosity.Summary,
+        "full" => ReportVerbosity.Full,
+        "actionable" => ReportVerbosity.Actionable,
+        _ => throw new ArgumentException($"Unknown verbosity: {value}. Use summary, actionable, or full.")
+    };
+
+    private static OutputFormat ParseFormat(string value) => value.ToLowerInvariant() switch
+    {
+        "json" => OutputFormat.Json,
+        "text" => OutputFormat.Text,
+        _ => throw new ArgumentException($"Unknown format: {value}. Use text or json.")
+    };
 
     public static CliOptions ParseDiffCommand(string[] args)
     {
@@ -105,7 +198,9 @@ internal static class CliArgParser
         var noCache = false;
         var language = RepoLanguage.Auto;
         string? targetFramework = null;
-        var allTargetFrameworks = true;
+        var allTargetFrameworks = false;
+        var productionOnly = true;
+        var includeTests = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -113,6 +208,15 @@ internal static class CliArgParser
             {
                 case "--from" when i + 1 < args.Length:
                     fromSha = args[++i];
+                    break;
+                case "--production-only":
+                    productionOnly = true;
+                    includeTests = false;
+                    allTargetFrameworks = false;
+                    break;
+                case "--include-tests":
+                    includeTests = true;
+                    productionOnly = false;
                     break;
                 case "--target-framework" when i + 1 < args.Length:
                     targetFramework = args[++i];
@@ -166,7 +270,9 @@ internal static class CliArgParser
             ContextId = contextId,
             ContextRoot = contextRoot == null ? null : [contextRoot],
             TargetFramework = targetFramework,
-            AllTargetFrameworks = allTargetFrameworks
+            AllTargetFrameworks = allTargetFrameworks,
+            ProductionOnly = productionOnly,
+            IncludeTests = includeTests || !productionOnly
         };
     }
 

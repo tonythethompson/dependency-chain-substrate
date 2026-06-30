@@ -213,6 +213,107 @@ public sealed class SemanticResolutionTests
         });
     }
 
+    [Fact]
+    public void Instance_try_add_singleton_resolves_from_semantic_model()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface IStoragePaths { }
+            public sealed class StoragePaths : IStoragePaths { }
+            public static class Reg {
+              public static void Configure(IServiceCollection services, IStoragePaths paths) {
+                services.TryAddSingleton(paths);
+              }
+            }
+            """;
+
+        var (nodes, spots) = ParseWithSemantic(source, "Reg.cs");
+        Assert.Single(nodes);
+        Assert.Equal("IStoragePaths", nodes[0].DisplayName);
+        Assert.Equal("instance", nodes[0].Annotations.GetValueOrDefault("pattern"));
+        Assert.DoesNotContain(spots, s => s.Pattern == "unrecognized_pattern");
+    }
+
+    [Fact]
+    public void Shallow_factory_with_get_required_service()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface IBar { }
+            public sealed class Handler { public Handler(IBar bar) { } }
+            public static class Reg {
+              public static void Configure(IServiceCollection services) {
+                services.AddScoped(sp => new Handler(sp.GetRequiredService<IBar>()));
+              }
+            }
+            """;
+
+        var (nodes, spots) = ParseWithSemantic(source, "Reg.cs");
+        Assert.Single(nodes);
+        Assert.Equal("Handler", nodes[0].DisplayName);
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+    }
+
+    [Fact]
+    public void Constructor_dependency_resolves_by_concrete_type_not_service_interface()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-ctor-homonym-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "HomonymCtor.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Services.cs"), """
+                using Microsoft.Extensions.DependencyInjection;
+                namespace Alpha;
+                public interface IShared { }
+                public class Worker : IShared {
+                  public Worker(AlphaDep dep) { }
+                }
+                public class AlphaDep { }
+                namespace Beta;
+                public class Worker : Alpha.IShared {
+                  public Worker(BetaDep dep) { }
+                }
+                public class BetaDep { }
+                public static class Reg {
+                  public static void Configure(IServiceCollection services) {
+                    services.AddSingleton<AlphaDep>();
+                    services.AddSingleton<BetaDep>();
+                    services.AddSingleton<Alpha.IShared, Alpha.Worker>();
+                    services.AddSingleton<Alpha.IShared, Beta.Worker>();
+                  }
+                }
+                """);
+
+            var graph = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            }).ParseDirectory(root).SingleGraphOrDefault()!;
+
+            Assert.Equal(4, graph.Nodes.Count);
+            Assert.Equal(2, graph.Edges.Count);
+            Assert.Empty(graph.UnresolvedInjections);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static (List<RegistrationNode> nodes, List<BlindSpotReport> spots) ParseSyntacticOnly(string source)
     {
         var tree = CSharpSyntaxTree.ParseText(source, path: "Test.cs");

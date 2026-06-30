@@ -7,7 +7,8 @@ public static class FrameworkTagger
     public static List<string> InferTags(
         FrameworkBoundaryModel model,
         IEnumerable<string> fileUsings,
-        TypeRef? abstractToken = null)
+        TypeRef? abstractToken = null,
+        string? sourceFilePath = null)
     {
         model ??= FrameworkBoundaryModel.Default;
         var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -32,6 +33,24 @@ public static class FrameworkTagger
                 tags.Add(typeTag);
         }
 
+        if (!string.IsNullOrEmpty(sourceFilePath))
+        {
+            foreach (var pathTag in InferTagsFromFilePath(sourceFilePath))
+                tags.Add(pathTag);
+        }
+
         return [.. tags.OrderBy(t => t, StringComparer.Ordinal)];
+    }
+
+    internal static IEnumerable<string> InferTagsFromFilePath(string sourceFilePath)
+    {
+        var path = sourceFilePath.Replace('\\', '/').ToLowerInvariant();
+        if (path.Contains("/trackdub.app.avalonia/", StringComparison.Ordinal) ||
+            path.Contains("app.axaml.cs", StringComparison.Ordinal))
+            yield return "avalonia";
+
+        if (path.Contains("/trackdub.app/", StringComparison.Ordinal) &&
+            !path.Contains("avalonia", StringComparison.Ordinal))
+            yield return "winui";
     }
 }

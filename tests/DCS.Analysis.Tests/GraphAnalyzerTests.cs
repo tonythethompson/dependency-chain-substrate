@@ -90,6 +90,23 @@ public sealed class GraphAnalyzerTests
     }
 
     [Fact]
+    public void TryAdd_plus_explicit_Add_is_not_strict_duplicate()
+    {
+        var tryAdd = MakeStrictNode("IService", "CompositionRoot.cs", 10) with
+        {
+            Annotations = new Dictionary<string, string>
+            {
+                [StrictDuplicateEligibility.AnnotationKey] = "true",
+                ["conditional"] = "try_add"
+            }
+        };
+        var explicitAdd = MakeStrictNode("IService", "PlaybackComposition.cs", 5);
+        var graph = new RegistrationGraph { Nodes = [tryAdd, explicitAdd] };
+        var result = new GraphAnalyzer(graph).Analyze();
+        Assert.Empty(result.Duplicates);
+    }
+
+    [Fact]
     public void Homonym_syntactic_nodes_are_possible_duplicate_not_strict()
     {
         var node1 = MakeNode("IFoo", "A.cs", 1);
