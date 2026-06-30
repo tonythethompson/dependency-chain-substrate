@@ -8,6 +8,7 @@
     <Project Path="src/DCS.Parser.Java/DCS.Parser.Java.csproj" />
     <Project Path="src/DCS.Fix/DCS.Fix.csproj" />
     <Project Path="src/DCS.Viz/DCS.Viz.csproj" />
+    <Project Path="src/DCS.Runtime/DCS.Runtime.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DCS.Analysis.Tests/DCS.Analysis.Tests.csproj" />
@@ -17,5 +18,6 @@
     <Project Path="tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj" />
     <Project Path="tests/DCS.Fix.Tests/DCS.Fix.Tests.csproj" />
     <Project Path="tests/DCS.Parser.Java.Tests/DCS.Parser.Java.Tests.csproj" />
+    <Project Path="tests/DCS.Runtime.Tests/DCS.Runtime.Tests.csproj" />
   </Folder>
 </Solution>

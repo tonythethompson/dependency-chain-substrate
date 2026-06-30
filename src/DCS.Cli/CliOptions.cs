@@ -38,6 +38,7 @@ internal sealed record CliOptions
     public string? PathFrom { get; init; }
     public string? PathTo { get; init; }
     public FixClass FixClass { get; init; } = FixClass.Duplicate;
+    public string? RuntimeLogPath { get; init; }
 }
 
 internal enum FixClass
@@ -504,6 +505,44 @@ internal static class CliArgParser
             ContextRoot = contextRoot == null ? null : [contextRoot],
             PathFrom = pathFrom,
             PathTo = pathTo
+        };
+    }
+
+    public static CliOptions ParseEnrichCommand(string[] args)
+    {
+        string? irPath = null, outPath = null, runtimeLog = null, frameworksPath = null, rootClass = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out" when i + 1 < args.Length:
+                    outPath = args[++i];
+                    break;
+                case "--runtime-log" when i + 1 < args.Length:
+                    runtimeLog = args[++i];
+                    break;
+                case "--frameworks" when i + 1 < args.Length:
+                    frameworksPath = args[++i];
+                    break;
+                case "--root" when i + 1 < args.Length:
+                    rootClass = args[++i];
+                    break;
+                default:
+                    if (!args[i].StartsWith('-') && irPath == null)
+                        irPath = args[i];
+                    break;
+            }
+        }
+
+        return new CliOptions
+        {
+            RepoPath = irPath,
+            OutPath = outPath,
+            RuntimeLogPath = runtimeLog,
+            FrameworksPath = frameworksPath,
+            RootClass = rootClass,
+            FromIr = true
         };
     }
 

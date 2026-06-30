@@ -23,6 +23,7 @@
     <ProjectReference Include="..\DCS.Analysis\DCS.Analysis.csproj" />
     <ProjectReference Include="..\DCS.Diff\DCS.Diff.csproj" />
     <ProjectReference Include="..\DCS.Viz\DCS.Viz.csproj" />
+    <ProjectReference Include="..\DCS.Runtime\DCS.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

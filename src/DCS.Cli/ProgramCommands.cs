@@ -4,6 +4,7 @@ using DCS.Core.Parsing;
 using DCS.Core.Serialization;
 using DCS.Diff;
 using DCS.Fix;
+using DCS.Runtime;
 using DCS.Viz;
 using System.Text.Json;
 
@@ -425,6 +426,63 @@ internal static class ProgramCommands
         }
     }
 
+    internal static async Task<int> RunEnrich(string[] args)
+    {
+        var options = CliArgParser.ParseEnrichCommand(args);
+        if (options.RepoPath == null) return ErrorExit("enrich requires <ir-file>");
+        if (options.RuntimeLogPath == null) return ErrorExit("enrich requires --runtime-log <path>");
+
+        try
+        {
+            if (!File.Exists(options.RepoPath))
+                return ErrorExit($"IR file not found: {options.RepoPath}");
+            if (!File.Exists(options.RuntimeLogPath))
+                return ErrorExit($"Runtime log not found: {options.RuntimeLogPath}");
+
+            var json = await File.ReadAllTextAsync(options.RepoPath);
+            var staticGraph = IrSerializer.Deserialize(json)
+                ?? throw new InvalidOperationException("Could not parse IR file");
+
+            var events = RuntimeLogReader.ReadJsonl(options.RuntimeLogPath);
+            var analysis = new GraphAnalyzer(staticGraph, LoadBoundaries(options.FrameworksPath), options.RootClass)
+                .Analyze();
+            var report = RuntimeGraphEnricher.Enrich(staticGraph, events, analysis);
+
+            var enrichedJson = IrSerializer.Serialize(report.EnrichedGraph);
+            if (options.OutPath != null)
+            {
+                await File.WriteAllTextAsync(options.OutPath, enrichedJson);
+                Console.Error.WriteLine($"[DCS] Enriched IR written to {options.OutPath}");
+            }
+            else
+            {
+                Console.WriteLine(enrichedJson);
+            }
+
+            Console.Error.WriteLine(
+                $"[DCS] Runtime enrichment: {report.AnnotatedNodeCount}/{staticGraph.Nodes.Count} nodes annotated, " +
+                $"{report.TotalResolutionEvents} events, " +
+                $"{report.OrphanedReclassifiedNodeIds.Count} orphaned reclassified, " +
+                $"{report.BlindSpotConfirmedNodeIds.Count} blind spots confirmed, " +
+                $"{report.CaptiveDependencies.Count} captive dependency finding(s)");
+
+            if (report.CaptiveDependencies.Count > 0)
+            {
+                foreach (var finding in report.CaptiveDependencies)
+                {
+                    Console.Error.WriteLine(
+                        $"[DCS] Captive: scoped {finding.ScopedServiceType} resolved from singleton {finding.CaptiveSingletonType} ({finding.EventCount} event(s))");
+                }
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            return ErrorExit(ex.Message);
+        }
+    }
+
     internal static async Task<int> RunViz(string[] args)
     {
         var options = CliArgParser.ParseVizCommand(args);
@@ -503,6 +561,8 @@ internal static class ProgramCommands
               fix     <repo-path> [options]           Preview/apply DUPLICATE registration removal
               path    <repo-path> --to <registration> [options]
                                                       Dependency path from root to target registration
+              enrich  <ir-file> --runtime-log <path> [options]
+                                                      Merge static IR with runtime resolution log
               viz     <source> [options]              Generate self-contained HTML visualization
 
             SHARED REPO OPTIONS
@@ -554,6 +614,13 @@ internal static class ProgramCommands
               --path-from <token>   Optional path origin (default: composition-root seeds)
               --ir <ir-file>        Read from existing IR JSON instead of a repo
               --out <path>          Write HTML to file (default: stdout)
+              --root <ClassName>    Override composition root detection
+
+            ENRICH OPTIONS
+              <ir-file>             Static IR JSON from dump-ir or analyze --ir-out
+              --runtime-log <path>  JSONL runtime resolution log (required)
+              --out <path>          Write enriched IR JSON (default: stdout)
+              --frameworks <path>   Custom framework boundary JSON for orphaned reclassification
               --root <ClassName>    Override composition root detection
 
             EXIT CODES

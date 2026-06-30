@@ -120,6 +120,7 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `dump-ir <repo>` | Export IR JSON without analysis |
 | `diff <repo> --from <sha> --to <sha>` | Diff two commits |
 | `path <repo> --to <registration>` | Dependency path to a registration |
+| `enrich <ir-file> --runtime-log <path>` | Merge static IR with runtime JSONL resolution log |
 | `viz <repo>` | Generate self-contained HTML visualization |
 | `fix <repo>` | Preview/apply DUPLICATE removal (C# working tree) |
 
@@ -277,7 +278,7 @@ Key design artifacts:
 
 ## Current status
 
-Phases **0–13** are closed as of 2026-06-30, including:
+Phases **0–13** and **Phase 9 (runtime overlay MVP)** are implemented as of 2026-06-30, including:
 
 - Static C# extraction with semantic Roslyn resolution (~92% on Trackdub aggregate)
 - Cross-TFM project-reference compilation closure
@@ -286,8 +287,9 @@ Phases **0–13** are closed as of 2026-06-30, including:
 - `dcs path` Path Excavator MVP
 - Spring Boot parser (Phase 6)
 - `dcs fix` DUPLICATE preview/apply (Phase 8)
+- Runtime enrichment overlay — `DcsRuntimeDiagnosticListener` + `dcs enrich` (Phase 9; Trackdub dev-run verification open)
 
-**Parked / deferred:** IDE extension, runtime enrichment overlay, TypeScript/Python parsers, orphaned fix `--apply` (Phase 8.1b).
+**Parked / deferred:** IDE extension, TypeScript/Python parsers, orphaned fix `--apply` (Phase 8.1b).
 
 Track progress in [`PLAN.md`](PLAN.md).
 

@@ -1,7 +1,8 @@
 # ADR-008: Runtime Enrichment Overlay
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-28
+**Accepted:** 2026-06-28 (Phase 9)
 **Effort:** High (Opus-class reasoning required; see AGENTS.md routing matrix)
 
 ---
@@ -57,6 +58,10 @@ can only flag this if the lifetimes are explicit; runtime data makes it certain.
 **Likely decision:** Option B (DiagnosticSource) for dev-mode; Option A as
 fallback if DiagnosticSource payload is insufficient. OTel support in v2 after
 .NET 9 OTel integration matures.
+
+**Decision (Accepted):** Option B — `DcsRuntimeDiagnosticListener` subscribes to
+`Microsoft.Extensions.DependencyInjection` DiagnosticSource events and appends
+JSONL records. Option A remains the documented fallback if payload schemas shift.
 
 ---
 
@@ -133,6 +138,9 @@ The enrichment NuGet package is opt-in; it does not auto-activate.
 **Likely decision:** Option A (file-based log) for v1; daemon streaming in v2
 alongside the IDE extension.
 
+**Decision (Accepted):** Option A — `dcs-runtime.jsonl` written by
+`DcsRuntimeDiagnosticListener`; merged via `dcs enrich`.
+
 ---
 
 ## Assumptions
@@ -157,6 +165,9 @@ alongside the IDE extension.
 
 ---
 
-## Status: Proposed
+## Status: Accepted
 
-This ADR will be marked Accepted when Phase 9 begins.
+Phase 9 implementation: `DCS.Runtime` (JSONL log reader/writer, DiagnosticSource
+listener, `RuntimeGraphEnricher`), CLI `dcs enrich`, unit tests in
+`DCS.Runtime.Tests`. Trackdub dev-run verification (≥50% nodes annotated) remains
+the Phase 9 **Verified** gate — requires instrumented app startup with runtime log.

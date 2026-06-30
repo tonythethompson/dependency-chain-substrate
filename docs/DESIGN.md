@@ -62,12 +62,12 @@ verifier, not the product pitch — per plan-of-plan wedge decision and ADR-001/
 Microsoft.Extensions.DependencyInjection call-site patterns. **Framework boundaries
 (built-in):** WinUI, Avalonia, WPF, ASP.NET Core, MS.DI, MS.Extensions
 (`FrameworkBoundaryModel.Default`). **Extraction:** static, git blob reading via
-LibGit2Sharp. **Delivery:** CLI (`analyze`, `diff`, `dump-ir`, `viz`).
+LibGit2Sharp. **Delivery:** CLI (`analyze`, `diff`, `dump-ir`, `enrich`, `viz`).
 
 > Q: Which languages and frameworks are explicitly OUT for v1?
 
 **Answer:** Spring/Java (Phase 6, ADR-005 stub), TypeScript, Python (parked).
-Runtime/hybrid extraction (Phase 9, ADR-008 stub). IDE extension (Phase 7,
+Runtime/hybrid extraction (Phase 9, ADR-008). IDE extension (Phase 7,
 ADR-006 stub). Auto-fix/codemod (Phase 8, ADR-007 stub). Semantic Roslyn /
 MSBuildWorkspace (parked — long-term fix for duplicate-ID collision class).
 Full extension-method transitive tracing. Decorator chains (`Decorate<T>()`).
@@ -75,7 +75,9 @@ Full extension-method transitive tracing. Decorator chains (`Decorate<T>()`).
 > Q: List the explicit non-goals for v1 (no runtime profiling, no auto-fix,
 >    no IDE plugin, etc.).
 
-**Answer:** No runtime container inspection; no hybrid static+runtime diffs; no
+**Answer:** No runtime container inspection in v1 static diff path; optional
+runtime enrichment overlay (Phase 9) merges JSONL resolution logs post-run via
+`dcs enrich`; no hybrid static+runtime diffs; no
 auto-fix or write-back; no IDE/marketplace extension; no semantic type resolution
 (no `SemanticModel`); no assembly-scanning body expansion; no factory-lambda
 dependency resolution; `--frameworks <json>` for additive custom framework tags;
@@ -851,8 +853,8 @@ node policy untested.
 > Q: What open questions remain after the four ADRs are closed?
 
 **Answer:**
-- ADR-005–008 (Proposed stubs): Spring parser scope, IDE form factor, auto-fix safety,
-  runtime enrichment — decisions deferred to Phases 6–9.
+- ADR-005–007 (Proposed stubs): Spring parser scope, IDE form factor, auto-fix safety.
+- ADR-008 runtime enrichment — **Accepted** (Phase 9); Trackdub dev-run verification open.
 - Semantic Roslyn upgrade timing vs duplicate-ID class elimination (parked).
 - `--frameworks` JSON schema and `--frameworks` CLI (Phase 5 implementation).
 - Disk cache location/format (Phase 5).
