@@ -9,9 +9,9 @@ namespace DCS.Parser.CSharp.Tests;
 
 public sealed class TrackdubSemanticGateTests
 {
-    // Phase 12: raised aggregate floor after cross-TFM compilation closure + ref-pack fix.
-    private const double MinSemanticTypeResolutionRate = 0.57;
-    private const double MinWindowsSemanticTypeResolutionRate = 0.40;
+    // Phase 13: lock Phase 12 semantic gains (actual ~91.6% aggregate / ~91.5% windows).
+    private const double MinSemanticTypeResolutionRate = 0.85;
+    private const double MinWindowsSemanticTypeResolutionRate = 0.80;
     private const double MinRegistrationApiVerificationRate = 0.95;
     private const double MinProjectScopeCompletenessRate = 0.80;
 

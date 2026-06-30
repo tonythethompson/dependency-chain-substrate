@@ -17,6 +17,7 @@ return command switch
     "dump-ir" => await ProgramCommands.RunDumpIr(cliArgs[1..]),
     "diff"    => await ProgramCommands.RunDiff(cliArgs[1..]),
     "fix"     => await ProgramCommands.RunFix(cliArgs[1..]),
+    "path"    => await ProgramCommands.RunPath(cliArgs[1..]),
     "viz"     => await ProgramCommands.RunViz(cliArgs[1..]),
     _         => UnknownCommand(command)
 };

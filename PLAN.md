@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-30 (Phase 12 closed)
+Last updated: 2026-06-30 (Phase 13 closed)
 
 ---
 
@@ -290,6 +290,25 @@ closure; factory-lambda `GetRequiredService` deps traced; aggregate + per-contex
 | Phase 12 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — 91.6% / 100% / 100% (335 nodes, 6 scopes) |
 
 **Phase 12 gate:** ✅ CLOSED — `dotnet test` green; Trackdub @ pin: aggregate semantic **91.6%**, windows TFM **91.5%**, portable **91.8%**; MainWindow + VoiceClone assertions unchanged; cross-TFM compilation closure verified via `CrossTfmProjectReferenceResolverTests`.
+
+---
+
+## Phase 13 — Path Excavator MVP
+
+**Done means:** `dcs path` answers dependency paths on extracted graphs; Trackdub gate
+confirms path to Avalonia shell registration; semantic floors locked at Phase 12 levels.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `GraphPathFinder` (BFS on dependency edges) | ✅ Done | `DCS.Analysis` |
+| `PathExcavationReport` + text/json output | ✅ Done | |
+| `dcs path` CLI (`--from`, `--to`, `--format json`) | ✅ Done | |
+| Unit tests (`GraphPathFinderTests`) | ✅ Done | |
+| Trackdub path gate (`TrackdubPathGateTests`) | ✅ Done | Avalonia VoiceClone by id |
+| Raise semantic gate floors to 85%/80% | ✅ Done | |
+| DESIGN.md §12 Path Excavator update | ✅ Done | |
+
+**Phase 13 gate:** ✅ CLOSED — `dotnet test` green; `GraphPathFinder.FindPath` succeeds for Avalonia `VoiceCloneConsentCoordinator` @ pin; semantic floors ≥85% aggregate; viz path highlight deferred.
 
 ---
 

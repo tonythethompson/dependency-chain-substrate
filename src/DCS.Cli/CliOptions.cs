@@ -35,6 +35,8 @@ internal sealed record CliOptions
     public string? ReportOut { get; init; }
     public string? TextOut { get; init; }
     public bool ContextAll { get; init; }
+    public string? PathFrom { get; init; }
+    public string? PathTo { get; init; }
 }
 
 internal enum OutputFormat
@@ -313,6 +315,109 @@ internal static class CliArgParser
             FixToken = token,
             FixAllDuplicates = fixAll,
             Language = baseOptions.Language == RepoLanguage.Auto ? RepoLanguage.CSharp : baseOptions.Language
+        };
+    }
+
+    public static CliOptions ParsePathCommand(string[] args)
+    {
+        string? repoPath = null, commit = null, frameworksPath = null, cacheDir = null;
+        string? irOut = null, rootClass = null, contextId = null, contextRoot = null;
+        string? pathFrom = null, pathTo = null;
+        var noCache = false;
+        var language = RepoLanguage.Auto;
+        string? targetFramework = null;
+        var allTargetFrameworks = false;
+        var productionOnly = true;
+        var includeTests = false;
+        var format = OutputFormat.Text;
+        string? reportOut = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--commit" or "-c" when i + 1 < args.Length:
+                    commit = args[++i];
+                    break;
+                case "--production-only":
+                    productionOnly = true;
+                    includeTests = false;
+                    allTargetFrameworks = false;
+                    break;
+                case "--include-tests":
+                    includeTests = true;
+                    productionOnly = false;
+                    break;
+                case "--target-framework" when i + 1 < args.Length:
+                    targetFramework = args[++i];
+                    allTargetFrameworks = false;
+                    break;
+                case "--all-target-frameworks":
+                    allTargetFrameworks = true;
+                    targetFramework = null;
+                    break;
+                case "--frameworks" when i + 1 < args.Length:
+                    frameworksPath = args[++i];
+                    break;
+                case "--cache-dir" when i + 1 < args.Length:
+                    cacheDir = args[++i];
+                    break;
+                case "--no-cache":
+                    noCache = true;
+                    break;
+                case "--ir-out" when i + 1 < args.Length:
+                    irOut = args[++i];
+                    break;
+                case "--root" when i + 1 < args.Length:
+                    rootClass = args[++i];
+                    break;
+                case "--context" when i + 1 < args.Length:
+                    contextId = args[++i];
+                    break;
+                case "--context-root" when i + 1 < args.Length:
+                    contextRoot = args[++i];
+                    break;
+                case "--format" when i + 1 < args.Length:
+                    format = args[++i].Equals("json", StringComparison.OrdinalIgnoreCase)
+                        ? OutputFormat.Json
+                        : OutputFormat.Text;
+                    break;
+                case "--report-out" when i + 1 < args.Length:
+                    reportOut = args[++i];
+                    break;
+                case "--from" when i + 1 < args.Length:
+                    pathFrom = args[++i];
+                    break;
+                case "--to" when i + 1 < args.Length:
+                    pathTo = args[++i];
+                    break;
+                default:
+                    if (!args[i].StartsWith('-') && repoPath == null)
+                        repoPath = args[i];
+                    break;
+            }
+        }
+
+        return new CliOptions
+        {
+            RepoPath = repoPath,
+            Commit = commit,
+            FrameworksPath = frameworksPath,
+            CacheDir = cacheDir,
+            NoCache = noCache,
+            IrOut = irOut,
+            RootClass = rootClass,
+            Language = language,
+            ContextId = contextId,
+            ContextRoot = contextRoot == null ? null : [contextRoot],
+            TargetFramework = targetFramework,
+            AllTargetFrameworks = allTargetFrameworks,
+            ProductionOnly = productionOnly,
+            IncludeTests = includeTests,
+            Format = format,
+            ReportOut = reportOut,
+            PathFrom = pathFrom,
+            PathTo = pathTo
         };
     }
 

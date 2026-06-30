@@ -664,8 +664,12 @@ Modules:
   and `dcs dump-ir` / `dcs analyze --ir-out` (JSON IR for tooling).
 - **Topology Lens:** `dcs viz` — canvas graph with framework colours, zoom/pan,
   error badges from analysis. No force-directed or Sugiyama layout yet.
-- **Path Excavator:** **Not implemented.** No root→node path query CLI or viz
-  highlight. Reachability computed internally for orphan detection only.
+- **Path Excavator:** **`dcs path <repo> --to <registration> [--from <registration>]`** —
+  shortest dependency path on static edges (constructor + factory-lambda `GetRequiredService`
+  traces). Resolves `--from` / `--to` by registration id, display name, or type token.
+  Default origin: composition-root seeds (same policy as orphan reachability). Output:
+  numbered hops with `file:line`; `--format json` → `PathExcavationReport`. Exit **1** if
+  no path, **2** if ambiguous match. Viz path highlight deferred.
 - **Framework Boundary Probe:** `GraphAnalyzer.FindLeaked` + `FrameworkBoundaryModel`
   — built into `dcs analyze`; built-in WinUI/Avalonia/WPF/ASP.NET tags. Custom
   frameworks additive via `--frameworks <path>` (JSON config).
@@ -695,7 +699,7 @@ Modules:
 |--------|-------|--------|---------------|
 | Registration Atlas | repo path ± commit SHA | IR JSON | invalid SHA; parse continues with blind_spots |
 | Topology Lens | IR or repo+commit | HTML file | empty graph; large graph browser memory |
-| Path Excavator | (planned) root id, target id | path node list | no path; multiple roots ambiguous |
+| Path Excavator | repo + commit, `--from`/`--to` tokens | path node + edge list (text/json) | no path; ambiguous token; no seeds |
 | Framework Boundary Probe | IR + boundary model | LEAKED/DUPLICATE findings in AnalysisResult | false positives on intentional adapters (WARN vs ERROR heuristic) |
 | Drift Scanner | repo, from SHA, to SHA | text/JSON diff | false rename matches; duplicate-ID collapse |
 | Migration Diff | same as Drift Scanner | same | user mis-selects commit pair |

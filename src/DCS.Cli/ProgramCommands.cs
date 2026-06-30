@@ -5,6 +5,7 @@ using DCS.Core.Serialization;
 using DCS.Diff;
 using DCS.Fix;
 using DCS.Viz;
+using System.Text.Json;
 
 namespace DCS.Cli;
 
@@ -212,6 +213,62 @@ internal static class ProgramCommands
             $"[DCS] Contexts available: {string.Join(", ", parseResult.ContextGraphs.Select(c => c.ContextId))}");
     }
 
+    internal static async Task<int> RunPath(string[] args)
+    {
+        var options = CliArgParser.ParsePathCommand(args);
+        if (options.RepoPath == null) return ErrorExit("path requires <repo-path>");
+        if (string.IsNullOrWhiteSpace(options.PathTo))
+            return ErrorExit("path requires --to <registration>");
+
+        try
+        {
+            var graph = ExtractGraph(options, out var parseResult);
+            PrintContextBanner(parseResult);
+            Console.Error.WriteLine(
+                $"[DCS] Path query on {graph.Nodes.Count} registrations, {graph.Edges.Count} edges");
+
+            var pathResult = GraphPathFinder.FindPath(
+                graph, options.PathFrom, options.PathTo!, options.RootClass);
+
+            if (pathResult.IsAmbiguous)
+                return ErrorExit(pathResult.Error ?? "Ambiguous path query.");
+
+            if (!pathResult.Success)
+                return ErrorExit(pathResult.Error ?? "No path found.");
+
+            var report = PathExcavationReport.FromResult(pathResult);
+            if (options.Format == OutputFormat.Json)
+            {
+                var json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });
+                if (options.ReportOut != null)
+                    await File.WriteAllTextAsync(options.ReportOut, json);
+                else
+                    Console.WriteLine(json);
+            }
+            else
+            {
+                if (options.ReportOut != null)
+                {
+                    await using var writer = new StreamWriter(options.ReportOut);
+                    PathExcavationPrinter.Print(pathResult, writer);
+                }
+                else
+                {
+                    PathExcavationPrinter.Print(pathResult, Console.Out);
+                }
+            }
+
+            if (options.IrOut != null)
+                await WriteIr(graph, options.IrOut);
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            return ErrorExit(ex.Message);
+        }
+    }
+
     internal static async Task<int> RunAtlas(string[] args)
     {
         var options = CliArgParser.ParseRepoCommand(args, allowRoot: false);
@@ -402,6 +459,8 @@ internal static class ProgramCommands
               diff    <repo-path> --from <sha> --to <sha> [options]
                                                       Diff two commits
               fix     <repo-path> [options]           Preview/apply DUPLICATE registration removal
+              path    <repo-path> --to <registration> [options]
+                                                      Dependency path from root to target registration
               viz     <source> [options]              Generate self-contained HTML visualization
 
             SHARED REPO OPTIONS
@@ -464,6 +523,8 @@ internal static class ProgramCommands
               dcs analyze /path/to/repo --commit abc1234 --format text --report-out report.txt
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json --text-out report.txt
               dcs analyze /path/to/repo --commit abc1234 --context all --verbosity summary
+              dcs path /path/to/repo --commit abc1234 --to VoiceCloneConsentCoordinator
+              dcs path /path/to/repo --from IApplicationLogger --to IConsentService --format json
               dcs atlas /path/to/repo --commit abc1234
               dcs diff /path/to/repo --from abc1234 --to def5678 --frameworks fw.json
               dcs viz /path/to/repo --out graph.html
