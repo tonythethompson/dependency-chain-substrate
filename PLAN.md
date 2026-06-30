@@ -312,6 +312,39 @@ confirms path to Avalonia shell registration; semantic floors locked at Phase 12
 
 ---
 
+## Phase 13b — Viz path highlight
+
+**Done means:** `dcs viz --path-to` highlights the same dependency path as `dcs path` in the HTML canvas.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `VizPathHighlight` model + `HtmlVizGenerator` draw pass | ✅ Done | Cyan path edges/nodes; dim non-path |
+| `dcs viz --path-to` / `--path-from` CLI flags | ✅ Done | Reuses `GraphPathFinder` |
+| Sidebar path panel in HTML | ✅ Done | Hop list |
+| Unit tests (`HtmlVizPathHighlightTests`) | ✅ Done | |
+| DESIGN.md §12 Path Excavator update | ✅ Done | Viz highlight shipped |
+
+**Phase 13b gate:** ✅ CLOSED — `dotnet test` green; HTML embeds `PATH_HIGHLIGHT` payload matching `dcs path` node/edge ids.
+
+---
+
+## Phase 8.1a — ORPHANED measurement + preview-only fix
+
+**Done means:** `dcs fix --fix-class orphaned --preview` reports FP measurement and unified diff; `--apply` rejected until ADR-007 amendment.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `OrphanedFixMeasurement` report | ✅ Done | total / explicit / eligible counts |
+| `OrphanedFixPlanner` (explicit, non-root, non-infra) | ✅ Done | Composition root excluded |
+| `FixEngine.BuildOrphanedFixes` preview | ✅ Done | No `--apply` in 8.1a |
+| CLI `--fix-class orphaned` | ✅ Done | Rejects `--apply` |
+| Fixture + Trackdub measurement tests | ✅ Done | `OrphanedFixTests` |
+| ADR-007 amendment (orphaned apply gate) | ⬜ Pending | Human sign-off before enabling apply |
+
+**Phase 8.1a gate:** ✅ CLOSED (preview) — fixture orphan preview diff; Trackdub measurement documents eligible count; apply deferred pending FP acceptance.
+
+---
+
 ## Parked (no phase yet)
 
 - TypeScript / Python parsers (Phase 6 Spring first; TS/Python follow same ADR pattern)

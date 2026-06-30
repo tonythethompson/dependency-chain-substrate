@@ -21,6 +21,7 @@ The tool was born from a real failure mode: during a WinUI-to-Avalonia migration
 | **Registration Atlas** | `dcs atlas`, `dcs dump-ir` | Human-readable listing and versioned JSON IR export |
 | **Topology Lens** | `dcs viz` | Self-contained interactive HTML graph at Trackdub scale (300+ nodes) |
 | **Path Excavator** | `dcs path` | Shortest dependency path from composition root to a target registration |
+| **Topology Lens (path)** | `dcs viz --path-to` | Same path highlighted on interactive HTML graph |
 | **Auto-fix (preview)** | `dcs fix` | Safe preview/apply of DUPLICATE registration removal (C# only, v1) |
 
 ### What makes it different
@@ -286,7 +287,7 @@ Phases **0–13** are closed as of 2026-06-30, including:
 - Spring Boot parser (Phase 6)
 - `dcs fix` DUPLICATE preview/apply (Phase 8)
 
-**Parked / deferred:** IDE extension, runtime enrichment overlay, TypeScript/Python parsers, viz path highlighting.
+**Parked / deferred:** IDE extension, runtime enrichment overlay, TypeScript/Python parsers, orphaned fix `--apply` (Phase 8.1b).
 
 Track progress in [`PLAN.md`](PLAN.md).
 

@@ -101,4 +101,72 @@ public static class FixEngine
 
         return builder.ToString();
     }
+
+    public static OrphanedFixResult BuildOrphanedFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? displayNameFilter = null)
+    {
+        var proposals = OrphanedFixPlanner.Plan(graph, analysis, displayNameFilter);
+        if (proposals.Count == 0)
+            return new OrphanedFixResult([], []);
+
+        var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var proposal in proposals.OrderByDescending(p => p.Line))
+        {
+            var relativePath = proposal.RelativeFilePath;
+            var absolutePath = Path.IsPathRooted(relativePath)
+                ? relativePath
+                : Path.Combine(repoRoot, relativePath);
+
+            if (!File.Exists(absolutePath))
+                throw new InvalidOperationException($"Registration file not found: {absolutePath}");
+
+            var current = patchesByPath.TryGetValue(relativePath, out var existing)
+                ? existing.UpdatedContent
+                : File.ReadAllText(absolutePath);
+
+            var updated = RegistrationStatementRemover.TryRemove(
+                current,
+                proposal.Line,
+                proposal.DisplayName);
+
+            if (updated == null)
+            {
+                throw new InvalidOperationException(
+                    $"Could not locate registration statement for {proposal.DisplayName} " +
+                    $"at {relativePath}:{proposal.Line}.");
+            }
+
+            var original = existing?.OriginalContent ?? current;
+            patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
+        }
+
+        return new OrphanedFixResult(proposals, patchesByPath.Values.ToList());
+    }
+
+    public static string FormatOrphanedPreview(
+        OrphanedFixResult result,
+        OrphanedFixMeasurementReport measurement)
+    {
+        if (result.Patches.Count == 0)
+            return measurement.FormatSummary() + Environment.NewLine + "No orphaned registration fixes available.";
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine(measurement.FormatSummary());
+        builder.AppendLine("=== Orphaned Fix Preview (no files written) ===");
+        foreach (var proposal in result.Proposals)
+        {
+            builder.AppendLine(
+                $"FIX ORPHANED {proposal.DisplayName}: remove {proposal.RelativeFilePath}:{proposal.Line}");
+        }
+
+        builder.AppendLine();
+        foreach (var patch in result.Patches)
+            builder.Append(UnifiedDiffFormatter.Format(patch.RelativePath, patch.OriginalContent, patch.UpdatedContent));
+
+        return builder.ToString();
+    }
 }

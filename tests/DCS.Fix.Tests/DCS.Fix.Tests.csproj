@@ -24,4 +24,10 @@
     <ProjectReference Include="..\..\src\DCS.Analysis\DCS.Analysis.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\verification\TrackdubPin.cs" Link="Verification\TrackdubPin.cs" />
+    <Compile Include="..\verification\CorpusGateTraits.cs" Link="Verification\CorpusGateTraits.cs" />
+    <Compile Include="..\verification\CorpusPathResolver.cs" Link="Verification\CorpusPathResolver.cs" />
+  </ItemGroup>
+
 </Project>

@@ -669,7 +669,8 @@ Modules:
   traces). Resolves `--from` / `--to` by registration id, display name, or type token.
   Default origin: composition-root seeds (same policy as orphan reachability). Output:
   numbered hops with `file:line`; `--format json` → `PathExcavationReport`. Exit **1** if
-  no path, **2** if ambiguous match. Viz path highlight deferred.
+  no path, **2** if ambiguous match. **`dcs viz --path-to`** highlights the same path on the
+  HTML canvas (Phase 13b).
 - **Framework Boundary Probe:** `GraphAnalyzer.FindLeaked` + `FrameworkBoundaryModel`
   — built into `dcs analyze`; built-in WinUI/Avalonia/WPF/ASP.NET tags. Custom
   frameworks additive via `--frameworks <path>` (JSON config).

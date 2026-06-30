@@ -373,7 +373,7 @@ internal static class ProgramCommands
                 if (options.ApplyFix)
                     return Task.FromResult(ErrorExit("orphaned fix --apply is disabled in Phase 8.1a (preview only)."));
 
-                var measurement = OrphanedFixMeasurement.Measure(graph, analysis, options.RootClass);
+                var measurement = OrphanedFixMeasurement.Measure(graph, analysis);
                 Console.Error.WriteLine(
                     $"[DCS] Orphaned measurement: total={measurement.TotalOrphaned}, " +
                     $"explicit_with_site={measurement.ExplicitWithSite}, eligible={measurement.EligibleForFixPreview}");
@@ -385,9 +385,10 @@ internal static class ProgramCommands
                     return Task.FromResult(0);
                 }
 
-                var tokenFilter = options.FixToken;
-                var result = FixEngine.BuildOrphanedFixes(options.RepoPath!, graph, analysis, options.RootClass, tokenFilter);
-                Console.WriteLine(FixEngine.FormatOrphanedPreview(result, measurement));
+                var orphanedTokenFilter = options.FixToken;
+                var orphanedResult = FixEngine.BuildOrphanedFixes(
+                    options.RepoPath!, graph, analysis, orphanedTokenFilter);
+                Console.WriteLine(FixEngine.FormatOrphanedPreview(orphanedResult, measurement));
                 return Task.FromResult(0);
             }
 
@@ -540,14 +541,17 @@ internal static class ProgramCommands
 
             FIX OPTIONS (working directory only; C# repos)
               --preview             Show unified diff without writing (default)
-              --apply               Write patched files (requires clean git tree)
+              --apply               Write patched files (duplicate only; requires clean git tree)
+              --fix-class <kind>    duplicate (default) | orphaned (preview only in 8.1a)
               --force               Apply even when git working tree is dirty
-              --token <name>        Fix a specific duplicate abstract token
+              --token <name>        Fix a specific duplicate or orphaned token
               --all-duplicates      Fix every duplicate group in one run
 
             VIZ OPTIONS
               <repo-path>           Extract from repo (also runs analysis)
               --commit <sha>        Extract specific commit
+              --path-to <token>     Highlight dependency path to registration
+              --path-from <token>   Optional path origin (default: composition-root seeds)
               --ir <ir-file>        Read from existing IR JSON instead of a repo
               --out <path>          Write HTML to file (default: stdout)
               --root <ClassName>    Override composition root detection

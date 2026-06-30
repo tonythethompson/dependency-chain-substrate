@@ -18,6 +18,17 @@ public sealed record GraphPathResult
 
 public static class GraphPathFinder
 {
+    public static IReadOnlyList<string> GetDefaultSeedNodeIds(
+        RegistrationGraph graph,
+        string? rootOverride = null)
+    {
+        var nodeById = graph.Nodes
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        return GraphReachabilitySeeds.GetSeedNodeIds(graph, rootOverride, nodeById);
+    }
+
     public static GraphPathResult FindPath(
         RegistrationGraph graph,
         string? fromQuery,
