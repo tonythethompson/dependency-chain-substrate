@@ -569,6 +569,7 @@ internal static class ProgramCommands
               dcs atlas /path/to/repo --commit abc1234
               dcs diff /path/to/repo --from abc1234 --to def5678 --frameworks fw.json
               dcs viz /path/to/repo --out graph.html
+              dcs viz /path/to/repo --path-to VoiceCloneConsentCoordinator --out graph.html
               dcs viz graph.json --ir --out graph.html
             """);
     }
