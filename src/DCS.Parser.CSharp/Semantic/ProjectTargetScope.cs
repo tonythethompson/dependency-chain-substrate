@@ -18,6 +18,7 @@ public sealed record ProjectTargetScope
     public bool ProjectEvaluationIncomplete { get; init; }
     public bool ImplicitUsingsUnmodeled { get; init; }
     public bool ProjectReferenceUnresolved { get; init; }
+    public bool IsTestProject { get; init; }
 
     public string CompositionScopeId => ScopeId;
 }

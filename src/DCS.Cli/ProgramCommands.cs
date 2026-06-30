@@ -22,14 +22,30 @@ internal static class ProgramCommands
         }
     }
 
-    internal static RegistrationGraph ExtractGraph(CliOptions options)
+    internal static RegistrationGraph ExtractGraph(CliOptions options, out ParseResult parseResult)
     {
+        options = CliParserFactory.ResolveExtractionOptions(options);
         var language = RepoLanguageDetector.Resolve(options.RepoPath, options.Language);
         Console.Error.WriteLine($"[DCS] Language: {language.ToString().ToLowerInvariant()}");
 
+        if (!string.IsNullOrWhiteSpace(options.TargetFramework))
+            Console.Error.WriteLine($"[DCS] Target framework: {options.TargetFramework}");
+
         var parser = CliParserFactory.Create(options);
-        var parseResult = CliParserFactory.ExtractParseResult(parser, options);
+        parseResult = CliParserFactory.ExtractParseResult(parser, options);
+
+        if (parseResult.ContextGraphs.Count > 1)
+        {
+            Console.Error.WriteLine(
+                $"[DCS] Contexts available: {string.Join(", ", parseResult.ContextGraphs.Select(c => c.ContextId))}");
+        }
+
         return CliParserFactory.SelectGraph(parseResult, options);
+    }
+
+    internal static RegistrationGraph ExtractGraph(CliOptions options)
+    {
+        return ExtractGraph(options, out _);
     }
 
     internal static async Task<int> RunAnalyze(string[] args)
@@ -39,26 +55,137 @@ internal static class ProgramCommands
 
         try
         {
-            var graph = ExtractGraph(options);
+            options = CliParserFactory.ResolveExtractionOptions(options);
             var boundaries = LoadBoundaries(options.FrameworksPath);
+            var policy = options.Strict ? FindingPolicyOptions.StrictMode : FindingPolicyOptions.Default;
+            var includeMetrics = options.Metrics || options.Verbosity == ReportVerbosity.Full;
 
+            if (options.ContextAll)
+            {
+                var parser = CliParserFactory.Create(options);
+                var parseResult = CliParserFactory.ExtractParseResult(parser, options);
+                PrintContextBanner(parseResult);
+
+                var contextReports = new List<AnalysisReport>();
+                var hasErrors = false;
+
+                foreach (var ctx in parseResult.ContextGraphs)
+                {
+                    var ctxGraph = ctx.Graph;
+                    Console.Error.WriteLine(
+                        $"[DCS] Context {ctx.ContextId}: {ctxGraph.Nodes.Count} registrations, {ctxGraph.Edges.Count} edges, {ctxGraph.BlindSpots.Count} blind spots");
+
+                    var result = new GraphAnalyzer(ctxGraph, boundaries, options.RootClass, policy).Analyze();
+                    var report = BuildReport(ctxGraph, result, options, policy, includeMetrics, ctx.ContextId, parseResult);
+                    contextReports.Add(report);
+                    if (result.HasErrors) hasErrors = true;
+                }
+
+                var multi = new MultiContextAnalysisReport
+                {
+                    CommitSha = parseResult.ContextGraphs.FirstOrDefault()?.Graph.CommitSha,
+                    ContextReports = contextReports
+                };
+
+                await EmitAnalyzeOutput(multi, options);
+                if (options.IrOut != null)
+                    await WriteIr(parseResult.ContextGraphs[0].Graph, options.IrOut);
+
+                return hasErrors ? 1 : 0;
+            }
+
+            var graph = ExtractGraph(options, out var singleParse);
+            PrintContextBanner(singleParse);
             Console.Error.WriteLine(
                 $"[DCS] {graph.Nodes.Count} registrations, {graph.Edges.Count} edges, {graph.BlindSpots.Count} blind spots");
 
-            var analyzer = new GraphAnalyzer(graph, boundaries, options.RootClass);
-            var result = analyzer.Analyze();
+            var analysisResult = new GraphAnalyzer(graph, boundaries, options.RootClass, policy).Analyze();
+            var singleReport = BuildReport(
+                graph,
+                analysisResult,
+                options,
+                policy,
+                includeMetrics,
+                singleParse.ContextGraphs.FirstOrDefault(c => c.Graph == graph)?.ContextId ??
+                singleParse.ContextGraphs.FirstOrDefault()?.ContextId,
+                singleParse);
 
-            PrintReport(graph, result);
+            await EmitAnalyzeOutput(singleReport, options);
 
             if (options.IrOut != null)
                 await WriteIr(graph, options.IrOut);
 
-            return result.HasErrors ? 1 : 0;
+            return analysisResult.HasErrors ? 1 : 0;
         }
         catch (Exception ex)
         {
             return ErrorExit(ex.Message);
         }
+    }
+
+    private static AnalysisReport BuildReport(
+        RegistrationGraph graph,
+        AnalysisResult result,
+        CliOptions options,
+        FindingPolicyOptions policy,
+        bool includeMetrics,
+        string? contextId,
+        ParseResult parseResult) =>
+        AnalysisReportBuilder.Build(graph, result, new AnalysisReportBuildOptions
+        {
+            Policy = policy,
+            Verbosity = options.Verbosity,
+            VerboseBlindSpots = options.VerboseBlindSpots || options.Verbosity == ReportVerbosity.Full,
+            IncludeMetrics = includeMetrics,
+            ContextId = contextId,
+            TargetFramework = options.TargetFramework,
+            ParserVersion = graph.ParserVersion,
+            AvailableContexts = parseResult.ContextGraphs.Select(c => c.ContextId).ToList()
+        });
+
+    private static async Task EmitAnalyzeOutput(AnalysisReport report, CliOptions options)
+    {
+        if (options.Format == OutputFormat.Json)
+        {
+            var json = AnalysisReportSerializer.Serialize(report);
+            if (options.ReportOut != null)
+                await AnalysisReportSerializer.WriteToFileAsync(report, options.ReportOut);
+            Console.WriteLine(json);
+            return;
+        }
+
+        AnalysisReportPrinter.Print(report, Console.Out, options.Verbosity, options.VerboseBlindSpots);
+
+        if (report.Metrics != null)
+            AnalysisReportPrinter.PrintMetrics(report.Metrics, Console.Error);
+
+        if (options.ReportOut != null)
+            await AnalysisReportSerializer.WriteToFileAsync(report, options.ReportOut);
+    }
+
+    private static async Task EmitAnalyzeOutput(MultiContextAnalysisReport multi, CliOptions options)
+    {
+        if (options.Format == OutputFormat.Json)
+        {
+            var json = AnalysisReportSerializer.Serialize(multi);
+            if (options.ReportOut != null)
+                await AnalysisReportSerializer.WriteToFileAsync(multi, options.ReportOut);
+            Console.WriteLine(json);
+            return;
+        }
+
+        AnalysisReportPrinter.PrintMultiContext(multi, Console.Out, options.Verbosity);
+        if (options.ReportOut != null)
+            await AnalysisReportSerializer.WriteToFileAsync(multi, options.ReportOut);
+    }
+
+    private static void PrintContextBanner(ParseResult parseResult)
+    {
+        if (parseResult.ContextGraphs.Count <= 1)
+            return;
+
+        Console.Error.WriteLine(
+            $"[DCS] Contexts available: {string.Join(", ", parseResult.ContextGraphs.Select(c => c.ContextId))}");
     }
 
     internal static async Task<int> RunAtlas(string[] args)
@@ -265,6 +392,22 @@ internal static class ProgramCommands
 
             ANALYZE OPTIONS
               --root <ClassName>    Override composition root detection
+              --target-framework <tfm>
+                                    Single TFM graph (e.g. net10.0). Default: portable primary TFM.
+              --context <id>        Context id (e.g. csharp|net10.0) or "all" for multi-context summary
+              --all-target-frameworks
+                                    One graph per TFM; use with --context to select.
+              --production-only     Exclude test/benchmark projects (default)
+              --include-tests       Include test projects and tests/ sources
+              --verbosity <level>   summary | actionable (default) | full
+              --strict              Disable finding suppressions (audit mode)
+              --verbose-blind-spots List informational blind spots in text output
+              --metrics             Print extraction quality metrics on stderr
+              --format <fmt>        text (default) | json
+              --report-out <path>   Write structured analysis report JSON
+              --no-cache            Bypass extraction cache (recommended after parser updates)
+
+            PowerShell: quote pipe in context — --context "csharp|net10.0"
 
             DIFF OPTIONS
               --from <sha>          Base commit SHA
@@ -292,67 +435,13 @@ internal static class ProgramCommands
             EXAMPLES
               dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
               dcs fix /path/to/repo --apply --force
-              dcs analyze /path/to/repo --commit abc1234
+              dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json
+              dcs analyze /path/to/repo --commit abc1234 --context all --verbosity summary
               dcs atlas /path/to/repo --commit abc1234
               dcs diff /path/to/repo --from abc1234 --to def5678 --frameworks fw.json
               dcs viz /path/to/repo --out graph.html
               dcs viz graph.json --ir --out graph.html
             """);
-    }
-
-    private static void PrintReport(RegistrationGraph graph, AnalysisResult result)
-    {
-        var w = Console.Out;
-
-        w.WriteLine();
-        w.WriteLine("=== DCS Analysis Report ===");
-        if (graph.CommitSha != null) w.WriteLine($"Commit: {graph.CommitSha}");
-        w.WriteLine($"Nodes: {result.TotalNodes}  Edges: {result.TotalEdges}  BlindSpots: {result.TotalBlindSpots}");
-        w.WriteLine();
-
-        WriteSection(w, "LEAKED", result.Leaked.Count);
-        foreach (var l in result.Leaked)
-            w.WriteLine($"  [ERROR] LEAKED: {l.DisplayName} ({l.FromFramework} → {l.ToFramework}) {FormatLoc(l.SourceFile, l.SourceLine)}");
-
-        WriteSection(w, "BROKEN CHAINS", result.BrokenChains.Count);
-        foreach (var b in result.BrokenChains)
-            w.WriteLine($"  [ERROR] BROKEN: {b.DisplayName} → {b.MissingDependencyType} not resolved {FormatLoc(b.SourceFile, b.SourceLine)}");
-
-        WriteSection(w, "DUPLICATE REGISTRATIONS", result.Duplicates.Count);
-        foreach (var d in result.Duplicates)
-            w.WriteLine($"  [WARN]  DUPLICATE: {d.AbstractTokenName} registered {d.NodeIds.Count}× (may indicate leaked migration state)");
-
-        WriteSection(w, "POSSIBLE DUPLICATES", result.PossibleDuplicates.Count);
-        foreach (var d in result.PossibleDuplicates)
-            w.WriteLine($"  [WARN]  POSSIBLE DUPLICATE: {d.AbstractTokenName} registered {d.NodeIds.Count}× (semantic eligibility not met)");
-
-        WriteSection(w, "UNRESOLVED DEPENDENCIES", result.TotalUnresolvedInjections);
-        foreach (var u in graph.UnresolvedInjections)
-            w.WriteLine($"  [WARN]  UNRESOLVED DEPENDENCY: {u.DeclaredType.ShortName} from {u.FromRegistrationId} ({u.Reason})");
-
-        WriteSection(w, "ORPHANED", result.Orphaned.Count);
-        foreach (var o in result.Orphaned)
-            w.WriteLine($"  [WARN]  ORPHANED: {o.DisplayName} {FormatLoc(o.SourceFile, o.SourceLine)}");
-
-        WriteSection(w, "CYCLES", result.Cycles.Count);
-        foreach (var cycle in result.Cycles)
-        {
-            var names = cycle
-                .Select(id => graph.Nodes.FirstOrDefault(n => n.Id == id)?.DisplayName ?? id)
-                .ToList();
-            w.WriteLine($"  [WARN]  CYCLE: {string.Join(" → ", names)} → {names[0]}");
-        }
-
-        WriteSection(w, "BLIND SPOTS", result.TotalBlindSpots);
-        foreach (var b in graph.BlindSpots)
-            w.WriteLine($"  [WARN]  {b.Pattern.ToUpperInvariant()}: {b.Description} {FormatLoc(b.Location?.FilePath, b.Location?.Line)}");
-
-        w.WriteLine();
-        w.WriteLine($"SUMMARY: {(result.HasErrors ? "ERRORS FOUND" : "no errors")} | " +
-                    $"{result.Leaked.Count} leaked | {result.BrokenChains.Count} broken | " +
-                    $"{result.Duplicates.Count} duplicate | {result.PossibleDuplicates.Count} possible duplicate | " +
-                    $"{result.TotalUnresolvedInjections} unresolved | {result.Orphaned.Count} orphaned | " +
-                    $"{result.TotalBlindSpots} blind spots");
     }
 
     private static void PrintDiff(GraphDiff diff)
@@ -413,9 +502,4 @@ internal static class ProgramCommands
 
     private static void WriteSection(TextWriter w, string title, int count) =>
         w.WriteLine($"--- {title} ({count}) ---");
-
-    private static string FormatLoc(string? file, int? line) =>
-        file == null ? string.Empty :
-        line == null ? $"[{file}]" :
-        $"[{file}:{line}]";
 }

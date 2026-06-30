@@ -213,6 +213,49 @@ public sealed class SemanticResolutionTests
         });
     }
 
+    [Fact]
+    public void Instance_try_add_singleton_resolves_from_semantic_model()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface IStoragePaths { }
+            public sealed class StoragePaths : IStoragePaths { }
+            public static class Reg {
+              public static void Configure(IServiceCollection services, IStoragePaths paths) {
+                services.TryAddSingleton(paths);
+              }
+            }
+            """;
+
+        var (nodes, spots) = ParseWithSemantic(source, "Reg.cs");
+        Assert.Single(nodes);
+        Assert.Equal("IStoragePaths", nodes[0].DisplayName);
+        Assert.Equal("instance", nodes[0].Annotations.GetValueOrDefault("pattern"));
+        Assert.DoesNotContain(spots, s => s.Pattern == "unrecognized_pattern");
+    }
+
+    [Fact]
+    public void Shallow_factory_with_get_required_service()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface IBar { }
+            public sealed class Handler { public Handler(IBar bar) { } }
+            public static class Reg {
+              public static void Configure(IServiceCollection services) {
+                services.AddScoped(sp => new Handler(sp.GetRequiredService<IBar>()));
+              }
+            }
+            """;
+
+        var (nodes, spots) = ParseWithSemantic(source, "Reg.cs");
+        Assert.Single(nodes);
+        Assert.Equal("Handler", nodes[0].DisplayName);
+        Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
+    }
+
     private static (List<RegistrationNode> nodes, List<BlindSpotReport> spots) ParseSyntacticOnly(string source)
     {
         var tree = CSharpSyntaxTree.ParseText(source, path: "Test.cs");

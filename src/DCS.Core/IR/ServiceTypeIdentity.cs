@@ -12,6 +12,24 @@ public sealed record ServiceTypeIdentity
 
     public string CanonicalKey => Resolved?.CanonicalKey ?? $"syntactic:{SyntacticDisplay ?? string.Empty}";
 
+    /// <summary>
+    /// Cross-project duplicate grouping — metadata name only, not scope-specific assembly key.
+    /// </summary>
+    public string DuplicateGroupingKey
+    {
+        get
+        {
+            if (Resolved == null)
+                return SyntacticDisplay ?? CanonicalKey;
+
+            if (Resolved.TypeArguments.Count == 0)
+                return Resolved.MetadataName;
+
+            var args = string.Join(",", Resolved.TypeArguments.Select(t => t.MetadataName));
+            return $"{Resolved.MetadataName}|{args}";
+        }
+    }
+
     public static ServiceTypeIdentity FromResolved(ResolvedTypeIdentity identity) =>
         new() { Resolved = identity };
 

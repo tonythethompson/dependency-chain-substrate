@@ -11,4 +11,6 @@ public sealed record CSharpParseOptions
     public string? TargetFramework { get; init; }
     public bool AllTargetFrameworks { get; init; } = true;
     public string BuildConfiguration { get; init; } = "Debug";
+    /// <summary>When false (default), test/benchmark csproj and tests/ source paths are excluded.</summary>
+    public bool IncludeTests { get; init; }
 }

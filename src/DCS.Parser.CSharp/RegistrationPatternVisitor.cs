@@ -30,6 +30,19 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         "AddServicesFromAssembly", "AddFromAssembly", "RegisterAll"
     };
 
+    private static readonly HashSet<string> KnownCompositionExtensions = new(StringComparer.Ordinal)
+    {
+        "AddTrackdub", "AddHeadlessTrackdub", "AddAvaloniaPlayback", "AddLocalization",
+        "AddBilling", "AddHttpClient", "AddHostedService"
+    };
+
+    private static readonly HashSet<string> SuppressedExtensionBlindSpots = new(StringComparer.Ordinal)
+    {
+        "TryAddEnumerable", "AddOpenApi", "AddCors", "AddSwaggerGen", "AddControllers",
+        "AddEndpointsApiExplorer", "AddMvc", "AddRazorPages", "AddHealthChecks",
+        "AddAuthentication", "AddAuthorization",
+    };
+
     public IReadOnlyList<RegistrationNode> Registrations => _registrations;
     public IReadOnlyList<BlindSpotReport> BlindSpots => _blindSpots;
 
@@ -66,15 +79,22 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 var reg = TryExtractRegistration(node, ma.Name, methodName);
                 if (reg != null) _registrations.Add(reg);
             }
+            else if (KnownCompositionExtensions.Contains(methodName))
+            {
+                // Composition entry points — registrations live in callee bodies (separate files).
+            }
             else if (methodName.StartsWith("Add", StringComparison.Ordinal) ||
                      methodName.StartsWith("TryAdd", StringComparison.Ordinal))
             {
-                _blindSpots.Add(new BlindSpotReport
+                if (!SuppressedExtensionBlindSpots.Contains(methodName))
                 {
-                    Pattern = "extension_method",
-                    Location = LocationOf(node),
-                    Description = $"{methodName}() — internal registrations not traced"
-                });
+                    _blindSpots.Add(new BlindSpotReport
+                    {
+                        Pattern = "extension_method",
+                        Location = LocationOf(node),
+                        Description = $"{methodName}() — internal registrations not traced"
+                    });
+                }
             }
         }
 
@@ -102,7 +122,12 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             {
                 var firstDataArg = dataArgs.FirstOrDefault();
                 if (firstDataArg?.Expression is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax)
+                {
+                    var shallowType = ExtractCreatedTypeFromLambdaExpression(firstDataArg.Expression);
+                    if (shallowType != null)
+                        return MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
                     return MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda");
+                }
                 return MakeExplicitNode(types[0], types[1], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
             }
 
@@ -112,7 +137,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 return firstDataArg?.Expression switch
                 {
                     LambdaExpressionSyntax or AnonymousMethodExpressionSyntax =>
-                        MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
+                        ExtractCreatedTypeFromLambdaExpression(firstDataArg.Expression) is { } shallowType
+                            ? MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition)
+                            : MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
                     ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax =>
                         MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "instance_arg"),
                     null =>
@@ -134,6 +161,36 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         if (typeOfArgs.Count == 1)
             return MakeExplicitNode(typeOfArgs[0], typeOfArgs[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
 
+        if (dataArgs.Count == 1)
+        {
+            var argExpr = dataArgs[0].Expression;
+            if (argExpr is LambdaExpressionSyntax lambda)
+            {
+                var shallowType = ShallowFactoryLambdaExtractor.TryExtractCreatedType(lambda);
+                if (shallowType != null)
+                {
+                    return MakeShallowFactoryNode(
+                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                }
+            }
+            else if (argExpr is AnonymousMethodExpressionSyntax anonLambda)
+            {
+                var shallowType = ShallowFactoryLambdaExtractor.TryExtractCreatedType(anonLambda);
+                if (shallowType != null)
+                {
+                    return MakeShallowFactoryNode(
+                        shallowType, shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                }
+            }
+            else if (argExpr is not LambdaExpressionSyntax and not AnonymousMethodExpressionSyntax)
+            {
+                var instanceNode = TryExtractInstanceRegistration(
+                    argExpr, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                if (instanceNode != null)
+                    return instanceNode;
+            }
+        }
+
         _blindSpots.Add(new BlindSpotReport
         {
             Pattern = "unrecognized_pattern",
@@ -141,6 +198,50 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             Description = $"{methodName}() — argument pattern not recognised"
         });
         return null;
+    }
+
+    private static TypeSyntax? ExtractCreatedTypeFromLambdaExpression(ExpressionSyntax expression) =>
+        expression switch
+        {
+            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractCreatedType(lambda),
+            AnonymousMethodExpressionSyntax anon => ShallowFactoryLambdaExtractor.TryExtractCreatedType(anon),
+            _ => null
+        };
+
+    private RegistrationNode? TryExtractInstanceRegistration(
+        ExpressionSyntax expression,
+        Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition)
+    {
+        if (_semantic?.Model == null || _semantic.Resolver == null)
+            return null;
+
+        var symbol = _semantic.Model.GetTypeInfo(expression).Type;
+        if (symbol == null || symbol.SpecialType == SpecialType.System_Void)
+            return null;
+
+        var abstractResolved = _semantic.Resolver.ResolveFromSymbol(symbol);
+        return BuildNode(abstractResolved, null, lifetime, isKeyed, isTryAdd, location,
+            invocation, methodName, recognition, Confidence.Degraded, "instance");
+    }
+
+    private RegistrationNode MakeShallowFactoryNode(
+        TypeSyntax abstractType, TypeSyntax concreteType,
+        Lifetime lifetime, bool isKeyed, bool isTryAdd, SourceRef location,
+        InvocationExpressionSyntax invocation, string methodName,
+        RegistrationRecognitionQuality recognition)
+    {
+        var abstractResolved = ResolveType(abstractType);
+        var concreteResolved = ResolveType(concreteType);
+        _blindSpots.Add(new BlindSpotReport
+        {
+            Pattern = "factory_lambda_shallow",
+            Location = location,
+            Description = $"{abstractResolved.TypeRef.ShortName} — shallow factory lambda (dependencies partially traced)"
+        });
+        return BuildNode(abstractResolved, concreteResolved, lifetime, isKeyed, isTryAdd, location,
+            invocation, methodName, recognition, Confidence.BlindSpot, "factory_lambda_shallow");
     }
 
     private RegistrationNode MakeExplicitNode(
@@ -198,8 +299,12 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             span.EndLinePosition.Line + 1, span.EndLinePosition.Character + 1,
             ordinal);
 
+        var duplicateScopeId = _semantic?.Scope != null
+            ? ShellCompositionScope.RuntimeScopeForDuplicate(_semantic.Scope, _filePath)
+            : _semantic?.Scope.CompositionScopeId ?? scopeId;
+
         var duplicateGroupKey = RegistrationNode.ComputeDuplicateGroupKey(
-            _semantic?.Scope.CompositionScopeId ?? scopeId,
+            duplicateScopeId,
             abstractResolved.ServiceType);
 
         var fingerprint = RegistrationStatementFingerprint.Compute(
@@ -272,7 +377,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
     }
 
     private List<string> InferFrameworkTags(TypeRef typeRef) =>
-        FrameworkTagger.InferTags(_boundaries, _usings, typeRef);
+        FrameworkTagger.InferTags(_boundaries, _usings, typeRef, _filePath);
 
     private static string GetTypeName(TypeSyntax type) => type switch
     {

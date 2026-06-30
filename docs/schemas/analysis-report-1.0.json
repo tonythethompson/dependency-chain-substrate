@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dependency-chain-substrate.dev/schemas/analysis-report-1.0.json",
+  "title": "DCS Analysis Report",
+  "description": "Structured output from dcs analyze --report-out / --format json",
+  "type": "object",
+  "required": ["schema_version", "summary", "findings"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "commit_sha": { "type": ["string", "null"] },
+    "context_id": { "type": ["string", "null"] },
+    "target_framework": { "type": ["string", "null"] },
+    "parser_version": { "type": ["string", "null"] },
+    "total_nodes": { "type": "integer", "minimum": 0 },
+    "total_edges": { "type": "integer", "minimum": 0 },
+    "metrics": {
+      "type": ["object", "null"],
+      "properties": {
+        "semantic_type_resolution_rate": { "type": "number" },
+        "registration_api_verification_rate": { "type": "number" },
+        "project_scope_completeness_rate": { "type": "number" },
+        "total_registrations": { "type": "integer" },
+        "resolved_registrations": { "type": "integer" },
+        "verified_registrations": { "type": "integer" },
+        "syntax_candidate_registrations": { "type": "integer" },
+        "composition_scope_count": { "type": "integer" },
+        "complete_composition_scope_count": { "type": "integer" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["has_errors"],
+      "properties": {
+        "actionable_count": { "type": "integer" },
+        "informational_count": { "type": "integer" },
+        "parser_limit_count": { "type": "integer" },
+        "intentional_count": { "type": "integer" },
+        "error_count": { "type": "integer" },
+        "leaked_count": { "type": "integer" },
+        "broken_count": { "type": "integer" },
+        "duplicate_count": { "type": "integer" },
+        "possible_duplicate_count": { "type": "integer" },
+        "unresolved_count": { "type": "integer" },
+        "orphaned_count": { "type": "integer" },
+        "cycle_count": { "type": "integer" },
+        "blind_spot_count": { "type": "integer" },
+        "has_errors": { "type": "boolean" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "available_contexts": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["finding_id", "category", "severity", "tier", "title"],
+      "properties": {
+        "finding_id": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["leaked", "broken", "duplicate", "possible_duplicate", "unresolved", "orphaned", "cycle", "blind_spot"]
+        },
+        "severity": { "type": "string", "enum": ["error", "warn"] },
+        "tier": {
+          "type": "string",
+          "enum": ["actionable", "informational", "parser_limit", "intentional"]
+        },
+        "title": { "type": "string" },
+        "detail": { "type": ["string", "null"] },
+        "sites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/site" }
+        }
+      }
+    },
+    "site": {
+      "type": "object",
+      "required": ["registration_id", "display_name"],
+      "properties": {
+        "registration_id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "fully_qualified_name": { "type": ["string", "null"] },
+        "file_path": { "type": ["string", "null"] },
+        "line": { "type": ["integer", "null"] },
+        "framework_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -49,6 +49,38 @@ public sealed class SemanticTypeResolver
         };
     }
 
+    public TypeResolutionResult ResolveFromSymbol(ITypeSymbol? symbol)
+    {
+        if (symbol == null || symbol.Kind == SymbolKind.ErrorType)
+        {
+            return new TypeResolutionResult
+            {
+                Quality = DCS.Core.IR.TypeResolutionQuality.SyntacticFallback,
+                ServiceType = DCS.Core.IR.ServiceTypeIdentity.FromSyntactic("unknown"),
+                TypeRef = TypeIdentityFormatter.SyntacticFallbackTypeRef("unknown")
+            };
+        }
+
+        var identity = TypeIdentityFormatter.Format(symbol, _projectScopeId);
+        if (identity == null)
+        {
+            var syntactic = symbol.Name;
+            return new TypeResolutionResult
+            {
+                Quality = DCS.Core.IR.TypeResolutionQuality.Error,
+                ServiceType = DCS.Core.IR.ServiceTypeIdentity.FromSyntactic(syntactic),
+                TypeRef = TypeIdentityFormatter.SyntacticFallbackTypeRef(syntactic)
+            };
+        }
+
+        return new TypeResolutionResult
+        {
+            Quality = DCS.Core.IR.TypeResolutionQuality.Resolved,
+            ServiceType = DCS.Core.IR.ServiceTypeIdentity.FromResolved(identity),
+            TypeRef = TypeIdentityFormatter.ToTypeRef(identity)
+        };
+    }
+
     public DCS.Core.IR.ResolvedTypeIdentity? ResolveIdentity(TypeSyntax syntax) =>
         TypeIdentityFormatter.Format(_model.GetTypeInfo(syntax).Type, _projectScopeId);
 
