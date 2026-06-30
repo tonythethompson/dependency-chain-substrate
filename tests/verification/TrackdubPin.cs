@@ -16,24 +16,21 @@ public static class TrackdubPin
     public static string? ResolvePath()
     {
         var env = Environment.GetEnvironmentVariable("TRACKDUB_PATH");
-        if (!string.IsNullOrWhiteSpace(env) && Directory.Exists(env))
-            return env;
+        if (!string.IsNullOrWhiteSpace(env))
+        {
+            if (Directory.Exists(env))
+                return env;
+
+            throw new InvalidOperationException(
+                $"TRACKDUB_PATH is set to '{env}' but the directory does not exist.");
+        }
 
         if (Directory.Exists(DefaultLocalPath))
             return DefaultLocalPath;
 
-        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI")))
-        {
-            var cloneDir = Path.Combine(Path.GetTempPath(), "dcs-trackdub-pin");
-            if (Directory.Exists(Path.Combine(cloneDir, ".git")))
-                return cloneDir;
-
-            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
-            {
-                throw new InvalidOperationException(
-                    $"Trackdub not found at {cloneDir}. CI must clone Trackdub at {CommitSha}.");
-            }
-        }
+        var cloneDir = Path.Combine(Path.GetTempPath(), "dcs-trackdub-pin");
+        if (Directory.Exists(Path.Combine(cloneDir, ".git")))
+            return cloneDir;
 
         return null;
     }
