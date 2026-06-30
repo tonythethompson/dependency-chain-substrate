@@ -262,25 +262,25 @@ public sealed class CSharpStaticParser : IStaticParser
             .GroupBy(d => d.ImplementationShortName, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
-        var depsByIdentity = constructorDeps.Values
-            .Where(d => d.ImplementationIdentity != null)
-            .GroupBy(d => d.ImplementationIdentity!.CanonicalKey, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
-
         var edges = new List<DependencyEdge>();
         var unresolved = new List<UnresolvedInjection>();
         var edgeIndexGlobal = 0;
 
         foreach (var node in nodes.Where(n => n.ConcreteImpl != null))
         {
-            var implShort = node.ConcreteImpl?.ShortName ?? node.AbstractToken.ShortName;
-            var implIdentityKey = node.ServiceType?.Resolved?.CanonicalKey;
+            var concrete = node.ConcreteImpl!;
+            var implShort = concrete.ShortName;
 
             ConstructorDependency? depEntry = null;
-            if (implIdentityKey != null && depsByIdentity.TryGetValue(implIdentityKey, out var byId))
-                depEntry = byId[0];
-            else if (depsByShortName.TryGetValue(implShort, out var byShort))
-                depEntry = byShort[0];
+            if (depsByShortName.TryGetValue(implShort, out var byShort))
+            {
+                depEntry = byShort.Count == 1
+                    ? byShort[0]
+                    : byShort.FirstOrDefault(d =>
+                        d.ImplementationIdentity != null &&
+                        MatchesConcreteImplementation(d.ImplementationIdentity, concrete));
+                depEntry ??= byShort[0];
+            }
 
             if (depEntry == null)
                 continue;
@@ -340,6 +340,19 @@ public sealed class CSharpStaticParser : IStaticParser
         }
 
         return (edges, unresolved);
+    }
+
+    private static bool MatchesConcreteImplementation(ResolvedTypeIdentity identity, TypeRef concrete)
+    {
+        if (string.Equals(identity.MetadataName, concrete.FullyQualifiedName, StringComparison.Ordinal))
+            return true;
+
+        if (string.Equals(identity.MetadataName, concrete.ShortName, StringComparison.Ordinal))
+            return true;
+
+        return identity.MetadataName.EndsWith(
+            $".{concrete.ShortName}",
+            StringComparison.Ordinal);
     }
 
     private static void CollectCsprojFiles(

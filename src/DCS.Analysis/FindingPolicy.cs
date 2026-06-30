@@ -88,11 +88,27 @@ public static class FindingPolicy
         if (NonActionableUnresolvedTypes.Contains(shortName))
             return false;
 
-        if (shortName.EndsWith(">", StringComparison.Ordinal))
-            return false;
+        var genericBase = TryGetGenericDefinitionName(shortName);
+        if (genericBase != null)
+        {
+            if (NonActionableUnresolvedTypes.Contains(genericBase))
+                return false;
+
+            if (genericBase.StartsWith("ILogger", StringComparison.Ordinal) ||
+                genericBase.StartsWith("IOptions", StringComparison.Ordinal) ||
+                genericBase.StartsWith("IStringLocalizer", StringComparison.Ordinal))
+                return false;
+        }
 
         return !shortName.StartsWith("ILogger", StringComparison.Ordinal) &&
-               !shortName.StartsWith("IOptions", StringComparison.Ordinal);
+               !shortName.StartsWith("IOptions", StringComparison.Ordinal) &&
+               !shortName.StartsWith("IStringLocalizer", StringComparison.Ordinal);
+    }
+
+    private static string? TryGetGenericDefinitionName(string typeName)
+    {
+        var angle = typeName.IndexOf('<');
+        return angle > 0 ? typeName[..angle] : null;
     }
 
     public static bool IsParserLimitUnresolved(

@@ -44,9 +44,6 @@ public static class FrameworkProvidedServices
         if (PrimitiveTypeNames.Contains(check))
             return true;
 
-        if (check.EndsWith(">", StringComparison.Ordinal))
-            return true;
-
         foreach (var prefix in SyntacticPrefixes)
         {
             if (check.StartsWith(prefix, StringComparison.Ordinal))

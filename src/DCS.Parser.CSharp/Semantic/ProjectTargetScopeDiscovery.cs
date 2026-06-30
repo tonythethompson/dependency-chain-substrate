@@ -151,7 +151,15 @@ public static class ProjectTargetScopeDiscovery
         IReadOnlyDictionary<string, string>? commitCsprojContents = null)
     {
         List<string> found;
-        if (Directory.Exists(repoRoot))
+        if (commitCsprojContents != null)
+        {
+            found = commitCsprojContents.Keys
+                .Select(relativePath => Path.GetFullPath(
+                    Path.Combine(repoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar))))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        else if (Directory.Exists(repoRoot))
         {
             found = Directory.EnumerateFiles(repoRoot, "*.csproj", SearchOption.AllDirectories)
                 .Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") &&
@@ -164,17 +172,7 @@ public static class ProjectTargetScopeDiscovery
             found = [];
         }
 
-        if (commitCsprojContents != null)
-        {
-            foreach (var relativePath in commitCsprojContents.Keys)
-            {
-                var fullPath = Path.GetFullPath(Path.Combine(repoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-                if (!found.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
-                    found.Add(fullPath);
-            }
-        }
-
-        if (found.Count == 0)
+        if (found.Count == 0 && commitCsprojContents == null)
         {
             var dirs = sourceFiles
                 .Select(f => Path.GetDirectoryName(f.path.Replace('/', Path.DirectorySeparatorChar)))

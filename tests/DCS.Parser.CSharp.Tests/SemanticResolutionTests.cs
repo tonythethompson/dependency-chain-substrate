@@ -256,6 +256,64 @@ public sealed class SemanticResolutionTests
         Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
     }
 
+    [Fact]
+    public void Constructor_dependency_resolves_by_concrete_type_not_service_interface()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-ctor-homonym-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "HomonymCtor.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Services.cs"), """
+                using Microsoft.Extensions.DependencyInjection;
+                namespace Alpha;
+                public interface IShared { }
+                public class Worker : IShared {
+                  public Worker(AlphaDep dep) { }
+                }
+                public class AlphaDep { }
+                namespace Beta;
+                public class Worker : Alpha.IShared {
+                  public Worker(BetaDep dep) { }
+                }
+                public class BetaDep { }
+                public static class Reg {
+                  public static void Configure(IServiceCollection services) {
+                    services.AddSingleton<AlphaDep>();
+                    services.AddSingleton<BetaDep>();
+                    services.AddSingleton<Alpha.IShared, Alpha.Worker>();
+                    services.AddSingleton<Alpha.IShared, Beta.Worker>();
+                  }
+                }
+                """);
+
+            var graph = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            }).ParseDirectory(root).SingleGraphOrDefault()!;
+
+            Assert.Equal(4, graph.Nodes.Count);
+            Assert.Equal(2, graph.Edges.Count);
+            Assert.Empty(graph.UnresolvedInjections);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static (List<RegistrationNode> nodes, List<BlindSpotReport> spots) ParseSyntacticOnly(string source)
     {
         var tree = CSharpSyntaxTree.ParseText(source, path: "Test.cs");
