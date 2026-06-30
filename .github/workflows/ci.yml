@@ -44,7 +44,7 @@ jobs:
         with:
           repository: tonythethompson/Trackdub
           ref: 3c4e374d
-          path: ${{ runner.temp }}/dcs-trackdub-pin
+          path: dcs-trackdub-pin
           token: ${{ secrets.TRACKDUB_PAT }}
           fetch-depth: 1
 
@@ -59,7 +59,7 @@ jobs:
         env:
           CI: true
           GITHUB_ACTIONS: true
-          TRACKDUB_PATH: ${{ runner.temp }}/dcs-trackdub-pin
+          TRACKDUB_PATH: ${{ github.workspace }}/dcs-trackdub-pin
 
   petclinic-linux:
     runs-on: ubuntu-latest
