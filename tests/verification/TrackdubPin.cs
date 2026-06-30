@@ -5,7 +5,7 @@ namespace DCS.Verification;
 /// </summary>
 public static class TrackdubPin
 {
-    public const string CommitSha = "3c4e374d";
+    public const string CommitSha = "3c4e374d23fe3941ed7ca376775937941973b313";
     public const string RepositoryUrl = "https://github.com/tonythethompson/Trackdub.git";
 
     /// <summary>

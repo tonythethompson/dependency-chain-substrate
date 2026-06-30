@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: tonythethompson/Trackdub
-          ref: 3c4e374d
+          ref: 3c4e374d23fe3941ed7ca376775937941973b313
           path: dcs-trackdub-pin
           token: ${{ secrets.TRACKDUB_PAT }}
           fetch-depth: 1
