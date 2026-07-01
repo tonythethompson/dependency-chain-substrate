@@ -250,7 +250,7 @@ fixture/Trackdub gates asserting file:line sites.
 
 **Phase 10b gate:** ✅ CLOSED — merged PR #1 (`4644863`); `dotnet test` green; Trackdub @ pin report lists VoiceClone homonym sites with `file:line`; `--format json --report-out` validates against `analysis-report-1.0.json`.
 
-**CI contributor note:** The `trackdub-semantic` job checks out the private Trackdub repo at pin `3c4e374d23fe3941ed7ca376775937941973b313` into `dcs-trackdub-pin/` (gitignored locally). Add a GitHub repository secret `TRACKDUB_PAT` with a PAT that can read `tonythethompson/Trackdub`. Locally, set `TRACKDUB_PATH` to your Trackdub clone (see `.claude/settings.local.json`) or clone into `dcs-trackdub-pin/` at the pin SHA.
+**CI contributor note:** The `corpus-gate` job (see [ci/corpus-gates.json](ci/corpus-gates.json)) checks out the private Trackdub repo at pin `3c4e374d23fe3941ed7ca376775937941973b313` into `corpus/csharp-migration/` (gitignored via `corpus/` in `.gitignore`). Add a GitHub repository secret `CORPUS_CHECKOUT_PAT` (or legacy `TRACKDUB_PAT`) with a PAT that can read `tonythethompson/Trackdub`. Locally, set `CORPUS_CSHARP_MIGRATION_PATH` or legacy `TRACKDUB_PATH` to your Trackdub clone (default `A:\Trackdub`).
 
 ---
 
@@ -268,7 +268,7 @@ floors raised from Phase 10c baseline; technical debt cleaned.
 | Raise `TrackdubSemanticGateTests` metric floors | ✅ Done | Semantic 54%, API 95%, scope 80% |
 | Avalonia `MainWindow` shell gate assertion | ✅ Done | No `unrecognized_pattern` at shell site |
 | `ComputeId` → `ComputeRegistrationInstanceId` migration | ✅ Done | Test + Java parser helpers |
-| `.gitignore` `dcs-trackdub-pin/` | ✅ Done | |
+| `.gitignore` `corpus/` checkout dir | ✅ Done | Supersedes `dcs-trackdub-pin/` |
 | `TRACKDUB_PAT` contributor docs | ✅ Done | See Phase 10b CI note above |
 | DESIGN.md §6 factory-lambda catalog | ✅ Done | Block-bodied shallow extraction |
 | Phase 11 Verified (Trackdub metrics) | ✅ Done | 2026-06-30 — 54.6% / 100% / 100% (335 nodes, 6 scopes); MainWindow shallow factory registered |
