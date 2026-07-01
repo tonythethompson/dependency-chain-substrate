@@ -45,3 +45,17 @@ dotnet test tests/DCS.Parser.Java.Tests --filter "Category=CorpusGate&CorpusId=j
 ```
 
 Legacy env vars (`TRACKDUB_PATH`, `PETCLINIC_PATH`) still work.
+
+## Runtime enrichment fixture (Phase 9)
+
+Pinned JSONL: `tests/fixtures/corpus/csharp-migration/runtime-3c4e374d.jsonl`
+
+Regenerate after composition changes (run from Trackdub repo root so model manifest resolves):
+
+```bash
+dotnet run --project tools/TrackdubRuntimeProbe -- \
+  --trackdub-root A:\Trackdub \
+  --out tests/fixtures/corpus/csharp-migration/runtime-3c4e374d.jsonl
+```
+
+Gate test: `dotnet test tests/DCS.Runtime.Tests --filter Trackdub_runtime_enrichment_gate`

@@ -11,6 +11,10 @@ public static class RuntimeLogWriter
 
     public static void AppendJsonl(string path, RuntimeResolutionEvent evt)
     {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
+
         var line = JsonSerializer.Serialize(evt, Options);
         File.AppendAllText(path, line + Environment.NewLine);
     }

@@ -854,7 +854,7 @@ node policy untested.
 
 **Answer:**
 - ADR-005–007 (Proposed stubs): Spring parser scope, IDE form factor, auto-fix safety.
-- ADR-008 runtime enrichment — **Accepted** (Phase 9); Trackdub dev-run verification open.
+- ADR-008 runtime enrichment — **Accepted + Verified** (Phase 9); Trackdub @ pin 89.3% annotated.
 - Semantic Roslyn upgrade timing vs duplicate-ID class elimination (parked).
 - `--frameworks` JSON schema and `--frameworks` CLI (Phase 5 implementation).
 - Disk cache location/format (Phase 5).

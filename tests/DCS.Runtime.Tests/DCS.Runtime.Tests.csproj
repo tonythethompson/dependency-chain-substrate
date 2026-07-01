@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
@@ -21,6 +22,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DCS.Runtime\DCS.Runtime.csproj" />
     <ProjectReference Include="..\..\src\DCS.Analysis\DCS.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\DCS.Parser.CSharp\DCS.Parser.CSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\verification\TrackdubPin.cs" Link="Verification\TrackdubPin.cs" />
+    <Compile Include="..\verification\CorpusGateTraits.cs" Link="Verification\CorpusGateTraits.cs" />
+    <Compile Include="..\verification\CorpusPathResolver.cs" Link="Verification\CorpusPathResolver.cs" />
+    <Compile Include="..\verification\CorpusGateCollection.cs" Link="Verification\CorpusGateCollection.cs" />
   </ItemGroup>
 
 </Project>

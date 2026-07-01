@@ -59,9 +59,10 @@ can only flag this if the lifetimes are explicit; runtime data makes it certain.
 fallback if DiagnosticSource payload is insufficient. OTel support in v2 after
 .NET 9 OTel integration matures.
 
-**Decision (Accepted):** Option B — `DcsRuntimeDiagnosticListener` subscribes to
-`Microsoft.Extensions.DependencyInjection` DiagnosticSource events and appends
-JSONL records. Option A remains the documented fallback if payload schemas shift.
+**Decision (Accepted):** MS.DI emits **EventSource** (`Microsoft-Extensions-DependencyInjection`,
+`ServiceResolved` / `CallSiteBuilt`), not DiagnosticSource. `DcsRuntimeEventListener` subscribes
+via `EventListener`; DiagnosticSource remains documented fallback for hosts that emit it.
+Option A (IServiceProvider wrapper) remains fallback if EventSource payloads change.
 
 ---
 
@@ -139,7 +140,8 @@ The enrichment NuGet package is opt-in; it does not auto-activate.
 alongside the IDE extension.
 
 **Decision (Accepted):** Option A — `dcs-runtime.jsonl` written by
-`DcsRuntimeDiagnosticListener`; merged via `dcs enrich`.
+`DcsRuntimeEventListener`; merged via `dcs enrich`. Regenerate with
+`tools/TrackdubRuntimeProbe` against a Trackdub checkout (cwd must be repo root for model manifest).
 
 ---
 
@@ -167,7 +169,7 @@ alongside the IDE extension.
 
 ## Status: Accepted
 
-Phase 9 implementation: `DCS.Runtime` (JSONL log reader/writer, DiagnosticSource
-listener, `RuntimeGraphEnricher`), CLI `dcs enrich`, unit tests in
-`DCS.Runtime.Tests`. Trackdub dev-run verification (≥50% nodes annotated) remains
-the Phase 9 **Verified** gate — requires instrumented app startup with runtime log.
+Phase 9 implementation: `DCS.Runtime` (JSONL log reader/writer, EventSource listener,
+`RuntimeGraphEnricher`), CLI `dcs enrich`, `TrackdubRuntimeEnrichmentGateTests`.
+**Verified** 2026-07-01 on Trackdub @ pin: 299/335 nodes annotated (89.3%), 78 blind spots
+confirmed; 0 orphaned at pin (orphan reclassification sub-gate N/A).

@@ -287,7 +287,7 @@ Phases **0–13** and **Phase 9 (runtime overlay MVP)** are implemented as of 20
 - `dcs path` Path Excavator MVP
 - Spring Boot parser (Phase 6)
 - `dcs fix` DUPLICATE preview/apply (Phase 8)
-- Runtime enrichment overlay — `DcsRuntimeDiagnosticListener` + `dcs enrich` (Phase 9; Trackdub dev-run verification open)
+- Runtime enrichment overlay — `DcsRuntimeEventListener` + `dcs enrich` (Phase 9 **Verified** on Trackdub @ pin)
 
 **Parked / deferred:** IDE extension, TypeScript/Python parsers, orphaned fix `--apply` (Phase 8.1b).
 

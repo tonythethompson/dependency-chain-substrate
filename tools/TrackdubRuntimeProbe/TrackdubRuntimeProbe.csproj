@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TrackdubRoot Condition="'$(TrackdubRoot)' == ''">$(TRACKDUB_PIN_PATH)</TrackdubRoot>
+    <TrackdubRoot Condition="'$(TrackdubRoot)' == ''">$(TRACKDUB_PATH)</TrackdubRoot>
+    <TrackdubRoot Condition="'$(TrackdubRoot)' == ''">A:\Trackdub</TrackdubRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DCS.Runtime\DCS.Runtime.csproj" />
+    <ProjectReference Include="$(TrackdubRoot)\src\Trackdub.Composition\Trackdub.Composition.csproj" />
+  </ItemGroup>
+
+</Project>
