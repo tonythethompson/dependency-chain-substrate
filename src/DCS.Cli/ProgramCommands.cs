@@ -371,9 +371,6 @@ internal static class ProgramCommands
 
             if (options.FixClass == FixClass.Orphaned)
             {
-                if (options.ApplyFix)
-                    return Task.FromResult(ErrorExit("orphaned fix --apply is disabled in Phase 8.1a (preview only)."));
-
                 var measurement = OrphanedFixMeasurement.Measure(graph, analysis);
                 Console.Error.WriteLine(
                     $"[DCS] Orphaned measurement: total={measurement.TotalOrphaned}, " +
@@ -387,8 +384,24 @@ internal static class ProgramCommands
                 }
 
                 var orphanedTokenFilter = options.FixToken;
-                var orphanedResult = FixEngine.BuildOrphanedFixes(
-                    options.RepoPath!, graph, analysis, orphanedTokenFilter);
+                OrphanedFixResult orphanedResult;
+
+                if (options.ApplyFix)
+                {
+                    orphanedResult = FixEngine.ApplyOrphanedFixes(
+                        options.RepoPath!,
+                        graph,
+                        analysis,
+                        orphanedTokenFilter,
+                        options.ForceFix);
+                    Console.Error.WriteLine($"[DCS] Applied {orphanedResult.Proposals.Count} orphaned fix(es).");
+                }
+                else
+                {
+                    orphanedResult = FixEngine.BuildOrphanedFixes(
+                        options.RepoPath!, graph, analysis, orphanedTokenFilter);
+                }
+
                 Console.WriteLine(FixEngine.FormatOrphanedPreview(orphanedResult, measurement));
                 return Task.FromResult(0);
             }
@@ -602,7 +615,7 @@ internal static class ProgramCommands
             FIX OPTIONS (working directory only; C# repos)
               --preview             Show unified diff without writing (default)
               --apply               Write patched files (duplicate only; requires clean git tree)
-              --fix-class <kind>    duplicate (default) | orphaned (preview only in 8.1a)
+              --fix-class <kind>    duplicate (default) | orphaned
               --force               Apply even when git working tree is dirty
               --token <name>        Fix a specific duplicate or orphaned token
               --all-duplicates      Fix every duplicate group in one run

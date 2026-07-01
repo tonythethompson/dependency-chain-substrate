@@ -14,7 +14,7 @@ public sealed record OrphanedFixMeasurementReport(
     public string FormatSummary()
     {
         var builder = new StringBuilder();
-        builder.AppendLine("=== Orphaned Fix Measurement (Phase 8.1a) ===");
+        builder.AppendLine("=== Orphaned Fix Measurement ===");
         builder.AppendLine($"Total orphaned:              {TotalOrphaned}");
         builder.AppendLine($"Explicit with file:line:     {ExplicitWithSite}");
         builder.AppendLine($"Eligible for preview fix:    {EligibleForFixPreview}");
@@ -32,8 +32,6 @@ public sealed record OrphanedFixMeasurementReport(
             builder.AppendLine($"Ineligible ({IneligibleOrphans.Count}): inferred/degraded, seeds, or infrastructure");
         }
 
-        builder.AppendLine();
-        builder.AppendLine("Note: --apply for orphaned fixes is disabled until false-positive rate is accepted.");
         return builder.ToString();
     }
 }
@@ -74,4 +72,5 @@ public static class OrphanedFixMeasurement
 
 public sealed record OrphanedFixResult(
     IReadOnlyList<OrphanedFixProposal> Proposals,
-    IReadOnlyList<FilePatch> Patches);
+    IReadOnlyList<FilePatch> Patches,
+    bool Applied = false);

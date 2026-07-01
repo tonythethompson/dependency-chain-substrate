@@ -286,10 +286,10 @@ Phases **0–13** and **Phase 9 (runtime overlay MVP)** are implemented as of 20
 - Structured JSON analysis reports
 - `dcs path` Path Excavator MVP
 - Spring Boot parser (Phase 6)
-- `dcs fix` DUPLICATE preview/apply (Phase 8)
+- `dcs fix` DUPLICATE + ORPHANED preview/apply (Phase 8 / 8.1b)
 - Runtime enrichment overlay — `DcsRuntimeEventListener` + `dcs enrich` (Phase 9 **Verified** on Trackdub @ pin)
 
-**Parked / deferred:** IDE extension, TypeScript/Python parsers, orphaned fix `--apply` (Phase 8.1b).
+**Parked / deferred:** IDE extension, TypeScript/Python parsers.
 
 Track progress in [`PLAN.md`](PLAN.md).
 

@@ -18,14 +18,30 @@ model must be explicit before implementation.
 
 ## Decision
 
-### Q1: v1 fix scope — **DUPLICATE removal only**
+### Q1: v1 fix scope — **DUPLICATE removal only** (amended 8.1b: ORPHANED preview apply)
 
 | Finding | v1 | Notes |
 |---------|-----|-------|
 | DUPLICATE | **In scope** | Remove lower-confidence duplicate registration line |
-| ORPHANED | Deferred (v1.1) | Reflection/hosted-service false positives unknown |
+| ORPHANED | **In scope (8.1b)** | Remove explicit orphaned registration when eligible; same Roslyn remover + git guards as DUPLICATE |
 | LEAKED | Deferred | Preprocessor guards touch more than registration |
 | BROKEN | Deferred | Requires code generation |
+
+### Phase 8.1b amendment — ORPHANED `--apply` (Accepted 2026-07-01)
+
+**Eligibility (unchanged from 8.1a preview):** explicit `ParserConfidence`, file:line site,
+not composition root, not framework infrastructure (`ILogger*`, `IConfiguration`, etc.).
+
+**Apply guards (same as DUPLICATE):**
+- `--preview` default; `--apply` writes files.
+- Clean git working tree required unless `--force`.
+- Roslyn `RegistrationStatementRemover` at reported line + display name.
+
+**False-positive policy:** Trackdub @ pin `3c4e374d` reports 0 orphaned registrations;
+fixture gate (`OrphanedFixTests.Apply_removes_orphan`) is the apply verification path until
+a labelled orphan corpus pair exists.
+
+**Rejected for 8.1b:** auto-apply without eligibility filter; runtime-only orphans (no static site).
 
 ### Q2: Write-back mechanism — **Roslyn SyntaxRewriter / syntax tree removal**
 
@@ -84,6 +100,7 @@ Spring/Java duplicate removal deferred until Java registration nodes carry stabl
 
 ## Implementation
 
-- Module: `DCS.Fix` (`DuplicateFixPlanner`, `RegistrationStatementRemover`, `FixEngine`)
-- CLI: `dcs fix <repo-path> [--preview|--apply] [--token <name>] [--all-duplicates] [--force]`
-- Gate: remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
+- Module: `DCS.Fix` (`DuplicateFixPlanner`, `OrphanedFixPlanner`, `RegistrationStatementRemover`, `FixEngine`)
+- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned] [--token <name>] [--all-duplicates] [--force]`
+- Gate (DUPLICATE): remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
+- Gate (ORPHANED): fixture apply removes `IOrphanService`; re-analyze shows one fewer eligible orphan.

@@ -339,9 +339,25 @@ confirms path to Avalonia shell registration; semantic floors locked at Phase 12
 | `FixEngine.BuildOrphanedFixes` preview | ✅ Done | No `--apply` in 8.1a |
 | CLI `--fix-class orphaned` | ✅ Done | Rejects `--apply` |
 | Fixture + Trackdub measurement tests | ✅ Done | `OrphanedFixTests` |
-| ADR-007 amendment (orphaned apply gate) | ⬜ Pending | Human sign-off before enabling apply |
+| ADR-007 amendment (orphaned apply gate) | ✅ Accepted | 2026-07-01 — Phase 8.1b |
 
-**Phase 8.1a gate:** ✅ CLOSED (preview) — fixture orphan preview diff; Trackdub measurement documents eligible count; apply deferred pending FP acceptance.
+**Phase 8.1a gate:** ✅ CLOSED (preview) — fixture orphan preview diff; Trackdub measurement documents eligible count.
+
+---
+
+## Phase 8.1b — ORPHANED fix `--apply`
+
+**Done means:** `dcs fix --fix-class orphaned --apply` removes eligible orphaned registrations with DUPLICATE-equivalent git guards.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| ADR-007 amendment (orphaned apply) | ✅ Accepted | 2026-07-01 — eligibility + git guards |
+| `FixEngine.ApplyOrphanedFixes` | ✅ Done | Mirrors duplicate apply path |
+| CLI orphaned `--apply` | ✅ Done | `--force` for dirty tree |
+| Fixture apply + re-analyze test | ✅ Done | `Apply_removes_orphan_and_analyze_shows_one_fewer_eligible` |
+| Trackdub apply verification | ⬜ N/A @ pin | 0 orphaned at `3c4e374d`; fixture gate suffices |
+
+**Phase 8.1b gate:** ✅ CLOSED — fixture apply removes `IOrphanService`; eligible orphan count drops by 1; dirty-tree guard enforced.
 
 ---
 

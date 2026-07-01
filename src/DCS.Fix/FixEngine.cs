@@ -110,7 +110,7 @@ public static class FixEngine
     {
         var proposals = OrphanedFixPlanner.Plan(graph, analysis, displayNameFilter);
         if (proposals.Count == 0)
-            return new OrphanedFixResult([], []);
+            return new OrphanedFixResult([], [], false);
 
         var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
 
@@ -144,7 +144,32 @@ public static class FixEngine
             patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
         }
 
-        return new OrphanedFixResult(proposals, patchesByPath.Values.ToList());
+        return new OrphanedFixResult(proposals, patchesByPath.Values.ToList(), false);
+    }
+
+    public static OrphanedFixResult ApplyOrphanedFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? displayNameFilter = null,
+        bool forceDirtyTree = false)
+    {
+        if (!forceDirtyTree && !GitWorkingTreeGuard.IsClean(repoRoot))
+        {
+            throw new InvalidOperationException(
+                "Working tree is not clean. Commit or stash changes, or pass --force to apply anyway.");
+        }
+
+        var preview = BuildOrphanedFixes(repoRoot, graph, analysis, displayNameFilter);
+        foreach (var patch in preview.Patches)
+        {
+            var absolutePath = Path.IsPathRooted(patch.RelativePath)
+                ? patch.RelativePath
+                : Path.Combine(repoRoot, patch.RelativePath);
+            File.WriteAllText(absolutePath, patch.UpdatedContent);
+        }
+
+        return preview with { Applied = true };
     }
 
     public static string FormatOrphanedPreview(
@@ -156,7 +181,9 @@ public static class FixEngine
 
         var builder = new System.Text.StringBuilder();
         builder.AppendLine(measurement.FormatSummary());
-        builder.AppendLine("=== Orphaned Fix Preview (no files written) ===");
+        builder.AppendLine(result.Applied
+            ? "=== Orphaned Fix Applied ==="
+            : "=== Orphaned Fix Preview (no files written) ===");
         foreach (var proposal in result.Proposals)
         {
             builder.AppendLine(

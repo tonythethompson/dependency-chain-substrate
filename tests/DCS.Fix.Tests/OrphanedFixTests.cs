@@ -122,6 +122,67 @@ public sealed class OrphanedFixMeasurementTests
             Assert.Contains("FIX ORPHANED", preview);
             Assert.Contains("IOrphanService", preview);
             Assert.DoesNotContain("IUsedService", preview);
+            Assert.False(result.Applied);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public void Apply_removes_orphan_and_analyze_shows_one_fewer_eligible()
+    {
+        var root = CreateOrphanFixture();
+        try
+        {
+            var parser = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            });
+            var graph = parser.ParseDirectory(root).SingleGraphOrDefault()!;
+            var before = new GraphAnalyzer(graph).Analyze();
+            var beforeMeasurement = OrphanedFixMeasurement.Measure(graph, before);
+            Assert.True(beforeMeasurement.EligibleForFixPreview >= 1);
+
+            var applied = FixEngine.ApplyOrphanedFixes(
+                root, graph, before, displayNameFilter: "IOrphanService", forceDirtyTree: true);
+            Assert.True(applied.Applied);
+            Assert.Single(applied.Proposals);
+
+            var afterGraph = parser.ParseDirectory(root).SingleGraphOrDefault()!;
+            var afterMeasurement = OrphanedFixMeasurement.Measure(
+                afterGraph, new GraphAnalyzer(afterGraph).Analyze());
+            Assert.Equal(beforeMeasurement.EligibleForFixPreview - 1, afterMeasurement.EligibleForFixPreview);
+            Assert.DoesNotContain(
+                afterMeasurement.EligibleOrphans,
+                o => o.DisplayName.Contains("IOrphanService", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public void Apply_throws_when_working_tree_dirty()
+    {
+        var root = CreateOrphanFixture();
+        try
+        {
+            var parser = new CSharpStaticParser(new CSharpParseOptions
+            {
+                AllTargetFrameworks = false,
+                TargetFramework = "net8.0"
+            });
+            var graph = parser.ParseDirectory(root).SingleGraphOrDefault()!;
+            var analysis = new GraphAnalyzer(graph).Analyze();
+
+            File.WriteAllText(Path.Combine(root, "dirty-marker.txt"), "x");
+
+            Assert.Throws<InvalidOperationException>(() =>
+                FixEngine.ApplyOrphanedFixes(root, graph, analysis, forceDirtyTree: false));
         }
         finally
         {
