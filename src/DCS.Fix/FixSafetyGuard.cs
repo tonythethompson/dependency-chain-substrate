@@ -16,6 +16,54 @@ public static class FixSafetyGuard
         return after.Leaked.Any(l => !beforeIds.Contains(l.NodeId));
     }
 
+    public static bool BrokenWorsened(AnalysisResult before, AnalysisResult after)
+    {
+        if (after.BrokenChains.Count > before.BrokenChains.Count)
+            return true;
+
+        var beforeKeys = before.BrokenChains
+            .Select(b => (b.NodeId, b.MissingDependencyType))
+            .ToHashSet();
+
+        return after.BrokenChains.Any(b => !beforeKeys.Contains((b.NodeId, b.MissingDependencyType)));
+    }
+
+    public static void VerifyBrokenNotWorsened(
+        AnalysisResult before,
+        AnalysisResult after,
+        string repoRoot,
+        IReadOnlyList<FilePatch> patches)
+    {
+        if (!BrokenWorsened(before, after))
+            return;
+
+        RollbackPatches(repoRoot, patches);
+
+        throw new InvalidOperationException(
+            $"Fix rolled back: BROKEN count would increase ({before.BrokenChains.Count} → {after.BrokenChains.Count}).");
+    }
+
+    public static void VerifyApplyGuards(
+        AnalysisResult before,
+        AnalysisResult after,
+        string repoRoot,
+        IReadOnlyList<FilePatch> patches)
+    {
+        if (LeakedWorsened(before, after) || BrokenWorsened(before, after))
+        {
+            RollbackPatches(repoRoot, patches);
+
+            if (LeakedWorsened(before, after))
+            {
+                throw new InvalidOperationException(
+                    $"Fix rolled back: LEAKED count would increase ({before.Leaked.Count} → {after.Leaked.Count}).");
+            }
+
+            throw new InvalidOperationException(
+                $"Fix rolled back: BROKEN count would increase ({before.BrokenChains.Count} → {after.BrokenChains.Count}).");
+        }
+    }
+
     public static void VerifyLeakedNotWorsened(
         AnalysisResult before,
         AnalysisResult after,

@@ -34,6 +34,17 @@ public sealed class FixSafetyGuardTests
     }
 
     [Fact]
+    public void BrokenWorsened_true_when_new_chain_appears()
+    {
+        var before = new AnalysisResult { BrokenChains = [] };
+        var after = new AnalysisResult
+        {
+            BrokenChains = [new BrokenChain("a", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+        Assert.True(FixSafetyGuard.BrokenWorsened(before, after));
+    }
+
+    [Fact]
     public void Verify_rolls_back_file_when_leaked_worsens()
     {
         var root = Path.Combine(Path.GetTempPath(), $"dcs-leaked-guard-{Guid.NewGuid():N}");
@@ -53,13 +64,33 @@ public sealed class FixSafetyGuardTests
         Assert.Contains("rolled back", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(original, File.ReadAllText(file));
 
-        try
+        TryDeleteDirectory(root);
+    }
+
+    [Fact]
+    public void VerifyApplyGuards_rolls_back_when_broken_worsens()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-broken-guard-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "Reg.cs");
+        const string original = "services.AddSingleton<IA, A>();";
+        const string updated = "// removed";
+        File.WriteAllText(file, updated);
+
+        var patches = new[] { new FilePatch("Reg.cs", original, updated) };
+        var before = new AnalysisResult { BrokenChains = [] };
+        var after = new AnalysisResult
         {
-            Directory.Delete(root, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
+            BrokenChains = [new BrokenChain("x", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            FixSafetyGuard.VerifyApplyGuards(before, after, root, patches));
+
+        Assert.Contains("BROKEN", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(original, File.ReadAllText(file));
+
+        TryDeleteDirectory(root);
     }
 
     [Fact]
@@ -81,7 +112,7 @@ public sealed class FixSafetyGuardTests
             var afterGraph = parser.ParseDirectory(root).SingleGraphOrDefault()!;
             var after = new GraphAnalyzer(afterGraph).Analyze();
 
-            FixSafetyGuard.VerifyLeakedNotWorsened(before, after, root, result.Patches);
+            FixSafetyGuard.VerifyApplyGuards(before, after, root, result.Patches);
         }
         finally
         {

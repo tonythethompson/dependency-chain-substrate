@@ -369,6 +369,43 @@ internal static class ProgramCommands
             var graph = ExtractGraph(options);
             var analysis = new GraphAnalyzer(graph, LoadBoundaries(options.FrameworksPath), options.RootClass).Analyze();
 
+            if (options.FixClass == FixClass.Broken)
+            {
+                var measurement = BrokenFixMeasurement.Measure(options.RepoPath!, graph, analysis);
+                Console.Error.WriteLine(
+                    $"[DCS] Broken measurement: total={measurement.TotalBroken}, eligible={measurement.EligibleForFixPreview}");
+
+                if (measurement.EligibleForFixPreview == 0)
+                {
+                    Console.WriteLine("No eligible broken-chain fixes available.");
+                    Console.WriteLine(measurement.FormatSummary());
+                    return Task.FromResult(0);
+                }
+
+                var brokenTargetFilter = options.FixToken;
+                BrokenFixResult brokenResult;
+
+                if (options.ApplyFix)
+                {
+                    brokenResult = FixEngine.ApplyBrokenFixes(
+                        options.RepoPath!,
+                        graph,
+                        analysis,
+                        brokenTargetFilter,
+                        options.ForceFix);
+                    VerifyFixGuardsAfterApply(options, analysis, brokenResult.Patches);
+                    Console.Error.WriteLine($"[DCS] Applied {brokenResult.Proposals.Count} broken fix(es).");
+                }
+                else
+                {
+                    brokenResult = FixEngine.BuildBrokenFixes(
+                        options.RepoPath!, graph, analysis, brokenTargetFilter);
+                }
+
+                Console.WriteLine(FixEngine.FormatBrokenPreview(brokenResult, measurement));
+                return Task.FromResult(0);
+            }
+
             if (options.FixClass == FixClass.Orphaned)
             {
                 var measurement = OrphanedFixMeasurement.Measure(graph, analysis);
@@ -394,7 +431,7 @@ internal static class ProgramCommands
                         analysis,
                         orphanedTokenFilter,
                         options.ForceFix);
-                    VerifyLeakedGuardAfterApply(options, analysis, orphanedResult.Patches);
+                    VerifyFixGuardsAfterApply(options, analysis, orphanedResult.Patches);
                     Console.Error.WriteLine($"[DCS] Applied {orphanedResult.Proposals.Count} orphaned fix(es).");
                 }
                 else
@@ -424,7 +461,7 @@ internal static class ProgramCommands
                     analysis,
                     tokenFilter,
                     options.ForceFix);
-                VerifyLeakedGuardAfterApply(options, analysis, result.Patches);
+                VerifyFixGuardsAfterApply(options, analysis, result.Patches);
                 Console.Error.WriteLine($"[DCS] Applied {result.Proposals.Count} duplicate fix(es).");
             }
             else
@@ -617,7 +654,7 @@ internal static class ProgramCommands
             FIX OPTIONS (working directory only; C# repos)
               --preview             Show unified diff without writing (default)
               --apply               Write patched files (duplicate only; requires clean git tree)
-              --fix-class <kind>    duplicate (default) | orphaned
+              --fix-class <kind>    duplicate (default) | orphaned | broken
               --force               Apply even when git working tree is dirty
               --token <name>        Fix a specific duplicate or orphaned token
               --all-duplicates      Fix every duplicate group in one run
@@ -704,7 +741,7 @@ internal static class ProgramCommands
             w.WriteLine("NOTE: breaking changes detected (removed nodes/edges)");
     }
 
-    private static void VerifyLeakedGuardAfterApply(
+    private static void VerifyFixGuardsAfterApply(
         CliOptions options,
         AnalysisResult before,
         IReadOnlyList<FilePatch> patches)
@@ -712,8 +749,10 @@ internal static class ProgramCommands
         var afterGraph = ExtractGraph(options);
         var after = new GraphAnalyzer(afterGraph, LoadBoundaries(options.FrameworksPath), options.RootClass)
             .Analyze();
-        FixSafetyGuard.VerifyLeakedNotWorsened(before, after, options.RepoPath!, patches);
-        Console.Error.WriteLine($"[DCS] LEAKED guard: OK ({before.Leaked.Count} → {after.Leaked.Count})");
+        FixSafetyGuard.VerifyApplyGuards(before, after, options.RepoPath!, patches);
+        Console.Error.WriteLine(
+            $"[DCS] Apply guards: OK (LEAKED {before.Leaked.Count}→{after.Leaked.Count}, " +
+            $"BROKEN {before.BrokenChains.Count}→{after.BrokenChains.Count})");
     }
 
     private static async Task WriteIr(RegistrationGraph graph, string path)

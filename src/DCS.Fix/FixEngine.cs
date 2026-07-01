@@ -172,6 +172,100 @@ public static class FixEngine
         return preview with { Applied = true };
     }
 
+    public static BrokenFixResult BuildBrokenFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? targetFilter = null)
+    {
+        var proposals = BrokenFixPlanner.Plan(repoRoot, graph, analysis, targetFilter);
+        if (proposals.Count == 0)
+            return new BrokenFixResult([], [], false);
+
+        var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var proposal in proposals)
+        {
+            var relativePath = proposal.RelativeFilePath;
+            var absolutePath = Path.IsPathRooted(relativePath)
+                ? relativePath
+                : Path.Combine(repoRoot, relativePath);
+
+            if (!File.Exists(absolutePath))
+                throw new InvalidOperationException($"Registration file not found: {absolutePath}");
+
+            var current = patchesByPath.TryGetValue(relativePath, out var existing)
+                ? existing.UpdatedContent
+                : File.ReadAllText(absolutePath);
+
+            var node = graph.Nodes.First(n => n.Id == proposal.TargetNodeId);
+            var updated = FactoryLambdaToExplicitConverter.TryConvert(current, proposal.Line, node);
+            if (updated == null)
+            {
+                throw new InvalidOperationException(
+                    $"Could not convert factory registration for {proposal.TargetDisplayName} " +
+                    $"at {relativePath}:{proposal.Line}.");
+            }
+
+            var original = existing?.OriginalContent ?? current;
+            patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
+        }
+
+        return new BrokenFixResult(proposals, patchesByPath.Values.ToList(), false);
+    }
+
+    public static BrokenFixResult ApplyBrokenFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? targetFilter = null,
+        bool forceDirtyTree = false)
+    {
+        if (!forceDirtyTree && !GitWorkingTreeGuard.IsClean(repoRoot))
+        {
+            throw new InvalidOperationException(
+                "Working tree is not clean. Commit or stash changes, or pass --force to apply anyway.");
+        }
+
+        var preview = BuildBrokenFixes(repoRoot, graph, analysis, targetFilter);
+        foreach (var patch in preview.Patches)
+        {
+            var absolutePath = Path.IsPathRooted(patch.RelativePath)
+                ? patch.RelativePath
+                : Path.Combine(repoRoot, patch.RelativePath);
+            File.WriteAllText(absolutePath, patch.UpdatedContent);
+        }
+
+        return preview with { Applied = true };
+    }
+
+    public static string FormatBrokenPreview(
+        BrokenFixResult result,
+        BrokenFixMeasurementReport measurement)
+    {
+        if (result.Patches.Count == 0)
+            return measurement.FormatSummary() + Environment.NewLine + "No broken-chain fixes available.";
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine(measurement.FormatSummary());
+        builder.AppendLine(result.Applied
+            ? "=== Broken Fix Applied ==="
+            : "=== Broken Fix Preview (no files written) ===");
+        foreach (var proposal in result.Proposals)
+        {
+            builder.AppendLine(
+                $"FIX BROKEN {proposal.ConsumerDisplayName} → {proposal.TargetDisplayName}: " +
+                $"replace {proposal.RelativeFilePath}:{proposal.Line}");
+            builder.AppendLine($"  with {proposal.ReplacementStatement}");
+        }
+
+        builder.AppendLine();
+        foreach (var patch in result.Patches)
+            builder.Append(UnifiedDiffFormatter.Format(patch.RelativePath, patch.OriginalContent, patch.UpdatedContent));
+
+        return builder.ToString();
+    }
+
     public static string FormatOrphanedPreview(
         OrphanedFixResult result,
         OrphanedFixMeasurementReport measurement)

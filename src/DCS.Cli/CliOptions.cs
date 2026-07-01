@@ -44,7 +44,8 @@ internal sealed record CliOptions
 internal enum FixClass
 {
     Duplicate,
-    Orphaned
+    Orphaned,
+    Broken
 }
 
 internal enum OutputFormat
@@ -550,6 +551,7 @@ internal static class CliArgParser
     {
         "duplicate" or "duplicates" => FixClass.Duplicate,
         "orphaned" or "orphan" => FixClass.Orphaned,
-        _ => throw new ArgumentException($"Unknown fix class '{value}'. Use duplicate or orphaned.")
+        "broken" or "broken-chain" or "broken-chains" => FixClass.Broken,
+        _ => throw new ArgumentException($"Unknown fix class '{value}'. Use duplicate, orphaned, or broken.")
     };
 }

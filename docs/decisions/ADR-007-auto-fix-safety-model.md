@@ -25,7 +25,7 @@ model must be explicit before implementation.
 | DUPLICATE | **In scope** | Remove lower-confidence duplicate registration line |
 | ORPHANED | **In scope (8.1b)** | Remove explicit orphaned registration when eligible; same Roslyn remover + git guards as DUPLICATE |
 | LEAKED | Deferred | Preprocessor guards touch more than registration |
-| BROKEN | Deferred | Requires code generation |
+| BROKEN | **In scope (8.1d)** | Convert simple `factory_lambda_shallow` blind spots to explicit registration when they cause broken chains |
 
 ### Phase 8.1b amendment — ORPHANED `--apply` (Accepted 2026-07-01)
 
@@ -57,6 +57,7 @@ Rejected for v1: line-number string deletion (brittle); regex (multiline fragili
 - Default: print unified diff + fix summary to stdout; no file writes.
 - `--apply`: write patched files after guard checks.
 - **LEAKED guard (8.1c):** after `--apply`, re-extract and re-analyze; rollback patches if LEAKED count increases or new leaked node ids appear (`FixSafetyGuard`).
+- **BROKEN guard (8.1d):** same rollback if BROKEN count increases or new broken-chain pairs appear.
 - Composable with external `git diff` / CI pipelines.
 
 ### Q4: Rollback — **Git-first**
@@ -103,7 +104,7 @@ Spring/Java duplicate removal deferred until Java registration nodes carry stabl
 ## Implementation
 
 - Module: `DCS.Fix` (`DuplicateFixPlanner`, `OrphanedFixPlanner`, `RegistrationStatementRemover`, `FixEngine`)
-- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned] [--token <name>] [--all-duplicates] [--force]`
+- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned|broken] [--token <name>] [--all-duplicates] [--force]`
 - Gate (DUPLICATE): remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
 - Gate (ORPHANED): fixture apply removes `IOrphanService`; re-analyze shows one fewer eligible orphan.
 - Gate (LEAKED guard): duplicate fixture apply does not worsen LEAKED; synthetic worsened analysis triggers rollback.

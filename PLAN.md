@@ -173,6 +173,7 @@ removal) with a preview diff and rollback via git.
 | CLI `dcs fix` | ✅ Done | 2026-06-29 — `--preview` default, `--apply`, `--token`, `--force` |
 | Fix classes: ORPHANED removal | ✅ Done | 8.1a preview, 8.1b apply |
 | Fix classes: LEAKED (add framework guard) | ⬜ Deferred | Codemod; not the apply safety guard |
+| Fix classes: BROKEN (factory → explicit) | ✅ Done | 8.1d — simple shallow factory only |
 | LEAKED guard on `--apply` | ✅ Done | 8.1c — re-analyze + rollback if leakage worsens |
 | Phase 8 verification | ✅ Done | 2026-06-29 — Fixture + Trackdub optional gate |
 
@@ -373,6 +374,21 @@ confirms path to Avalonia shell registration; semantic floors locked at Phase 12
 | Unit + integration tests | ✅ Done | `FixSafetyGuardTests` |
 
 **Phase 8.1c gate:** ✅ CLOSED — duplicate fixture apply passes guard; synthetic worsened LEAKED triggers rollback.
+
+---
+
+## Phase 8.1d — BROKEN fix (factory → explicit)
+
+**Done means:** `dcs fix --fix-class broken` converts eligible `factory_lambda_shallow` blind spots (resolved `concrete_impl`, no `GetRequiredService` in lambda) to explicit `TryAdd*` / `Add*` registrations; apply guards include BROKEN rollback.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `BrokenFixPlanner` + `FactoryLambdaToExplicitConverter` | ✅ Done | Roslyn statement replace |
+| CLI `dcs fix --fix-class broken` | ✅ Done | `--preview` / `--apply` |
+| BROKEN apply guard | ✅ Done | `FixSafetyGuard.VerifyApplyGuards` |
+| Unit + integration tests | ✅ Done | `BrokenFixTests` |
+
+**Phase 8.1d gate:** ✅ CLOSED — fixture broken chain cleared after apply; Trackdub @ pin has 0 eligible (complex factories).
 
 ---
 
