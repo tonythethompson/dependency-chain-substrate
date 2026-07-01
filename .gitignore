@@ -403,6 +403,8 @@ FodyWeavers.xsd
 
 # CI corpus checkouts (see ci/corpus-gates.json)
 corpus/
+!tests/fixtures/corpus/
+!tests/fixtures/corpus/**
 
 # Local dcs analyze/path output at repo root (regenerated)
 /report.json
