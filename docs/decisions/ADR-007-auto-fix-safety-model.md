@@ -36,6 +36,7 @@ not composition root, not framework infrastructure (`ILogger*`, `IConfiguration`
 - `--preview` default; `--apply` writes files.
 - Clean git working tree required unless `--force`.
 - Roslyn `RegistrationStatementRemover` at reported line + display name.
+- **LEAKED guard (8.1c):** after `--apply`, re-analyze; rollback if LEAKED count increases or new leaked node ids appear.
 
 **False-positive policy:** Trackdub @ pin `3c4e374d` reports 0 orphaned registrations;
 fixture gate (`OrphanedFixTests.Apply_removes_orphan`) is the apply verification path until
@@ -55,6 +56,7 @@ Rejected for v1: line-number string deletion (brittle); regex (multiline fragili
 
 - Default: print unified diff + fix summary to stdout; no file writes.
 - `--apply`: write patched files after guard checks.
+- **LEAKED guard (8.1c):** after `--apply`, re-extract and re-analyze; rollback patches if LEAKED count increases or new leaked node ids appear (`FixSafetyGuard`).
 - Composable with external `git diff` / CI pipelines.
 
 ### Q4: Rollback — **Git-first**
@@ -104,3 +106,4 @@ Spring/Java duplicate removal deferred until Java registration nodes carry stabl
 - CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned] [--token <name>] [--all-duplicates] [--force]`
 - Gate (DUPLICATE): remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
 - Gate (ORPHANED): fixture apply removes `IOrphanService`; re-analyze shows one fewer eligible orphan.
+- Gate (LEAKED guard): duplicate fixture apply does not worsen LEAKED; synthetic worsened analysis triggers rollback.

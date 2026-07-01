@@ -171,8 +171,9 @@ removal) with a preview diff and rollback via git.
 | ADR-007: Write-back safety model | ✅ Done | 2026-06-29 — Accepted; DUPLICATE-only v1 |
 | DCS.Fix — DUPLICATE removal | ✅ Done | 2026-06-29 — Roslyn statement removal + preview/apply |
 | CLI `dcs fix` | ✅ Done | 2026-06-29 — `--preview` default, `--apply`, `--token`, `--force` |
-| Fix classes: ORPHANED removal | ⬜ Deferred | v1.1 after false-positive measurement |
-| Fix classes: LEAKED (add framework guard) | ⬜ Deferred | |
+| Fix classes: ORPHANED removal | ✅ Done | 8.1a preview, 8.1b apply |
+| Fix classes: LEAKED (add framework guard) | ⬜ Deferred | Codemod; not the apply safety guard |
+| LEAKED guard on `--apply` | ✅ Done | 8.1c — re-analyze + rollback if leakage worsens |
 | Phase 8 verification | ✅ Done | 2026-06-29 — Fixture + Trackdub optional gate |
 
 **Phase 8 gate:** ✅ CLOSED — `dcs fix --apply` removes one DUPLICATE registration;
@@ -358,6 +359,20 @@ confirms path to Avalonia shell registration; semantic floors locked at Phase 12
 | Trackdub apply verification | ⬜ N/A @ pin | 0 orphaned at `3c4e374d`; fixture gate suffices |
 
 **Phase 8.1b gate:** ✅ CLOSED — fixture apply removes `IOrphanService`; eligible orphan count drops by 1; dirty-tree guard enforced.
+
+---
+
+## Phase 8.1c — LEAKED guard on `--apply`
+
+**Done means:** Duplicate and orphaned `--apply` re-analyze after write; rollback if LEAKED worsens.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| `FixSafetyGuard` (compare + rollback) | ✅ Done | New leaked node ids or higher count |
+| Wire into `dcs fix --apply` | ✅ Done | Duplicate + orphaned |
+| Unit + integration tests | ✅ Done | `FixSafetyGuardTests` |
+
+**Phase 8.1c gate:** ✅ CLOSED — duplicate fixture apply passes guard; synthetic worsened LEAKED triggers rollback.
 
 ---
 

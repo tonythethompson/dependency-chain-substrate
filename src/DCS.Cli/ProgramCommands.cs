@@ -394,6 +394,7 @@ internal static class ProgramCommands
                         analysis,
                         orphanedTokenFilter,
                         options.ForceFix);
+                    VerifyLeakedGuardAfterApply(options, analysis, orphanedResult.Patches);
                     Console.Error.WriteLine($"[DCS] Applied {orphanedResult.Proposals.Count} orphaned fix(es).");
                 }
                 else
@@ -423,6 +424,7 @@ internal static class ProgramCommands
                     analysis,
                     tokenFilter,
                     options.ForceFix);
+                VerifyLeakedGuardAfterApply(options, analysis, result.Patches);
                 Console.Error.WriteLine($"[DCS] Applied {result.Proposals.Count} duplicate fix(es).");
             }
             else
@@ -700,6 +702,18 @@ internal static class ProgramCommands
 
         if (diff.HasBreakingChanges)
             w.WriteLine("NOTE: breaking changes detected (removed nodes/edges)");
+    }
+
+    private static void VerifyLeakedGuardAfterApply(
+        CliOptions options,
+        AnalysisResult before,
+        IReadOnlyList<FilePatch> patches)
+    {
+        var afterGraph = ExtractGraph(options);
+        var after = new GraphAnalyzer(afterGraph, LoadBoundaries(options.FrameworksPath), options.RootClass)
+            .Analyze();
+        FixSafetyGuard.VerifyLeakedNotWorsened(before, after, options.RepoPath!, patches);
+        Console.Error.WriteLine($"[DCS] LEAKED guard: OK ({before.Leaked.Count} → {after.Leaked.Count})");
     }
 
     private static async Task WriteIr(RegistrationGraph graph, string path)
