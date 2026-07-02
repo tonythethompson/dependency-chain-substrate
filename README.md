@@ -22,7 +22,7 @@ The tool was born from a real failure mode: during a WinUI-to-Avalonia migration
 | **Topology Lens** | `dcs viz` | Self-contained interactive HTML graph at Trackdub scale (300+ nodes) |
 | **Path Excavator** | `dcs path` | Shortest dependency path from composition root to a target registration |
 | **Topology Lens (path)** | `dcs viz --path-to` | Same path highlighted on interactive HTML graph |
-| **Auto-fix (preview)** | `dcs fix` | Safe preview/apply of DUPLICATE registration removal (C# only, v1) |
+| **Auto-fix (preview/apply)** | `dcs fix` | Safe C# fixes for DUPLICATE, ORPHANED, and simple BROKEN registration findings |
 
 ### What makes it different
 
@@ -200,10 +200,10 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 
 ### Explicitly out of scope (v1)
 
-- Runtime container profiling (planned Phase 9)
+- General-purpose runtime container profiling (Phase 9 ships a targeted MS.DI runtime enrichment overlay)
 - IDE extension (deferred Phase 7)
 - TypeScript / Python parsers (parked)
-- Auto-fix beyond DUPLICATE removal
+- LEAKED auto-fix and broad codemods beyond the current C# DUPLICATE / ORPHANED / simple BROKEN fix classes
 - Full semantic MSBuildWorkspace dependency on project build
 
 ---
@@ -286,7 +286,7 @@ Phases **0–13** and **Phase 9 (runtime overlay MVP)** are implemented as of 20
 - Structured JSON analysis reports
 - `dcs path` Path Excavator MVP
 - Spring Boot parser (Phase 6)
-- `dcs fix` DUPLICATE + ORPHANED preview/apply (Phase 8 / 8.1b)
+- `dcs fix` DUPLICATE + ORPHANED + simple BROKEN preview/apply (Phase 8 / 8.1b / 8.1d)
 - Runtime enrichment overlay — `DcsRuntimeEventListener` + `dcs enrich` (Phase 9 **Verified** on Trackdub @ pin)
 
 **Parked / deferred:** IDE extension, TypeScript/Python parsers.

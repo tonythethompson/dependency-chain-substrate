@@ -632,7 +632,7 @@ legend, click-to-inspect node detail. ~220KB for 186-node Trackdub graph (Phase 
 > Q: What is the export format from the CLI for downstream consumers?
 
 **Answer:**
-- **IR JSON:** `dcs dump-ir`, `dcs analyze --ir-out`, schema 1.1.0 snake_case JSON.
+- **IR JSON:** `dcs dump-ir`, `dcs analyze --ir-out`, schema 1.2.0 snake_case JSON.
 - **Analysis report JSON:** `dcs analyze --format json --report-out report.json`, schema
   `docs/schemas/analysis-report-1.0.json` (v1.0). Findings include `finding_id`, `category`,
   `severity`, `tier` (`actionable` | `informational` | `parser_limit` | `intentional`), and
@@ -759,11 +759,13 @@ bad file. Missing type resolution is silent degradation (short names), not fatal
 > Q: What is the parser interface? (Method signatures, capability
 >    negotiation protocol.)
 
-**Answer:** **De facto contract today** (no formal interface type yet):
-language-specific parser exposes `RegistrationGraph ParseCommit(string repoPath, string sha)`
-and/or `ParseDirectory(string path)` returning complete graph. Capability negotiation
-**not implemented** — second language adds new project (`DCS.Parser.Java` planned).
-Future: `IParser` with `ParserVersion`, `SupportedLanguages[]`, optional feature flags.
+**Answer:** **De facto contract today:** language-specific parsers implement
+`IStaticParser` and expose `ParseResult ParseCommit(string repoPath, string sha)` /
+`ParseResult ParseDirectory(string path)`. A `ParseResult` contains one or more
+`ContextGraph` entries, each with a context id and a complete `RegistrationGraph`.
+Capability negotiation remains minimal and is selected by CLI language routing
+(`auto`, `csharp`, `java`). Future: formal parser metadata with `ParserVersion`,
+`SupportedLanguages[]`, and optional feature flags.
 
 > Q: How does a parser signal "I cannot resolve this pattern"? What goes
 >    into the IR for that node?
@@ -778,19 +780,21 @@ Annotations carry `blind_spot_reason` / `degraded_reason` strings for tooling.
 > Q: What is the IR contract version? How are breaking schema changes
 >    handled? How are additive changes handled?
 
-**Answer:** `RegistrationGraph.schema_version` (**1.1.0**). **Additive:** new optional
+**Answer:** `RegistrationGraph.schema_version` (**1.2.0**). **Additive:** new optional
 JSON fields, new enum values — consumers ignore unknown fields; minor doc bump optional.
 **Breaking:** remove/rename required fields or change semantics → major bump;
 readers reject unsupported major version (policy in ADR-002; deserialiser does not
-yet enforce major-version gate in code — implementation gap to close in Phase 5).
+yet enforce major-version gate in code — implementation gap still open).
 
 > Q: What is the minimum viable plugin API for a second language parser?
 
-**Answer:** Produce valid `RegistrationGraph` JSON 1.1.0: set `source_language`,
-`parser_version`, populate `nodes`/`edges`/`blind_spots` using shared enums;
-map language DI idioms per ADR-002 Spring mapping; tag `framework_tags` appropriately;
-emit `BLIND_SPOT` for unresolvable patterns; no changes to analysis/diff/viz required
-if schema honoured. Java/Spring: ADR-005 scope decisions first.
+**Answer:** Produce valid `ParseResult` output containing schema 1.2.0
+`RegistrationGraph` JSON: set `source_language`, `parser_version`, populate
+`nodes`/`edges`/`blind_spots` using shared enums, and provide stable context ids
+for each application graph. Map language DI idioms per ADR-002/ADR-005; tag
+`framework_tags` appropriately; emit `BLIND_SPOT` for unresolvable patterns. No
+changes to analysis/diff/viz are required when the schema and context contract are
+honoured.
 
 ---
 
@@ -853,13 +857,11 @@ node policy untested.
 > Q: What open questions remain after the four ADRs are closed?
 
 **Answer:**
-- ADR-005–007 (Proposed stubs): Spring parser scope, IDE form factor, auto-fix safety.
+- ADR-006 IDE integration remains deferred; ADR-005 Spring parser and ADR-007 auto-fix safety are accepted and implemented through their current phases.
 - ADR-008 runtime enrichment — **Accepted + Verified** (Phase 9); Trackdub @ pin 89.3% annotated.
-- Semantic Roslyn upgrade timing vs duplicate-ID class elimination (parked).
-- `--frameworks` JSON schema and `--frameworks` CLI (Phase 5 implementation).
-- Disk cache location/format (Phase 5).
-- Path Excavator MVP scope — CLI subcommand vs viz-only?
 - Major-version enforcement in `IrSerializer.Deserialize` (policy stated, code gap).
+- Rename similarity weights remain blocked on a labelled Trackdub rename pair.
+- Canvas/aggregation behaviour above Trackdub scale remains unproven.
 - Second corpus beyond Trackdub for cross-validation (§17).
 
 > Q: What assumptions are load-bearing but unvalidated? (These are

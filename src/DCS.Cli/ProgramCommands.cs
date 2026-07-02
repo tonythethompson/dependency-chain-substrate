@@ -610,7 +610,7 @@ internal static class ProgramCommands
               dump-ir <repo-path> [options]           Extract IR as JSON (no analysis)
               diff    <repo-path> --from <sha> --to <sha> [options]
                                                       Diff two commits
-              fix     <repo-path> [options]           Preview/apply DUPLICATE registration removal
+              fix     <repo-path> [options]           Preview/apply safe C# registration fixes
               path    <repo-path> --to <registration> [options]
                                                       Dependency path from root to target registration
               enrich  <ir-file> --runtime-log <path> [options]
@@ -653,10 +653,10 @@ internal static class ProgramCommands
 
             FIX OPTIONS (working directory only; C# repos)
               --preview             Show unified diff without writing (default)
-              --apply               Write patched files (duplicate only; requires clean git tree)
+              --apply               Write patched files (requires clean git tree)
               --fix-class <kind>    duplicate (default) | orphaned | broken
               --force               Apply even when git working tree is dirty
-              --token <name>        Fix a specific duplicate or orphaned token
+              --token <name>        Fix a specific duplicate, orphaned, or broken target
               --all-duplicates      Fix every duplicate group in one run
 
             VIZ OPTIONS
@@ -682,6 +682,8 @@ internal static class ProgramCommands
 
             EXAMPLES
               dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
+              dcs fix /path/to/repo --fix-class orphaned --preview
+              dcs fix /path/to/repo --fix-class broken --preview --token IDependency
               dcs fix /path/to/repo --apply --force
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json
               dcs analyze /path/to/repo --commit abc1234 --format text --report-out report.txt
