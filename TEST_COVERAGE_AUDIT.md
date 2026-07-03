@@ -162,10 +162,11 @@ tests/DCS.Runtime.Tests/
 - [x] CLI parser tested with conflicting/invalid args (`CliParserFactoryTests.cs` — 29 tests)
 - [x] `IrSerializer` tested with malformed/invalid input, round-trip (`IrSerializerTests.cs` — 13 tests)
 - [x] `FixSafetyGuard` exception paths covered (`FixSafetyGuardTests.cs` — 14 tests, was 6)
-- [ ] `AnalysisReportSerializer` / `ParseResultSerializer` error cases (not yet done)
-- [ ] Core models validated for invariants beyond `IrSerializer`
-- [ ] Runtime graph enricher handles null/empty inputs
-- [ ] Coverage report shows 80%+ line coverage on critical paths
+- [x] `AnalysisReportSerializer` error/edge cases (`AnalysisReportSerializerTests.cs` — 8 tests)
+- [x] `ParseResultSerializer` error/edge cases (`ParseResultSerializerTests.cs` — 6 tests)
+- [x] Core models validated for invariants (`CoreModelInvariantTests.cs` — 18 tests)
+- [x] Runtime graph enricher handles null/empty inputs (`RuntimeGraphEnricherEdgeCasesTests.cs` — 11 tests)
+- [ ] Coverage report shows 80%+ line coverage on critical paths (no coverage tool wired into CI yet)
 
 ## Update — 2026-07-02 (Sonnet 5)
 
@@ -179,8 +180,21 @@ Implemented HIGH-priority items:
 
 Total suite: **200 tests passing** (was 156).
 
-Remaining gaps (MEDIUM/OPTIONAL tier — not yet started): `AnalysisReportSerializer`, `ParseResultSerializer` error cases; Core model invariant tests beyond IR serialization; `RuntimeGraphEnricher` null/empty edge cases.
+## Update — 2026-07-03 (Sonnet 5)
+
+Implemented remaining MEDIUM-tier items:
+
+| File | New Tests | Covers |
+|------|-----------|--------|
+| `tests/DCS.Analysis.Tests/AnalysisReportSerializerTests.cs` | 8 (new file) | snake_case naming, null-field omission, metrics inclusion, finding enum serialization, empty-array findings, multi-context nesting, file write (single + multi) |
+| `tests/DCS.Core.Tests/ParseResultSerializerTests.cs` | 6 (new file) | round-trip, malformed JSON throws, empty-object default, diagnostics round-trip, `CSharpParseResultFactory.Wrap` defaults + explicit module id |
+| `tests/DCS.Core.Tests/CoreModelInvariantTests.cs` | 18 (new file) | `RegistrationNode` identity-hash determinism/uniqueness (ordinal, scope, null path), `ServiceTypeIdentity` canonical/duplicate-grouping keys (syntactic vs resolved, generic args), `AssemblyKey.Canonical` (scope/simple/versioned forms), `ResolvedTypeIdentity` display-name stripping + hash determinism, `TypeRef` factory invariants |
+| `tests/DCS.Runtime.Tests/RuntimeGraphEnricherEdgeCasesTests.cs` | 11 (new file) | empty graph/events, unmatched nodes stay unannotated, no confidence upgrade without resolved type or for non-blind-spot nodes, concrete-impl-name matching, `global::`/generic-argument normalization, case-insensitive matching, no orphan reclassification without static analysis, blank requested-type ignored for discovery, metadata event-count, no captive dependency when caller isn't singleton |
+
+Total suite: **243 tests passing** (was 200).
+
+All previously identified gaps closed except CI-wired coverage percentage reporting — no coverage tool (e.g. Coverlet + reportgenerator) is currently integrated into `ci.yml`; line-coverage % is not measured, only test presence/absence was audited manually.
 
 ---
 
-**Next Step:** `AnalysisReportSerializer`/`ParseResultSerializer` error-case tests, then Core model invariants.
+**Next Step (optional):** Wire Coverlet into `ci.yml` if a quantitative coverage number is wanted; otherwise this audit's actionable items are complete.
