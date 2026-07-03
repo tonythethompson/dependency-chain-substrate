@@ -94,6 +94,125 @@ public sealed class FixSafetyGuardTests
     }
 
     [Fact]
+    public void BrokenWorsened_false_when_chains_shrink()
+    {
+        var before = new AnalysisResult
+        {
+            BrokenChains = [new BrokenChain("a", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+        var after = new AnalysisResult { BrokenChains = [] };
+        Assert.False(FixSafetyGuard.BrokenWorsened(before, after));
+    }
+
+    [Fact]
+    public void BrokenWorsened_false_when_same_chain_set()
+    {
+        var before = new AnalysisResult
+        {
+            BrokenChains = [new BrokenChain("a", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+        var after = new AnalysisResult
+        {
+            BrokenChains = [new BrokenChain("a", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+        Assert.False(FixSafetyGuard.BrokenWorsened(before, after));
+    }
+
+    [Fact]
+    public void VerifyBrokenNotWorsened_rolls_back_when_broken_count_increases()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-broken-only-guard-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "Reg.cs");
+        const string original = "original";
+        const string updated = "updated";
+        File.WriteAllText(file, updated);
+
+        var patches = new[] { new FilePatch("Reg.cs", original, updated) };
+        var before = new AnalysisResult { BrokenChains = [] };
+        var after = new AnalysisResult
+        {
+            BrokenChains = [new BrokenChain("x", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            FixSafetyGuard.VerifyBrokenNotWorsened(before, after, root, patches));
+
+        Assert.Contains("BROKEN", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(original, File.ReadAllText(file));
+
+        TryDeleteDirectory(root);
+    }
+
+    [Fact]
+    public void VerifyBrokenNotWorsened_noop_when_broken_not_worsened()
+    {
+        var before = new AnalysisResult { BrokenChains = [] };
+        var after = new AnalysisResult { BrokenChains = [] };
+
+        FixSafetyGuard.VerifyBrokenNotWorsened(before, after, "unused-root", []);
+    }
+
+    [Fact]
+    public void VerifyApplyGuards_reports_leaked_when_both_leaked_and_broken_worsen()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-both-guard-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "Reg.cs");
+        const string original = "original";
+        const string updated = "updated";
+        File.WriteAllText(file, updated);
+
+        var patches = new[] { new FilePatch("Reg.cs", original, updated) };
+        var before = new AnalysisResult { Leaked = [], BrokenChains = [] };
+        var after = new AnalysisResult
+        {
+            Leaked = [Leak("x", "IB")],
+            BrokenChains = [new BrokenChain("x", "Consumer", "IDep", "Reg.cs", 1)]
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            FixSafetyGuard.VerifyApplyGuards(before, after, root, patches));
+
+        Assert.Contains("LEAKED", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        TryDeleteDirectory(root);
+    }
+
+    [Fact]
+    public void VerifyAfterApplyOrRollback_rolls_back_when_analysis_callback_throws()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-postapply-guard-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "Reg.cs");
+        const string original = "original";
+        const string updated = "updated";
+        File.WriteAllText(file, updated);
+
+        var patches = new[] { new FilePatch("Reg.cs", original, updated) };
+        var before = new AnalysisResult();
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            FixSafetyGuard.VerifyAfterApplyOrRollback(before, root, patches,
+                () => throw new InvalidOperationException("parse failed")));
+
+        Assert.Contains("post-apply verification failed", ex.Message);
+        Assert.Contains("parse failed", ex.Message);
+        Assert.Equal(original, File.ReadAllText(file));
+
+        TryDeleteDirectory(root);
+    }
+
+    [Fact]
+    public void VerifyAfterApplyOrRollback_passes_when_guards_satisfied()
+    {
+        var before = new AnalysisResult { Leaked = [], BrokenChains = [] };
+        var after = new AnalysisResult { Leaked = [], BrokenChains = [] };
+
+        FixSafetyGuard.VerifyAfterApplyOrRollback(before, "unused-root", [], () => after);
+    }
+
+    [Fact]
     public void Duplicate_apply_passes_leaked_guard_on_fixture()
     {
         var root = CreateDuplicateFixtureForGuard();

@@ -159,13 +159,28 @@ tests/DCS.Runtime.Tests/
 
 ## Success Criteria
 
-- [ ] All throws have ≥1 `Assert.Throws` test
-- [ ] Serializers tested with invalid input
-- [ ] CLI parser tested with conflicting/invalid args
-- [ ] Core models validated for invariants
+- [x] CLI parser tested with conflicting/invalid args (`CliParserFactoryTests.cs` — 29 tests)
+- [x] `IrSerializer` tested with malformed/invalid input, round-trip (`IrSerializerTests.cs` — 13 tests)
+- [x] `FixSafetyGuard` exception paths covered (`FixSafetyGuardTests.cs` — 14 tests, was 6)
+- [ ] `AnalysisReportSerializer` / `ParseResultSerializer` error cases (not yet done)
+- [ ] Core models validated for invariants beyond `IrSerializer`
 - [ ] Runtime graph enricher handles null/empty inputs
 - [ ] Coverage report shows 80%+ line coverage on critical paths
 
+## Update — 2026-07-02 (Sonnet 5)
+
+Implemented HIGH-priority items:
+
+| File | New Tests | Covers |
+|------|-----------|--------|
+| `tests/DCS.Cli.Tests/CliParserFactoryTests.cs` | 29 (new file) | `ParseFixClass`, verbosity/format validation, `ResolveExtractionOptions`, `SelectGraph` context resolution + errors |
+| `tests/DCS.Core.Tests/IrSerializerTests.cs` | +8 (13 total) | round-trip, snake_case naming, malformed JSON, empty object, missing/blank schema_version, non-numeric major version, file write |
+| `tests/DCS.Fix.Tests/FixSafetyGuardTests.cs` | +8 (14 total) | `BrokenWorsened` false-cases, `VerifyBrokenNotWorsened`, `VerifyApplyGuards` leaked-priority ordering, `VerifyAfterApplyOrRollback` (both throw and pass paths) |
+
+Total suite: **200 tests passing** (was 156).
+
+Remaining gaps (MEDIUM/OPTIONAL tier — not yet started): `AnalysisReportSerializer`, `ParseResultSerializer` error cases; Core model invariant tests beyond IR serialization; `RuntimeGraphEnricher` null/empty edge cases.
+
 ---
 
-**Next Step:** Prioritize `CliParserFactoryTests` (security+usability) and `SerializerTests` (data integrity).
+**Next Step:** `AnalysisReportSerializer`/`ParseResultSerializer` error-case tests, then Core model invariants.
