@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-06-30 (Phase 13 closed)
+Last updated: 2026-07-02 (hardening items 7-10)
 
 ---
 
@@ -110,7 +110,7 @@ Trackdub; disk cache eliminates redundant re-extraction on repeated CLI runs.
 | `--frameworks <json>` — implement | ✅ Done | 2026-06-28 — FrameworkBoundaryModel.LoadFromJson + CLI wiring |
 | Per-commit disk cache — implement | ✅ Done | 2026-06-28 — ExtractionCache; default %LOCALAPPDATA%/dependency-chain-substrate |
 | Registration Atlas polish — implement | ✅ Done | 2026-06-28 — `dcs atlas` human-readable listing |
-| Rename weight tuning | ⬜ Blocked | Needs a Trackdub commit pair with known renames; unblocked when such a pair is identified |
+| Rename weight tuning | 🟨 Partially verified | Labelled Trackdub pair locked: `8fda806d` detects `BabelStudioStoragePaths` → `TrackdubStoragePaths`; broader false-positive tuning remains open |
 
 **Phase 5 gate:** ✅ CLOSED — DESIGN.md fully answered; `--frameworks` on analyze/diff/atlas; disk cache on repeated `analyze --commit`.
 
@@ -389,6 +389,37 @@ confirms path to Avalonia shell registration; semantic floors locked at Phase 12
 | Unit + integration tests | ✅ Done | `BrokenFixTests` |
 
 **Phase 8.1d gate:** ✅ CLOSED — fixture broken chain cleared after apply; Trackdub @ pin has 0 eligible (complex factories).
+
+---
+
+## Phase 8.1e — Auto-fix build verification
+
+**Done means:** `dcs fix --apply --verify-build` runs `dotnet build` after graph
+guards and rolls back patches if the build fails.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| CLI flag `--verify-build` | ✅ Done | `CliArgParser.ParseFixCommand` |
+| Build verification rollback | ✅ Done | `ProgramCommands.VerifyBuildAfterApply` |
+| Unit tests | ✅ Done | `FixBuildVerificationTests` |
+
+**Phase 8.1e gate:** ✅ CLOSED — synthetic build failure rolls back patched file;
+success leaves patches intact. This is build verification plumbing, not proof that
+all fix classes preserve buildability on arbitrary repositories.
+
+---
+
+## Phase 13c — Hardening follow-up
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Diff rename labelled Trackdub pair | ✅ Done | `8fda806d`: `BabelStudioStoragePaths` → `TrackdubStoragePaths` |
+| Viz large-graph smoke test | ✅ Done | 1,200 synthetic nodes / 1,199 edges generate HTML with large-graph marker |
+| Runtime/fix/diff corpus matrix legs | ✅ Done | `ci/corpus-gates.json` includes parser, runtime, fix, diff legs for `csharp-migration` |
+| Docs stale phase language sweep | ✅ Done | README, DESIGN, PLAN, ADR-007 updated |
+
+**Phase 13c gate:** ✅ CLOSED for implementation/test coverage. Remaining risk:
+rename precision on broad technical renames and real-corpus 1000+ node legibility.
 
 ---
 

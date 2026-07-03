@@ -72,6 +72,50 @@ public sealed class BrokenFixPlannerTests
     }
 
     [Fact]
+    public void Plan_preserves_original_registration_receiver_for_builder_services()
+    {
+        var root = CreateBrokenFixture(includeComplexDep: false, useBuilderServicesReceiver: true);
+        try
+        {
+            var graph = ParseGraph(root);
+            var analysis = new GraphAnalyzer(graph).Analyze();
+
+            var proposals = BrokenFixPlanner.Plan(root, graph, analysis);
+
+            var proposal = Assert.Single(proposals);
+            Assert.StartsWith("builder.Services.TryAddSingleton<", proposal.ReplacementStatement, StringComparison.Ordinal);
+            Assert.Contains("IDepService", proposal.ReplacementStatement);
+            Assert.Contains("DepServiceImpl", proposal.ReplacementStatement);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public void Apply_preserves_original_registration_receiver_for_builder_services()
+    {
+        var root = CreateBrokenFixture(includeComplexDep: false, useBuilderServicesReceiver: true);
+        try
+        {
+            var graph = ParseGraph(root);
+            var before = new GraphAnalyzer(graph).Analyze();
+
+            var result = FixEngine.ApplyBrokenFixes(root, graph, before, forceDirtyTree: true);
+
+            Assert.Single(result.Proposals);
+            var registrations = File.ReadAllText(Path.Combine(root, "Registrations.cs"));
+            Assert.Contains("builder.Services.TryAddSingleton<", registrations);
+            Assert.DoesNotContain("services.TryAddSingleton<", registrations);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
     public void Apply_throws_when_working_tree_dirty()
     {
         var root = CreateBrokenFixture(includeComplexDep: false);
@@ -101,7 +145,7 @@ public sealed class BrokenFixPlannerTests
             ?? throw new InvalidOperationException("Expected one context graph.");
     }
 
-    private static string CreateBrokenFixture(bool includeComplexDep)
+    private static string CreateBrokenFixture(bool includeComplexDep, bool useBuilderServicesReceiver = false)
     {
         var root = Path.Combine(Path.GetTempPath(), $"dcs-broken-fix-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -141,7 +185,28 @@ public sealed class BrokenFixPlannerTests
               services.TryAddSingleton<IDepService>(sp => new DepServiceImpl());
               """;
 
-        File.WriteAllText(Path.Combine(root, "Registrations.cs"), $$"""
+        var registrations = useBuilderServicesReceiver
+            ? $$"""
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace DcsBrokenFixTest;
+
+            public sealed class AppBuilder
+            {
+                public IServiceCollection Services { get; } = new ServiceCollection();
+            }
+
+            public static class Registrations
+            {
+                public static void Configure(AppBuilder builder)
+                {
+                    {{depRegistration.Replace("services.", "builder.Services.")}}
+                    builder.Services.TryAddSingleton<IConsumer>(sp =>
+                        new ConsumerImpl(sp.GetRequiredService<IDepService>()));
+                }
+            }
+            """
+            : $$"""
             using Microsoft.Extensions.DependencyInjection;
 
             namespace DcsBrokenFixTest;
@@ -155,7 +220,9 @@ public sealed class BrokenFixPlannerTests
                         new ConsumerImpl(sp.GetRequiredService<IDepService>()));
                 }
             }
-            """);
+            """;
+
+        File.WriteAllText(Path.Combine(root, "Registrations.cs"), registrations);
 
         return root;
     }

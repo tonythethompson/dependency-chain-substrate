@@ -46,6 +46,9 @@ internal static class CliParserFactory
     /// </summary>
     internal static CliOptions ResolveExtractionOptions(CliOptions options)
     {
+        if (options.ContextAll && string.IsNullOrWhiteSpace(options.TargetFramework))
+            options = options with { AllTargetFrameworks = true };
+
         if (!string.IsNullOrWhiteSpace(options.TargetFramework))
             return options;
 

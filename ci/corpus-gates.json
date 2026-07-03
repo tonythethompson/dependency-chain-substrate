@@ -12,6 +12,39 @@
       "privateCheckout": true
     },
     {
+      "id": "csharp-migration",
+      "runner": "windows-latest",
+      "dotnet": "10.0.x",
+      "testProject": "tests/DCS.Runtime.Tests/DCS.Runtime.Tests.csproj",
+      "repository": "tonythethompson/Trackdub",
+      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "checkoutPath": "corpus/csharp-migration",
+      "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
+      "privateCheckout": true
+    },
+    {
+      "id": "csharp-migration",
+      "runner": "windows-latest",
+      "dotnet": "10.0.x",
+      "testProject": "tests/DCS.Fix.Tests/DCS.Fix.Tests.csproj",
+      "repository": "tonythethompson/Trackdub",
+      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "checkoutPath": "corpus/csharp-migration",
+      "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
+      "privateCheckout": true
+    },
+    {
+      "id": "csharp-migration",
+      "runner": "windows-latest",
+      "dotnet": "10.0.x",
+      "testProject": "tests/DCS.Diff.Tests/DCS.Diff.Tests.csproj",
+      "repository": "tonythethompson/Trackdub",
+      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "checkoutPath": "corpus/csharp-migration",
+      "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
+      "privateCheckout": true
+    },
+    {
       "id": "java-spring",
       "runner": "ubuntu-latest",
       "dotnet": "8.0.x",

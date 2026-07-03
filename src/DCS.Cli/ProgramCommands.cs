@@ -6,6 +6,7 @@ using DCS.Diff;
 using DCS.Fix;
 using DCS.Runtime;
 using DCS.Viz;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace DCS.Cli;
@@ -91,7 +92,7 @@ internal static class ProgramCommands
 
                 await EmitAnalyzeOutput(multi, options);
                 if (options.IrOut != null)
-                    await WriteIr(parseResult.ContextGraphs[0].Graph, options.IrOut);
+                    await WriteParseResult(parseResult, options.IrOut);
 
                 return hasErrors ? 1 : 0;
             }
@@ -394,6 +395,8 @@ internal static class ProgramCommands
                         brokenTargetFilter,
                         options.ForceFix);
                     VerifyFixGuardsAfterApply(options, analysis, brokenResult.Patches);
+                    if (options.VerifyBuild)
+                        VerifyBuildAfterApply(options.RepoPath!, brokenResult.Patches, RunDotnetBuild);
                     Console.Error.WriteLine($"[DCS] Applied {brokenResult.Proposals.Count} broken fix(es).");
                 }
                 else
@@ -432,6 +435,8 @@ internal static class ProgramCommands
                         orphanedTokenFilter,
                         options.ForceFix);
                     VerifyFixGuardsAfterApply(options, analysis, orphanedResult.Patches);
+                    if (options.VerifyBuild)
+                        VerifyBuildAfterApply(options.RepoPath!, orphanedResult.Patches, RunDotnetBuild);
                     Console.Error.WriteLine($"[DCS] Applied {orphanedResult.Proposals.Count} orphaned fix(es).");
                 }
                 else
@@ -462,6 +467,8 @@ internal static class ProgramCommands
                     tokenFilter,
                     options.ForceFix);
                 VerifyFixGuardsAfterApply(options, analysis, result.Patches);
+                if (options.VerifyBuild)
+                    VerifyBuildAfterApply(options.RepoPath!, result.Patches, RunDotnetBuild);
                 Console.Error.WriteLine($"[DCS] Applied {result.Proposals.Count} duplicate fix(es).");
             }
             else
@@ -656,6 +663,7 @@ internal static class ProgramCommands
               --apply               Write patched files (requires clean git tree)
               --fix-class <kind>    duplicate (default) | orphaned | broken
               --force               Apply even when git working tree is dirty
+              --verify-build        Run dotnet build after apply; rollback on failure
               --token <name>        Fix a specific duplicate, orphaned, or broken target
               --all-duplicates      Fix every duplicate group in one run
 
@@ -684,7 +692,7 @@ internal static class ProgramCommands
               dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
               dcs fix /path/to/repo --fix-class orphaned --preview
               dcs fix /path/to/repo --fix-class broken --preview --token IDependency
-              dcs fix /path/to/repo --apply --force
+              dcs fix /path/to/repo --apply --force --verify-build
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json
               dcs analyze /path/to/repo --commit abc1234 --format text --report-out report.txt
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json --text-out report.txt
@@ -748,19 +756,78 @@ internal static class ProgramCommands
         AnalysisResult before,
         IReadOnlyList<FilePatch> patches)
     {
-        var afterGraph = ExtractGraph(options);
-        var after = new GraphAnalyzer(afterGraph, LoadBoundaries(options.FrameworksPath), options.RootClass)
-            .Analyze();
-        FixSafetyGuard.VerifyApplyGuards(before, after, options.RepoPath!, patches);
+        AnalysisResult? after = null;
+        FixSafetyGuard.VerifyAfterApplyOrRollback(
+            before,
+            options.RepoPath!,
+            patches,
+            () =>
+            {
+                var afterGraph = ExtractGraph(options);
+                after = new GraphAnalyzer(afterGraph, LoadBoundaries(options.FrameworksPath), options.RootClass)
+                    .Analyze();
+                return after;
+            });
+
         Console.Error.WriteLine(
-            $"[DCS] Apply guards: OK (LEAKED {before.Leaked.Count}→{after.Leaked.Count}, " +
+            $"[DCS] Apply guards: OK (LEAKED {before.Leaked.Count}→{after!.Leaked.Count}, " +
             $"BROKEN {before.BrokenChains.Count}→{after.BrokenChains.Count})");
+    }
+
+    internal static void VerifyBuildAfterApply(
+        string repoRoot,
+        IReadOnlyList<FilePatch> patches,
+        Func<string, BuildVerificationResult> buildRunner)
+    {
+        var result = buildRunner(repoRoot);
+        if (result.Succeeded)
+        {
+            Console.Error.WriteLine("[DCS] Build verification: OK");
+            return;
+        }
+
+        FixSafetyGuard.RollbackPatches(repoRoot, patches);
+        var detail = string.IsNullOrWhiteSpace(result.Output)
+            ? $"exit code {result.ExitCode}"
+            : result.Output.Trim();
+        throw new InvalidOperationException($"Fix rolled back: build verification failed ({detail}).");
+    }
+
+    private static BuildVerificationResult RunDotnetBuild(string repoRoot)
+    {
+        var start = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = "build",
+            WorkingDirectory = repoRoot,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(start)
+            ?? throw new InvalidOperationException("Could not start dotnet build.");
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        return new BuildVerificationResult(
+            process.ExitCode == 0,
+            process.ExitCode,
+            string.Join(Environment.NewLine, new[] { stdout, stderr }.Where(s => !string.IsNullOrWhiteSpace(s))));
     }
 
     private static async Task WriteIr(RegistrationGraph graph, string path)
     {
         await IrSerializer.WriteToFileAsync(graph, path);
         Console.Error.WriteLine($"[DCS] IR written to {path}");
+    }
+
+    private static async Task WriteParseResult(ParseResult parseResult, string path)
+    {
+        await File.WriteAllTextAsync(path, ParseResultSerializer.Serialize(parseResult));
+        Console.Error.WriteLine($"[DCS] IR bundle written to {path}");
     }
 
     private static int ErrorExit(string message)

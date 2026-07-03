@@ -38,6 +38,9 @@ Private corpus repos need `CORPUS_CHECKOUT_PAT` (or legacy `TRACKDUB_PAT`) on th
 # C# migration corpus
 set CORPUS_CSHARP_MIGRATION_PATH=A:\Trackdub
 dotnet test tests/DCS.Parser.CSharp.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Runtime.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Diff.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Fix.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
 
 # Java Spring corpus
 set CORPUS_JAVA_SPRING_PATH=/path/to/spring-petclinic

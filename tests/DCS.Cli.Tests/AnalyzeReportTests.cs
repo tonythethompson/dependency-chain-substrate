@@ -2,6 +2,7 @@ using DCS.Analysis;
 using DCS.Cli;
 using DCS.Core.IR;
 using DCS.Core.Parsing;
+using DCS.Core.Serialization;
 using DCS.Parser.CSharp;
 using Xunit;
 
@@ -112,6 +113,57 @@ public sealed class AnalyzeReportTests
         Assert.Equal("report.txt", options.TextOut);
     }
 
+    [Fact]
+    public void Parse_fix_args_accepts_verify_build_flag()
+    {
+        var options = CliArgParser.ParseFixCommand(["/tmp/repo", "--apply", "--verify-build"]);
+
+        Assert.True(options.ApplyFix);
+        Assert.True(options.VerifyBuild);
+    }
+
+    [Fact]
+    public void Resolve_extraction_options_context_all_implies_all_target_frameworks()
+    {
+        var options = CliArgParser.ParseRepoCommand(["/tmp/repo", "--context", "all"]);
+
+        var resolved = CliParserFactory.ResolveExtractionOptions(options);
+
+        Assert.True(resolved.ContextAll);
+        Assert.True(resolved.AllTargetFrameworks);
+    }
+
+    [Fact]
+    public async Task Analyze_context_all_ir_out_writes_parse_result_bundle()
+    {
+        var root = CreateMultiTargetFixture();
+        var irPath = Path.Combine(Path.GetTempPath(), $"dcs-context-all-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var exitCode = await ProgramCommands.RunAnalyze([
+                root,
+                "--context", "all",
+                "--ir-out", irPath,
+                "--verbosity", "summary"
+            ]);
+
+            Assert.True(exitCode is 0 or 1);
+            var json = await File.ReadAllTextAsync(irPath);
+            var bundle = ParseResultSerializer.Deserialize(json);
+            Assert.NotNull(bundle);
+            Assert.True(bundle!.ContextGraphs.Count >= 2,
+                $"Expected multi-context bundle, got {bundle.ContextGraphs.Count}: {json}");
+        }
+        finally
+        {
+            if (File.Exists(irPath))
+                File.Delete(irPath);
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static AnalysisReport BuildFixtureReport()
     {
         var parseResult = new CSharpStaticParser(new CSharpParseOptions { IncludeTests = false })
@@ -119,5 +171,43 @@ public sealed class AnalyzeReportTests
         var graph = parseResult.ContextGraphs.First(c => c.Graph.Nodes.Count > 0).Graph;
         var analysis = new GraphAnalyzer(graph).Analyze();
         return AnalysisReportBuilder.Build(graph, analysis);
+    }
+
+    private static string CreateMultiTargetFixture()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-cli-multitfm-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        File.WriteAllText(Path.Combine(root, "Multi.csproj"), """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net8.0;net7.0</TargetFrameworks>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        File.WriteAllText(Path.Combine(root, "Program.cs"), """
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Multi;
+
+            public interface IFoo { }
+            public sealed class Foo : IFoo { }
+
+            public static class Registrations
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    services.AddSingleton<IFoo, Foo>();
+                }
+            }
+            """);
+
+        return root;
     }
 }

@@ -22,6 +22,7 @@ internal sealed record CliOptions
     public bool ForceFix { get; init; }
     public string? FixToken { get; init; }
     public bool FixAllDuplicates { get; init; }
+    public bool VerifyBuild { get; init; }
     public string? TargetFramework { get; init; }
     public bool AllTargetFrameworks { get; init; }
     /// <summary>When true, excludes test/benchmark projects (default for analyze).</summary>
@@ -293,6 +294,7 @@ internal static class CliArgParser
         var apply = false;
         var force = false;
         var fixAll = false;
+        var verifyBuild = false;
         string? token = null;
         var fixClass = FixClass.Duplicate;
 
@@ -308,6 +310,9 @@ internal static class CliArgParser
                     break;
                 case "--force":
                     force = true;
+                    break;
+                case "--verify-build":
+                    verifyBuild = true;
                     break;
                 case "--all-duplicates":
                     fixAll = true;
@@ -325,6 +330,7 @@ internal static class CliArgParser
         {
             ApplyFix = apply,
             ForceFix = force,
+            VerifyBuild = verifyBuild,
             FixToken = token,
             FixAllDuplicates = fixAll,
             FixClass = fixClass,

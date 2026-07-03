@@ -191,6 +191,8 @@ public sealed class OrphanedFixMeasurementTests
     }
 
     [Fact]
+    [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+    [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
     public void Trackdub_orphaned_measurement_when_available()
     {
         var path = TrackdubPin.ResolvePath();

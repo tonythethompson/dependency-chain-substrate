@@ -1,25 +1,23 @@
 using DCS.Analysis;
-using DCS.Core.Parsing;
 using DCS.Parser.Java;
+using DCS.Verification;
 
 namespace DCS.Parser.Java.Tests;
 
+[Collection(CorpusGateCollection.JavaSpring)]
+[Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.JavaSpring)]
 public sealed class SpringPetClinicAnalysisTests
 {
-    private static string? ResolvePetClinicPath()
-    {
-        var env = Environment.GetEnvironmentVariable("PETCLINIC_PATH");
-        if (!string.IsNullOrWhiteSpace(env) && Directory.Exists(env))
-            return env;
-
-        var cloneDir = Path.Combine(Path.GetTempPath(), "dcs-petclinic-pin");
-        return Directory.Exists(cloneDir) ? cloneDir : null;
-    }
-
     [Fact]
     public void PetClinic_analyze_has_no_leaked_or_broken_chains()
     {
-        var path = ResolvePetClinicPath();
+        var path = CorpusPathResolver.ResolveWithDefaults(
+            primaryEnvVar: "CORPUS_JAVA_SPRING_PATH",
+            legacyEnvVar: "PETCLINIC_PATH",
+            defaultLocalPath: string.Empty,
+            tempCloneDirName: "corpus-java-spring",
+            workspaceRelativeCheckoutPath: PetClinicPin.CheckoutPath);
         if (path == null)
             return;
 

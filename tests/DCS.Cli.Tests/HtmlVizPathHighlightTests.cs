@@ -48,6 +48,29 @@ public sealed class HtmlVizPathHighlightTests
         Assert.Contains("const PATH_HIGHLIGHT = null;", html);
     }
 
+    [Fact]
+    public void Generate_large_graph_smoke_test_embeds_all_nodes_and_scale_metadata()
+    {
+        var nodes = Enumerable.Range(0, 1_200)
+            .Select(i => MakeNode($"IService{i}", $"node-{i}", $"Services/Service{i}.cs", i + 1))
+            .ToList();
+        var edges = Enumerable.Range(0, 1_199)
+            .Select(i => MakeEdge(nodes[i], nodes[i + 1]))
+            .ToList();
+        var graph = new RegistrationGraph
+        {
+            ParserVersion = "scale-test",
+            Nodes = nodes,
+            Edges = edges
+        };
+
+        var html = HtmlVizGenerator.Generate(graph);
+
+        Assert.Contains("IService1199", html);
+        Assert.Contains("node-1199", html);
+        Assert.Contains("Large graph", html);
+    }
+
     private static RegistrationNode MakeNode(string name, string id, string file, int line) =>
         new()
         {

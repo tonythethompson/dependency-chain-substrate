@@ -122,7 +122,7 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `path <repo> --to <registration>` | Dependency path to a registration |
 | `enrich <ir-file> --runtime-log <path>` | Merge static IR with runtime JSONL resolution log |
 | `viz <repo>` | Generate self-contained HTML visualization |
-| `fix <repo>` | Preview/apply DUPLICATE removal (C# working tree) |
+| `fix <repo>` | Preview/apply DUPLICATE, ORPHANED, or simple BROKEN fixes (C# working tree) |
 
 ### Common options
 
@@ -142,6 +142,7 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `--cache-dir <path>` | repo commands | Override extraction cache |
 | `--no-cache` | repo commands | Bypass cache (use after parser updates) |
 | `--preview` / `--apply` | fix | Preview diff vs write changes |
+| `--verify-build` | fix | After `--apply`, run `dotnet build`; rollback patches on failure |
 
 **PowerShell note:** quote pipe characters in context IDs: `--context "csharp|net10.0"`.
 
@@ -214,7 +215,7 @@ DCS is validated against real migration corpora, not toy fixtures alone.
 
 | Corpus | Role | Gate |
 |--------|------|------|
-| **Trackdub** | Private WinUI→Avalonia mid-migration reference | `TrackdubSemanticGateTests` — semantic resolution ≥85%, VoiceClone duplicate sites, Avalonia shell factory |
+| **Trackdub** | Private WinUI→Avalonia mid-migration reference | Parser, runtime, diff-rename, and fix corpus gates |
 | **Spring PetClinic** | Java/Spring IR smoke test | `SpringPetClinicIntegrationTests` |
 | **di-patterns fixtures** | Parser pattern catalog regression | Golden CLI/JSON tests |
 
@@ -231,6 +232,9 @@ set CORPUS_CSHARP_MIGRATION_PATH=A:\Trackdub   # Windows
 # or: export CORPUS_CSHARP_MIGRATION_PATH=/path/to/trackdub
 
 dotnet test tests/DCS.Parser.CSharp.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Runtime.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Diff.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
+dotnet test tests/DCS.Fix.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
 ```
 
 Legacy `TRACKDUB_PATH` is still supported.
@@ -287,6 +291,7 @@ Phases **0–13** and **Phase 9 (runtime overlay MVP)** are implemented as of 20
 - `dcs path` Path Excavator MVP
 - Spring Boot parser (Phase 6)
 - `dcs fix` DUPLICATE + ORPHANED + simple BROKEN preview/apply (Phase 8 / 8.1b / 8.1d)
+- Optional `dcs fix --apply --verify-build` compile verification with rollback on build failure
 - Runtime enrichment overlay — `DcsRuntimeEventListener` + `dcs enrich` (Phase 9 **Verified** on Trackdub @ pin)
 
 **Parked / deferred:** IDE extension, TypeScript/Python parsers.

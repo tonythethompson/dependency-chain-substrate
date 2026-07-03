@@ -65,6 +65,7 @@ public static class HtmlVizGenerator
               <div id="stats"></div>
               <h1 style="margin-top:8px">Legend</h1>
               <div id="legend"></div>
+              <div id="scale-note"></div>
               <h1 style="margin-top:8px">Selected Node</h1>
               <div id="node-detail"><em style="color:#64748b">Click a node to inspect</em></div>
               <div id="path-panel"></div>
@@ -77,6 +78,13 @@ public static class HtmlVizGenerator
             const GRAPH = {{graphJson}};
             const ANALYSIS = {{analysisJson}};
             const PATH_HIGHLIGHT = {{pathHighlightJson}};
+            const VIZ_SCALE = {
+              node_count: GRAPH.nodes.length,
+              edge_count: GRAPH.edges.length,
+              verified_interactive_nodes: 335,
+              smoke_tested_nodes: 1200,
+              large_graph: GRAPH.nodes.length >= 1000
+            };
 
             const FW_COLORS = {
               winui:         '#ef4444',
@@ -231,6 +239,11 @@ public static class HtmlVizGenerator
                 if (!count) return '';
                 return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div>${tag} <span style="color:#64748b;margin-left:auto">${count}</span></div>`;
               }).join('');
+
+              const scale = document.getElementById('scale-note');
+              scale.innerHTML = VIZ_SCALE.large_graph
+                ? `<div class="stat"><span class="stat-label">Large graph</span><span class="stat-value">${VIZ_SCALE.node_count} nodes</span></div>`
+                : '';
 
               const pathPanel = document.getElementById('path-panel');
               if (PATH_HIGHLIGHT && PATH_HIGHLIGHT.node_ids && PATH_HIGHLIGHT.node_ids.length) {

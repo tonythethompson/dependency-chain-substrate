@@ -1,10 +1,14 @@
 using DCS.Core.IR;
 using DCS.Diff;
+using DCS.Parser.CSharp;
+using DCS.Verification;
 
 namespace DCS.Diff.Tests;
 
 public sealed class GraphDifferTests
 {
+    private const string BabelToTrackdubCommit = "8fda806d8fced57da178f250e8afa509f9567e3c";
+
     private static RegistrationNode MakeNode(string id, string name, Lifetime lifetime = Lifetime.Singleton) =>
         new()
         {
@@ -118,5 +122,32 @@ public sealed class GraphDifferTests
 
         var diff = new GraphDiffer().Diff(old, newG);
         Assert.Single(diff.EdgeChanges.Where(e => e.Kind == EdgeChangeKind.Removed));
+    }
+
+    [Fact]
+    [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
+    [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
+    public void Trackdub_babel_to_trackdub_storage_paths_is_detected_as_rename()
+    {
+        var path = TrackdubPin.ResolvePath();
+        if (path == null)
+            return;
+
+        var parser = new CSharpStaticParser(new CSharpParseOptions
+        {
+            TargetFramework = "net10.0",
+            IncludeTests = false,
+            NoCache = true
+        });
+        var before = parser.ParseCommit(path, $"{BabelToTrackdubCommit}^").ContextGraphs[0].Graph;
+        var after = parser.ParseCommit(path, BabelToTrackdubCommit).ContextGraphs[0].Graph;
+
+        var diff = new GraphDiffer().Diff(before, after);
+
+        var rename = Assert.Single(diff.Renamed.Where(r =>
+            r.OldNode!.DisplayName == "BabelStudioStoragePaths" &&
+            r.NewNode!.DisplayName == "TrackdubStoragePaths"));
+        Assert.True(rename.SimilarityScore >= 0.7,
+            $"Expected labelled Trackdub rename score above threshold; got {rename.SimilarityScore:F2}.");
     }
 }

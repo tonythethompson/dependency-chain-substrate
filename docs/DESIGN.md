@@ -1,8 +1,8 @@
 # Dependency Chain Substrate — Design Document
 
 Status: PARTIAL. §§6–8 filled from Phase 1 implementation. §§1–5 and §§9–17
-backfilled from code + ADRs (Phase 5, 2026-06-28). Remaining work: tune rename
-weights against a labelled Trackdub rename pair (blocked in PLAN.md).
+backfilled from code + ADRs (Phase 5, 2026-06-28). Rename detection now has a
+labelled Trackdub regression pair; future work is broader precision tuning.
 
 Do not fill a section until all upstream sections it depends on are answered.
 Do not remove the `> Q:` prompts when filling — replace them with the answer
@@ -513,8 +513,11 @@ similarity = 0.5 * normalized_levenshtein(display_name)
 Threshold **0.7** (`RenameThreshold`). Greedy: sort all qualifying pairs by score
 descending; assign each old/new node at most once. Complexity **O(R × A)** for
 pairwise scoring (R = removed candidates, A = added candidates) plus **O(P log P)**
-sort on qualifying pairs. **Not tuned** on labelled Trackdub renames yet (PLAN.md:
-rename weight tuning blocked).
+sort on qualifying pairs. Labelled Trackdub regression: commit
+`8fda806d8fced57da178f250e8afa509f9567e3c` detects
+`BabelStudioStoragePaths` → `TrackdubStoragePaths` at score 0.78. Broader
+precision tuning remains open because that same large technical rename also
+contains many same-display-name move matches.
 
 > Q: What change categories does the diff engine produce? (Added, Removed,
 >    Renamed, LifetimeChanged, ImplementationChanged, etc.)
@@ -614,20 +617,22 @@ hides informational/parser_limit tiers. Progress and context banner on stderr.
 **Answer:** **Self-contained HTML** from `HtmlVizGenerator` (`dcs viz`). No external
 CDN dependencies — graph + analysis JSON embedded inline. Rendering: **HTML5 Canvas 2D**
 (vanilla JavaScript in generated file). Framework-grouped radial layout; sidebar stats,
-legend, click-to-inspect node detail. ~220KB for 186-node Trackdub graph (Phase 3 verified).
+legend, click-to-inspect node detail. Trackdub-scale graph verified at 335 nodes
+after semantic hardening; synthetic smoke test covers 1,200 nodes / 1,199 edges.
 
 > Q: How is legibility handled at 1000+ nodes? (Aggregation strategy,
 >    focus+context, LOD.)
 
-**Answer:** Current implementation (Trackdub-scale, 186 nodes):
+**Answer:** Current implementation:
 - **Framework grouping:** nodes clustered by primary `framework_tags[0]` in separate
   circular regions.
 - **Zoom LOD:** labels shown only when zoom ≥ 1.5×; node radius scales with zoom;
   edges fade when zoomed out (`HtmlVizGenerator` canvas loop).
 - **Focus:** click node → sidebar detail panel with confidence, lifetime, location.
-- **Not yet:** edge bundling, hierarchical collapse, or hard cap aggregation at 1000+ —
-  deferred until a corpus proves canvas limits; ADR-003 left Phase 3 viz fork open if
-  web canvas insufficient (Avalonia alternative).
+- **Scale status:** 335-node Trackdub graph is behavior-verified; 1,200-node
+  synthetic graph is generation-smoke-tested and marked as a large graph in the
+  HTML sidebar. Edge bundling, hierarchical collapse, and aggregation thresholds
+  remain future UX work if a real corpus exposes readability limits.
 
 > Q: What is the export format from the CLI for downstream consumers?
 
@@ -641,8 +646,9 @@ legend, click-to-inspect node detail. ~220KB for 186-node Trackdub graph (Phase 
   (`summary` | `actionable` | `full`). Every WARN/ERROR line cites at least one `file:line`
   site (or tier annotation). `--strict` disables `FindingPolicy` suppressions; `--metrics`
   prints extraction quality on stderr.
-- **Multi-context:** `--context all` emits per-context summary table (text) or
-  `context_reports[]` (JSON).
+- **Multi-context:** `--context all` implies all target frameworks unless
+  `--target-framework` is explicit. Text/JSON reports emit all context reports;
+  `--ir-out` writes a `ParseResult` bundle rather than a single graph.
 - **Diff JSON:** `dcs diff --ir-out` → serialised `GraphDiff`.
 - **HTML viz:** `dcs viz --out graph.html` or stdout.
 - **Exit codes:** 0 success / 1 errors or breaking diff / 2 usage error.
@@ -829,10 +835,12 @@ See `PLAN.md` for the live tracker. This section documents the architectural
 >    count, interaction requirement.)
 
 **Answer:** `dcs viz <trackdub> --commit 3c4e374d --out graph.html` produces
-self-contained HTML (~220KB, **186 nodes**). Browser: canvas renders, zoom/pan works,
-framework colour groups visible, LEAKED/BROKEN nodes show error badges, click opens
-sidebar detail. No server required. Bar met at Trackdub mid-migration scale; 1000+
-node policy untested.
+self-contained HTML. Browser: canvas renders, zoom/pan works, framework colour
+groups visible, LEAKED/BROKEN nodes show error badges, click opens sidebar detail.
+No server required. Bar met at Trackdub mid-migration scale and later semantic
+Trackdub scale (~335 nodes). A 1,200-node synthetic render smoke test exists;
+legibility/aggregation above Trackdub scale is still a UX risk, not a generation
+failure.
 
 ---
 
@@ -848,7 +856,8 @@ node policy untested.
 2. **Syntactic FQN collisions suppress LEAKED edge-pass** — *resolver: implementation
    discovery* — **mitigated:** `instance_id` + instance-pass LEAKED (ADR-002 addendum).
 3. **Rename detection noise > signal** — *resolver: spike on labelled renames* —
-   **open:** weights untuned; blocked on Trackdub rename pair.
+   **partially mitigated:** labelled Trackdub pair locked; broad precision tuning
+   still open because large technical renames produce many same-name move matches.
 4. **Roslyn parse quality on broken references** — *resolver: implementation discovery*
    — **mitigated:** 186 nodes extracted at mid-migration commit.
 5. **IR designed on sample size one fails Spring** — *resolver: Spring paper-spike*
@@ -859,9 +868,9 @@ node policy untested.
 **Answer:**
 - ADR-006 IDE integration remains deferred; ADR-005 Spring parser and ADR-007 auto-fix safety are accepted and implemented through their current phases.
 - ADR-008 runtime enrichment — **Accepted + Verified** (Phase 9); Trackdub @ pin 89.3% annotated.
-- Major-version enforcement in `IrSerializer.Deserialize` (policy stated, code gap).
-- Rename similarity weights remain blocked on a labelled Trackdub rename pair.
-- Canvas/aggregation behaviour above Trackdub scale remains unproven.
+- Major-version enforcement in `IrSerializer.Deserialize` is implemented.
+- Rename similarity has one labelled Trackdub regression; broader precision tuning remains open.
+- Canvas generation is smoke-tested at 1,200 synthetic nodes; real-corpus aggregation behaviour above Trackdub scale remains unproven.
 - Second corpus beyond Trackdub for cross-validation (§17).
 
 > Q: What assumptions are load-bearing but unvalidated? (These are

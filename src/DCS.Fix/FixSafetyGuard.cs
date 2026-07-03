@@ -64,6 +64,24 @@ public static class FixSafetyGuard
         }
     }
 
+    public static void VerifyAfterApplyOrRollback(
+        AnalysisResult before,
+        string repoRoot,
+        IReadOnlyList<FilePatch> patches,
+        Func<AnalysisResult> analyzeAfterApply)
+    {
+        try
+        {
+            var after = analyzeAfterApply();
+            VerifyApplyGuards(before, after, repoRoot, patches);
+        }
+        catch (Exception ex)
+        {
+            RollbackPatches(repoRoot, patches);
+            throw new InvalidOperationException($"Fix rolled back: post-apply verification failed: {ex.Message}", ex);
+        }
+    }
+
     public static void VerifyLeakedNotWorsened(
         AnalysisResult before,
         AnalysisResult after,

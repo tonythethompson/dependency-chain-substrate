@@ -58,6 +58,8 @@ Rejected for v1: line-number string deletion (brittle); regex (multiline fragili
 - `--apply`: write patched files after guard checks.
 - **LEAKED guard (8.1c):** after `--apply`, re-extract and re-analyze; rollback patches if LEAKED count increases or new leaked node ids appear (`FixSafetyGuard`).
 - **BROKEN guard (8.1d):** same rollback if BROKEN count increases or new broken-chain pairs appear.
+- **Build verification (8.1e):** optional `--verify-build` runs `dotnet build`
+  after graph guards; rollback patches if the build exits non-zero.
 - Composable with external `git diff` / CI pipelines.
 
 ### Q4: Rollback — **Git-first**
@@ -65,6 +67,8 @@ Rejected for v1: line-number string deletion (brittle); regex (multiline fragili
 - Before `--apply`, assert clean working tree (`git status --porcelain` empty).
 - User rolls back with `git checkout -- .` or `git restore`.
 - `--force` bypasses clean-tree check for automation.
+- Guard-triggered rollback writes original patch contents back for graph-regression,
+  post-apply verification, and optional build verification failures.
 
 Rejected for v1: `.dcs-backup` files; patch-only manual apply.
 
@@ -104,7 +108,9 @@ Spring/Java duplicate removal deferred until Java registration nodes carry stabl
 ## Implementation
 
 - Module: `DCS.Fix` (`DuplicateFixPlanner`, `OrphanedFixPlanner`, `RegistrationStatementRemover`, `FixEngine`)
-- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned|broken] [--token <name>] [--all-duplicates] [--force]`
+- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned|broken] [--token <name>] [--all-duplicates] [--force] [--verify-build]`
 - Gate (DUPLICATE): remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
 - Gate (ORPHANED): fixture apply removes `IOrphanService`; re-analyze shows one fewer eligible orphan.
 - Gate (LEAKED guard): duplicate fixture apply does not worsen LEAKED; synthetic worsened analysis triggers rollback.
+- Gate (build verification): synthetic build failure triggers rollback; successful
+  build verification leaves patches intact.

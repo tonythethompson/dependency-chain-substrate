@@ -30,13 +30,13 @@ public static class FactoryLambdaToExplicitConverter
             if (startLine != line)
                 continue;
 
-            if (!TryParseRegistrationInvocation(invocation, out var methodName, out var lambdaBody))
+            if (!TryParseRegistrationInvocation(invocation, out var methodName, out var receiverExpression, out var lambdaBody))
                 continue;
 
             if (lambdaBody != null && UsesServiceLocator(lambdaBody))
                 return false;
 
-            replacementStatement = BuildReplacement(methodName, node);
+            replacementStatement = BuildReplacement(receiverExpression, methodName, node);
             return !string.IsNullOrEmpty(replacementStatement);
         }
 
@@ -57,7 +57,7 @@ public static class FactoryLambdaToExplicitConverter
             if (startLine != line)
                 continue;
 
-            if (!TryParseRegistrationInvocation(invocation, out _, out _))
+            if (!TryParseRegistrationInvocation(invocation, out _, out _, out _))
                 continue;
 
             var statement = invocation.Ancestors().OfType<ExpressionStatementSyntax>().FirstOrDefault();
@@ -76,7 +76,7 @@ public static class FactoryLambdaToExplicitConverter
         return null;
     }
 
-    private static string BuildReplacement(string methodName, RegistrationNode node)
+    private static string BuildReplacement(string receiverExpression, string methodName, RegistrationNode node)
     {
         var abstractName = TypeDisplayName(node.AbstractToken);
         var concreteName = TypeDisplayName(node.ConcreteImpl!);
@@ -95,9 +95,9 @@ public static class FactoryLambdaToExplicitConverter
         var method = $"{prefix}{lifetime}";
 
         if (!string.Equals(abstractName, concreteName, StringComparison.Ordinal))
-            return $"services.{method}<{abstractName}, {concreteName}>();";
+            return $"{receiverExpression}.{method}<{abstractName}, {concreteName}>();";
 
-        return $"services.{method}<{concreteName}>();";
+        return $"{receiverExpression}.{method}<{concreteName}>();";
     }
 
     private static string TypeDisplayName(TypeRef typeRef) =>
@@ -108,9 +108,11 @@ public static class FactoryLambdaToExplicitConverter
     private static bool TryParseRegistrationInvocation(
         InvocationExpressionSyntax invocation,
         out string methodName,
+        out string receiverExpression,
         out SyntaxNode? lambdaBody)
     {
         methodName = string.Empty;
+        receiverExpression = string.Empty;
         lambdaBody = null;
 
         if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
@@ -120,6 +122,7 @@ public static class FactoryLambdaToExplicitConverter
         if (!KnownRegistrationMethods.Contains(methodName))
             return false;
 
+        receiverExpression = memberAccess.Expression.ToString();
         lambdaBody = invocation.ArgumentList.Arguments
             .Select(a => a.Expression)
             .FirstOrDefault(e => e is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax);
