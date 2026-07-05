@@ -28,6 +28,7 @@ on:
       - "planning/**"
       - "vscode-extension/**"
   schedule:
+    # Weekly deep scan — Monday 06:00 UTC
     - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
@@ -81,6 +82,7 @@ jobs:
               - '**/*.csproj'
               - '.github/workflows/codeql.yml'
               - '.github/codeql/codeql-config.yml'
+              - '.github/codeql/**'
 
   analyze:
     needs: changes
@@ -104,6 +106,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # Full history improves cross-commit analysis on default branch
           fetch-depth: ${{ github.event_name == 'schedule' && 0 || 1 }}
 
       - name: Resolve query suite
