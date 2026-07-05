@@ -8,20 +8,18 @@ using Xunit.Abstractions;
 namespace DCS.Parser.CSharp.Tests;
 
 /// <summary>
-/// Locks Trackdub unresolved/orphan bucket totals @ pin 5fd8b481 (portable net10.0).
+/// Locks Trackdub unresolved/orphan bucket totals @ pin b57fc832 (portable net10.0).
 /// </summary>
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubUnresolvedInventoryTests
 {
-    private const string InventoryCommit = "5fd8b4814c9142f3980999c178b49adae9e725a6";
-
-    private const int BaselineUnresolved = 91;
+    private const int BaselineUnresolved = 34;
     private const int BaselineTrueOrphans = 0;
     private const int BaselineIslandValidOrphans = 10;
     private const int BaselineNodes = 339;
-    private const int BaselineDesktopUnresolved = 90;
+    private const int BaselineDesktopUnresolved = 33;
     private const int BaselineApiUnresolved = 1;
     private const int BaselineLambdaUnresolved = 0;
     private const double BucketTolerance = 0.05;
@@ -35,7 +33,7 @@ public sealed class TrackdubUnresolvedInventoryTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
             "tests", "fixtures", "corpus", "csharp-migration",
-            "unresolved-inventory-5fd8b481.json"));
+            $"unresolved-inventory-{TrackdubPin.CommitSha[..8]}.json"));
 
     [Fact]
     public void Unresolved_inventory_fixture_exists()
@@ -57,7 +55,7 @@ public sealed class TrackdubUnresolvedInventoryTests
             IncludeTests = false,
             NoCache = true
         });
-        var result = parser.ParseCommit(path, InventoryCommit);
+        var result = parser.ParseCommit(path, TrackdubPin.CommitSha);
         var portable = result.ContextGraphs.FirstOrDefault(c => c.ContextId == "csharp|net10.0");
         Assert.NotNull(portable);
 
@@ -93,7 +91,7 @@ public sealed class TrackdubUnresolvedInventoryTests
         var report = JsonSerializer.Deserialize<AnalysisReport>(json, AnalysisReportSerializer.Options)!;
 
         Assert.NotNull(report.CommitSha);
-        Assert.StartsWith("5fd8b481", report.CommitSha, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(TrackdubPin.CommitSha[..8], report.CommitSha, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(BaselineUnresolved, report.Summary.UnresolvedCount);
         Assert.Equal(BaselineTrueOrphans, report.Summary.OrphanedCount);
 

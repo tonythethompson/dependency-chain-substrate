@@ -257,6 +257,56 @@ public sealed class SemanticResolutionTests
     }
 
     [Fact]
+    public void Factory_lambda_shallow_skips_constructor_unresolved_noise()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-factory-ctor-skip-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "FactoryCtorSkip.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Reg.cs"), """
+                using Microsoft.Extensions.DependencyInjection;
+                namespace Test;
+                public enum LogLevel { Info }
+                public sealed class AppLogger
+                {
+                    public AppLogger(string path, int maxFiles, LogLevel level) { }
+                }
+                public static class Reg
+                {
+                    public static void Configure(IServiceCollection services) =>
+                        services.AddSingleton(sp => new AppLogger("logs/app.log", 3, LogLevel.Info));
+                }
+                """);
+
+            var graph = new CSharpStaticParser(new CSharpParseOptions
+            {
+                TargetFramework = "net8.0",
+                IncludeTests = false
+            }).ParseDirectory(root).SingleGraphOrDefault()!;
+
+            var factory = Assert.Single(graph.Nodes);
+            Assert.Equal("factory_lambda_shallow", factory.Annotations.GetValueOrDefault("pattern"));
+            Assert.DoesNotContain(graph.UnresolvedInjections, u =>
+                u.InjectionMechanism == Mechanism.Constructor);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
     public void Constructor_dependency_resolves_by_concrete_type_not_service_interface()
     {
         var root = Path.Combine(Path.GetTempPath(), $"dcs-ctor-homonym-{Guid.NewGuid():N}");

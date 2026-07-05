@@ -1,3 +1,5 @@
+using DCS.Analysis;
+using DCS.Core.IR;
 using DCS.Parser.CSharp;
 using DCS.Verification;
 using Xunit;
@@ -14,10 +16,10 @@ namespace DCS.Parser.CSharp.Tests;
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigrationQuality)]
 public sealed class TrackdubPortableSemanticQualityTests
 {
-    // Baseline @ pin 5fd8b481 portable context (~59.3%). Target: recover toward Phase 12 ~91% as parser improves.
-    // Floor raised incrementally as P1 parser work lands (55% → 64% @ parser 0.3.3). Aspirational: 85%.
+    // Baseline @ pin b57fc832 portable context (~64.9%). Ctor-literal dedup @ 0.3.6 drops unresolved to ~34.
+    // Semantic rate recovery toward Phase 12 (~91% @ 3c4e374d) is separate work (syntactic ctor deps).
     private const double MinPortableSemanticRate = 0.64;
-    private const double TargetPortableUnresolved = 20;
+    private const int MaxPortableUnresolvedFindings = 40;
     private const double AspirationalPortableSemanticRate = 0.85;
 
     private readonly ITestOutputHelper _output;
@@ -34,7 +36,8 @@ public sealed class TrackdubPortableSemanticQualityTests
         var parser = new CSharpStaticParser(new CSharpParseOptions
         {
             TargetFramework = "net10.0",
-            IncludeTests = false
+            IncludeTests = false,
+            NoCache = true
         });
         var result = parser.ParseCommit(path, TrackdubPin.CommitSha);
         var portable = result.ContextGraphs.FirstOrDefault(c => c.ContextId == "csharp|net10.0");
@@ -49,10 +52,20 @@ public sealed class TrackdubPortableSemanticQualityTests
         Assert.True(metrics.SemanticTypeResolutionRate >= MinPortableSemanticRate,
             $"portable semantic_type_resolution_rate below floor: {metrics.SemanticTypeResolutionRate:P}");
 
-        var actionableUnresolved = portable!.Graph.UnresolvedInjections.Count(u =>
+        var analyzer = new GraphAnalyzer(portable!.Graph, islandAware: true);
+        var report = AnalysisReportBuilder.Build(portable.Graph, analyzer.Analyze(), new AnalysisReportBuildOptions
+        {
+            Verbosity = ReportVerbosity.Full,
+            IslandAware = true
+        });
+        Assert.True(report.Summary.UnresolvedCount <= MaxPortableUnresolvedFindings,
+            $"portable unresolved findings above ceiling: {report.Summary.UnresolvedCount} (max {MaxPortableUnresolvedFindings})");
+
+        var actionableUnresolved = portable.Graph.UnresolvedInjections.Count(u =>
             DCS.Analysis.FindingPolicy.IsActionableUnresolved(
                 u.DeclaredType.ShortName,
                 u.DeclaredType.FullyQualifiedName));
-        _output.WriteLine($"actionable unresolved: {actionableUnresolved} (aspirational target < {TargetPortableUnresolved})");
+        _output.WriteLine($"actionable unresolved injections: {actionableUnresolved}");
+        _output.WriteLine($"report unresolved findings: {report.Summary.UnresolvedCount}");
     }
 }

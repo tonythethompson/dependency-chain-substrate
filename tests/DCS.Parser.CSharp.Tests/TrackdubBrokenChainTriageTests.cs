@@ -7,8 +7,8 @@ using Xunit.Abstractions;
 namespace DCS.Parser.CSharp.Tests;
 
 /// <summary>
-/// Documents Trackdub broken-chain triage @ pin 5fd8b481 after parser 0.3.5.
-/// All 10 pre-triage broken chains were parser-limit factory opacity, not wiring defects.
+/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.6.
+/// Factory-lambda ctor-literal dedup + confidence refiner clear parser-opacity broken chains.
 /// </summary>
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
@@ -32,7 +32,7 @@ public sealed class TrackdubBrokenChainTriageTests
             IncludeTests = false,
             NoCache = true
         });
-        var result = parser.ParseCommit(path, "5fd8b4814c9142f3980999c178b49adae9e725a6");
+        var result = parser.ParseCommit(path, TrackdubPin.CommitSha);
         var portable = result.ContextGraphs.FirstOrDefault(c => c.ContextId == "csharp|net10.0");
         Assert.NotNull(portable);
 

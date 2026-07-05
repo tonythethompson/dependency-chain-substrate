@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.5";
+    public const string ParserVersion = "0.3.6";
 
     private readonly CSharpParseOptions _options;
 
@@ -279,7 +279,7 @@ public sealed class CSharpStaticParser : IStaticParser
         var unresolved = new List<UnresolvedInjection>();
         var edgeIndexGlobal = 0;
 
-        foreach (var node in nodes.Where(n => n.ConcreteImpl != null))
+        foreach (var node in nodes.Where(n => n.ConcreteImpl != null && !IsFactoryLambdaShallow(n)))
         {
             var concrete = node.ConcreteImpl!;
             var implShort = concrete.ShortName;
@@ -503,6 +503,12 @@ public sealed class CSharpStaticParser : IStaticParser
             }
         }
     }
+
+    private static bool IsFactoryLambdaShallow(RegistrationNode node) =>
+        string.Equals(
+            node.Annotations.GetValueOrDefault("pattern"),
+            "factory_lambda_shallow",
+            StringComparison.Ordinal);
 
     private static bool IsFrameworkServiceKey(string serviceKey)
     {
