@@ -56,8 +56,22 @@ dotnet build
 **From NuGet** (when published):
 
 ```bash
-dotnet tool install --global DependencyChainSubstrate.Cli
+dotnet tool install --global DependencyChainSubstrate.Cli --version 0.1.1
 dcs --help
+```
+
+**From GitHub Release** (works before NuGet.org publish):
+
+```powershell
+# PowerShell — downloads the .nupkg then installs (do not use --add-source . from repo root)
+.\scripts\install-dcs-from-release.ps1 -Version 0.1.1
+```
+
+Or manually:
+
+```powershell
+gh release download v0.1.1 -p "*.nupkg" -D artifacts/release
+dotnet tool install --global DependencyChainSubstrate.Cli --add-source .\artifacts\release --version 0.1.1
 ```
 
 **From a local build** (development or pre-release):
@@ -304,8 +318,8 @@ CI checks out each corpus under `corpus/<id>/` and sets `DCS_CORPUS_PATH`. Priva
 
 | Channel | How to install |
 |---------|----------------|
-| **Global tool (recommended)** | `dotnet tool install --global DependencyChainSubstrate.Cli` |
-| **GitHub Releases** | Download `DependencyChainSubstrate.Cli.*.nupkg` from [Releases](https://github.com/tonythethompson/dependency-chain-substrate/releases), then `dotnet tool install --global --add-source . DependencyChainSubstrate.Cli` |
+| **Global tool (NuGet)** | `dotnet tool install --global DependencyChainSubstrate.Cli --version 0.1.1` |
+| **GitHub Releases** | `.\scripts\install-dcs-from-release.ps1 -Version 0.1.1` or download `.nupkg` from [Releases](https://github.com/tonythethompson/dependency-chain-substrate/releases) into a folder and `dotnet tool install --global DependencyChainSubstrate.Cli --add-source .\that-folder --version 0.1.1` |
 | **From source** | `dotnet pack src/DCS.Cli/DCS.Cli.csproj -c Release -o artifacts/nupkg` |
 
 Version history: [CHANGELOG.md](CHANGELOG.md).
@@ -320,7 +334,7 @@ Version history: [CHANGELOG.md](CHANGELOG.md).
    ```
 3. The [release workflow](.github/workflows/release.yml) runs on `v*` tags: unit tests → pack → GitHub Release (`.nupkg` attached) → NuGet.org push via **trusted publisher**.
 
-**NuGet.org:** configure a trusted publisher on [nuget.org](https://www.nuget.org) for package `DependencyChainSubstrate.Cli` → GitHub → `tonythethompson/dependency-chain-substrate` → workflow **`release.yml`**. No `NUGET_API_KEY` secret required (OIDC via `--api-key az`).
+**NuGet.org:** configure a trusted publisher on [nuget.org](https://www.nuget.org) → GitHub → `tonythethompson/dependency-chain-substrate` → workflow file **`release.yml`** (filename only). Set GitHub repo secret **`NUGET_USER`** to your [nuget.org profile name](https://www.nuget.org/users/account) (not your email). The workflow uses [`NuGet/login@v1`](https://github.com/NuGet/login) (OIDC) then `dotnet nuget push`. Re-publish after a failed NuGet job: Actions → **release** → **Run workflow** with version `0.1.1` (runs pack + NuGet; GitHub Release is a draft on manual runs).
 
 **Manual draft release:** Actions → **release** → **Run workflow** with a version matching the csproj (creates a draft GitHub Release for smoke-testing).
 

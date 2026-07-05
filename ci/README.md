@@ -77,9 +77,19 @@ Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
 | Trigger | Result |
 |---------|--------|
 | Push tag `v*` (e.g. `v0.1.1`) | Test → pack → GitHub Release + `.nupkg`; NuGet.org via trusted publisher (`release.yml`, OIDC) |
-| Manual **release** workflow | Same pipeline; creates a **draft** GitHub Release |
+| Manual **release** workflow | Same pipeline (including NuGet push); creates a **draft** GitHub Release |
 
 Release version must match `src/DCS.Cli/DCS.Cli.csproj` `<Version>` (validated in CI).
+
+**NuGet.org trusted publishing**
+
+1. On [nuget.org](https://www.nuget.org/account/manage-trusted-publishers): GitHub → owner `tonythethompson`, repo `dependency-chain-substrate`, workflow file **`release.yml`** (filename only).
+2. GitHub repo secret **`NUGET_USER`**: your nuget.org **profile name** (Account settings → username), not your email.
+3. Workflow uses [`NuGet/login@v1`](https://github.com/NuGet/login) then `dotnet nuget push` with the short-lived key. Do **not** use `--api-key az` (that is not the NuGet OIDC exchange).
+
+If NuGet push failed on a tag release, fix the policy/secret then re-run: Actions → **release** → **Run workflow** → version `0.1.1`.
+
+**Install before NuGet.org indexing:** `.\scripts\install-dcs-from-release.ps1 -Version 0.1.1`
 
 ## Semantic quality (optional, not in CI matrix)
 
