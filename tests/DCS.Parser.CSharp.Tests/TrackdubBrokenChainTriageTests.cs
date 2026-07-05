@@ -41,9 +41,10 @@ public sealed class TrackdubBrokenChainTriageTests
         foreach (var broken in analysis.BrokenChains)
             _output.WriteLine($"  {broken.DisplayName} @ {broken.SourceFile}:{broken.SourceLine} -> {broken.MissingDependencyType}");
 
-        // Parser 0.3.7 @ b57fc832: three broken chains (TensorRT / lip-synthesis wiring).
-        Assert.Equal(3, analysis.BrokenChains.Count);
+        // Parser 0.3.7 @ b57fc832: four broken chains (TensorRT / execution-provider / lip-synthesis wiring).
+        Assert.Equal(4, analysis.BrokenChains.Count);
         var names = analysis.BrokenChains.Select(b => b.DisplayName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        Assert.Contains("IDiagnosticsRuntimeInfo", names);
         Assert.Contains("IExecutionProviderDiscovery", names);
         Assert.Contains("ITensorRtRtxReadinessProbe", names);
         Assert.Contains("LipSynthesisStageHandler", names);
