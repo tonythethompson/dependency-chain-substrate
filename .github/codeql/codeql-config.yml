@@ -1,0 +1,22 @@
+# CodeQL analysis configuration (NOT a GitHub Actions workflow).
+# Do not create this file via Actions → New workflow.
+name: "DCS CodeQL"
+
+paths:
+  - src
+  - tests
+
+paths-ignore:
+  - tests/fixtures
+  - tests/verification
+  - tools/TrackdubRuntimeProbe
+  - vscode-extension
+  - docs
+  - planning
+
+query-filters:
+  - exclude:
+      description: "Fixture and corpus trees are intentionally synthetic"
+      id:
+        - cs/path-injection
+        - cs/uncontrolled-data-in-path-expression
