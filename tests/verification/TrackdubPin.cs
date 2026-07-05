@@ -14,6 +14,12 @@ public static class TrackdubPin
     public const string CheckoutPath = "corpus/csharp-migration";
 
     /// <summary>
+    /// Labelled diff gate: BabelStudioStoragePaths → TrackdubStoragePaths (parent commit required).
+    /// CI fetches this with --depth=2 after shallow pin checkout.
+    /// </summary>
+    public const string BabelToTrackdubRenameCommit = "8fda806d8fced57da178f250e8afa509f9567e3c";
+
+    /// <summary>
     /// Default local clone path (override with CORPUS_CSHARP_MIGRATION_PATH or TRACKDUB_PATH).
     /// </summary>
     public const string DefaultLocalPath = @"A:\Trackdub";

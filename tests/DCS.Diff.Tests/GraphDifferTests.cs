@@ -7,8 +7,6 @@ namespace DCS.Diff.Tests;
 
 public sealed class GraphDifferTests
 {
-    private const string BabelToTrackdubCommit = "8fda806d8fced57da178f250e8afa509f9567e3c";
-
     private static RegistrationNode MakeNode(string id, string name, Lifetime lifetime = Lifetime.Singleton) =>
         new()
         {
@@ -139,8 +137,8 @@ public sealed class GraphDifferTests
             IncludeTests = false,
             NoCache = true
         });
-        var before = parser.ParseCommit(path, $"{BabelToTrackdubCommit}^").ContextGraphs[0].Graph;
-        var after = parser.ParseCommit(path, BabelToTrackdubCommit).ContextGraphs[0].Graph;
+        var before = parser.ParseCommit(path, $"{TrackdubPin.BabelToTrackdubRenameCommit}^").ContextGraphs[0].Graph;
+        var after = parser.ParseCommit(path, TrackdubPin.BabelToTrackdubRenameCommit).ContextGraphs[0].Graph;
 
         var diff = new GraphDiffer().Diff(before, after);
 

@@ -89,6 +89,8 @@ Release version must match `src/DCS.Cli/DCS.Cli.csproj` `<Version>` (validated i
 
 If NuGet push failed on a tag release, fix the policy/secret then re-run: Actions → **release** → **Run workflow** → version `0.1.1`.
 
+**Diff corpus gate:** CI shallow-checkouts the Trackdub pin; the Diff gate fetches `TrackdubPin.BabelToTrackdubRenameCommit` with `git fetch --depth=2` so parent commit `^` resolves.
+
 **Install before NuGet.org indexing:** `.\scripts\install-dcs-from-release.ps1 -Version 0.1.1`
 
 ## Semantic quality (optional, not in CI matrix)

@@ -75,6 +75,15 @@ jobs:
           cd "${{ matrix.checkoutPath }}"
           git rev-parse --verify HEAD^{commit} >/dev/null
 
+      - name: Fetch diff gate commit history
+        if: matrix.testProject == 'tests/DCS.Diff.Tests/DCS.Diff.Tests.csproj'
+        shell: bash
+        run: |
+          cd "${{ matrix.checkoutPath }}"
+          git fetch origin "${{ env.DCS_DIFF_GATE_COMMIT }}" --depth=2
+        env:
+          DCS_DIFF_GATE_COMMIT: 8fda806d8fced57da178f250e8afa509f9567e3c
+
       - name: Restore
         run: dotnet restore
 
