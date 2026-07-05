@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.6";
+    public const string ParserVersion = "0.3.7";
 
     private readonly CSharpParseOptions _options;
 
@@ -216,6 +216,7 @@ public sealed class CSharpStaticParser : IStaticParser
             }
         }
 
+        registrations = ExplicitAbstractTypePromoter.Promote(registrations, constructorDeps, scopeCompilations);
         var (edges, unresolved) = BuildEdges(registrations, constructorDeps);
         registrations = FactoryNodeConfidenceRefiner.Refine(registrations, edges, unresolved);
 
@@ -300,7 +301,7 @@ public sealed class CSharpStaticParser : IStaticParser
 
             var edgeIndex = 0;
             foreach (var param in depEntry.Parameters)
-                TryAddDependencyEdge(node, param, byServiceIdentity, nodes, edges, unresolved, ref edgeIndex, ref edgeIndexGlobal);
+                TryAddDependencyEdge(node, param, byServiceIdentity, byCanonicalKey, nodes, edges, unresolved, ref edgeIndex, ref edgeIndexGlobal);
         }
 
         foreach (var node in nodes)
@@ -357,6 +358,7 @@ public sealed class CSharpStaticParser : IStaticParser
         RegistrationNode node,
         ResolvedParameterDependency param,
         Dictionary<string, List<RegistrationNode>> byServiceIdentity,
+        Dictionary<string, List<RegistrationNode>> byCanonicalKey,
         List<RegistrationNode> nodes,
         List<DependencyEdge> edges,
         List<UnresolvedInjection> unresolved,
@@ -368,33 +370,40 @@ public sealed class CSharpStaticParser : IStaticParser
                 param.Identity?.MetadataName))
             return true;
 
-        if (param.Quality != TypeResolutionQuality.Resolved || param.Identity == null)
+        List<RegistrationNode>? candidates = null;
+        if (param.Quality == TypeResolutionQuality.Resolved && param.Identity != null)
         {
-            unresolved.Add(new UnresolvedInjection
+            var serviceKey = ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey;
+            if (!byServiceIdentity.TryGetValue(serviceKey, out candidates))
             {
-                Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
-                FromRegistrationId = node.Id,
-                DeclaredType = TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
-                ParameterName = param.SyntacticName,
-                Reason = "semantic_unresolved"
-            });
-            return true;
+                candidates = TryResolveOptionsCandidates(param, nodes) ??
+                             TryResolveConfiguredOptionsByGenericArg(param, nodes);
+                if (candidates == null)
+                {
+                    unresolved.Add(new UnresolvedInjection
+                    {
+                        Id = UnresolvedInjection.ComputeId(node.Id, serviceKey, edgeIndexGlobal++),
+                        FromRegistrationId = node.Id,
+                        DeclaredType = TypeIdentityFormatter.ToTypeRef(param.Identity),
+                        ParameterName = param.SyntacticName,
+                        Reason = "no_matching_registration"
+                    });
+                    return true;
+                }
+            }
         }
-
-        var serviceKey = ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey;
-        if (!byServiceIdentity.TryGetValue(serviceKey, out var candidates))
+        else
         {
-            candidates = TryResolveOptionsCandidates(param, nodes) ??
-                         TryResolveConfiguredOptionsByGenericArg(param, nodes);
+            candidates = TryResolveExplicitProviderForSyntacticParam(param, byCanonicalKey, nodes);
             if (candidates == null)
             {
                 unresolved.Add(new UnresolvedInjection
                 {
-                    Id = UnresolvedInjection.ComputeId(node.Id, serviceKey, edgeIndexGlobal++),
+                    Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
                     FromRegistrationId = node.Id,
-                    DeclaredType = TypeIdentityFormatter.ToTypeRef(param.Identity),
+                    DeclaredType = TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
                     ParameterName = param.SyntacticName,
-                    Reason = "no_matching_registration"
+                    Reason = "semantic_unresolved"
                 });
                 return true;
             }
@@ -417,6 +426,41 @@ public sealed class CSharpStaticParser : IStaticParser
                     : Confidence.Inferred
         });
         return true;
+    }
+
+    private static List<RegistrationNode>? TryResolveExplicitProviderForSyntacticParam(
+        ResolvedParameterDependency param,
+        Dictionary<string, List<RegistrationNode>> byCanonicalKey,
+        List<RegistrationNode> nodes)
+    {
+        var name = param.SyntacticName.TrimEnd('?');
+        var syntacticKey = $"syntactic:{name}";
+        if (byCanonicalKey.TryGetValue(syntacticKey, out var syntacticCandidates))
+        {
+            var explicitOnly = syntacticCandidates
+                .Where(n => n.ParserConfidence == Confidence.Explicit)
+                .ToList();
+            if (explicitOnly.Count == 1)
+                return explicitOnly;
+        }
+
+        var explicitMatches = nodes
+            .Where(n => n.ParserConfidence == Confidence.Explicit && RegistrationTypeNameMatches(n, name))
+            .ToList();
+        return explicitMatches.Count == 1 ? explicitMatches : null;
+    }
+
+    private static bool RegistrationTypeNameMatches(RegistrationNode node, string name) =>
+        string.Equals(node.DisplayName, name, StringComparison.Ordinal) ||
+        string.Equals(node.ServiceType?.SyntacticDisplay, name, StringComparison.Ordinal) ||
+        (node.ServiceType?.IsResolved == true &&
+         ResolvedTypeShortNameMatches(node.ServiceType.Resolved!, name));
+
+    private static bool ResolvedTypeShortNameMatches(ResolvedTypeIdentity identity, string name)
+    {
+        var shortName = identity.MetadataName.Split('.').Last();
+        return string.Equals(shortName, name, StringComparison.Ordinal) ||
+               string.Equals(identity.MetadataName, name, StringComparison.Ordinal);
     }
 
     private static List<RegistrationNode>? TryResolveOptionsCandidates(
