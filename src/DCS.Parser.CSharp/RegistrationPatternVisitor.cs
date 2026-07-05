@@ -330,6 +330,7 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             methodName, lifetime, abstractResolved.TypeRef.ShortName);
 
         var annotations = BuildAnnotations(isKeyed, isTryAdd, reason);
+        ConditionalRegistrationDetector.ApplyIfElseAnnotation(invocation, annotations);
         if (_semantic?.Scope.ProjectEvaluationIncomplete == true)
             annotations["project_evaluation_incomplete"] = "true";
         if (_semantic?.Scope.ImplicitUsingsUnmodeled == true)

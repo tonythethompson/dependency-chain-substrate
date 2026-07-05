@@ -107,6 +107,32 @@ public sealed class GraphAnalyzerTests
     }
 
     [Fact]
+    public void If_else_branches_are_not_strict_duplicate()
+    {
+        var ifBranch = MakeStrictNode("IJobQueue", "Program.cs", 85) with
+        {
+            Annotations = new Dictionary<string, string>
+            {
+                [StrictDuplicateEligibility.AnnotationKey] = "true",
+                ["conditional"] = "if_else",
+                ["conditional_branch"] = "if"
+            }
+        };
+        var elseBranch = MakeStrictNode("IJobQueue", "Program.cs", 87) with
+        {
+            Annotations = new Dictionary<string, string>
+            {
+                [StrictDuplicateEligibility.AnnotationKey] = "true",
+                ["conditional"] = "if_else",
+                ["conditional_branch"] = "else"
+            }
+        };
+        var graph = new RegistrationGraph { Nodes = [ifBranch, elseBranch] };
+        var result = new GraphAnalyzer(graph).Analyze();
+        Assert.Empty(result.Duplicates);
+    }
+
+    [Fact]
     public void Homonym_syntactic_nodes_are_possible_duplicate_not_strict()
     {
         var node1 = MakeNode("IFoo", "A.cs", 1);

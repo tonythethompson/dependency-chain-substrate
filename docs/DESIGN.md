@@ -642,6 +642,8 @@ after semantic hardening; synthetic smoke test covers 1,200 nodes / 1,199 edges.
   `docs/schemas/analysis-report-1.0.json` (v1.0). Findings include `finding_id`, `category`,
   `severity`, `tier` (`actionable` | `informational` | `parser_limit` | `intentional`), and
   `sites[]` with `file_path` + `line`. Separate from IR dump.
+  **IDE public API:** ADR-006 — VS Code extension consumes report JSON only; IR 1.2.0 is internal.
+  Report compatibility: additive fields within 1.x; breaking changes require major bump.
 - **Text report:** `dcs analyze` (default). Sections filtered by `--verbosity`
   (`summary` | `actionable` | `full`). Every WARN/ERROR line cites at least one `file:line`
   site (or tier annotation). `--strict` disables `FindingPolicy` suppressions; `--metrics`
@@ -919,7 +921,8 @@ beta users in v1.
 - **Spring PetClinic** (or equivalent OSS Spring Boot app) — Phase 6 gate; validates
   cross-language IR and BLIND_SPOT/DEGRADED rates for auto-config.
 - **Open-source WinUI or Avalonia sample** with explicit DI — negative control for
-  false DUPLICATE/LEAKED on single-framework apps.
+  false DUPLICATE/LEAKED on single-framework apps. **Shipped:** `LykosAI/StabilityMatrix` @
+  `d97f6ccb` (`csharp-negative-control` corpus leg; analyzes `StabilityMatrix/` subproject).
 - **Synthetic minimal repos** in `tests/` — pattern coverage (already used for parser
   unit tests); not a substitute for real migration history.
 - Trackdub remains **authoritative** for migration-verifier claims per `AGENTS.md`.

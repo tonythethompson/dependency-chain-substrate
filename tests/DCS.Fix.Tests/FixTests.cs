@@ -66,6 +66,96 @@ public sealed class RegistrationStatementRemoverTests
         Assert.DoesNotContain("VoiceCloneConsentCoordinator", updated);
         Assert.Contains("IOther", updated);
     }
+
+    [Fact]
+    public void Removes_TryAddSingleton_with_factory_lambda()
+    {
+        const string source = """
+            using Microsoft.Extensions.DependencyInjection;
+
+            public static class Registrations
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    services.TryAddSingleton<DeviceAffinitySettings>(_ => DeviceAffinitySettings.Load());
+                }
+            }
+
+            public sealed class DeviceAffinitySettings
+            {
+                public static DeviceAffinitySettings Load() => new();
+            }
+            """;
+
+        var updated = RegistrationStatementRemover.TryRemove(source, line: 7, "DeviceAffinitySettings");
+        Assert.NotNull(updated);
+        Assert.DoesNotContain("TryAddSingleton<DeviceAffinitySettings>", updated);
+        Assert.Contains("public static void Configure", updated);
+    }
+
+    [Fact]
+    public void TryRemoveMany_removes_multiple_lines_without_reformatting_unrelated_code()
+    {
+        const string source = """
+            using Microsoft.Extensions.DependencyInjection;
+
+            public static class Registrations
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    services.AddSingleton<IFirst, First>();
+                    services.AddSingleton<ISecond, Second>();
+                }
+            }
+            """;
+
+        var updated = RegistrationStatementRemover.TryRemoveMany(
+            source,
+            [
+                new RegistrationRemovalRequest(7, "IFirst"),
+                new RegistrationRemovalRequest(8, "ISecond")
+            ]);
+
+        Assert.NotNull(updated);
+        Assert.DoesNotContain("IFirst", updated);
+        Assert.DoesNotContain("ISecond", updated);
+        Assert.Equal(source.Split('\n').Length - 2, updated.Split('\n').Length);
+    }
+
+    [Fact]
+    public void TryRemoveMany_preserves_tight_preview_diff_for_single_removal()
+    {
+        var updated = RegistrationStatementRemover.TryRemove(Source, line: 7, "IVoiceCloneConsentCoordinator");
+        Assert.NotNull(updated);
+
+        var diff = UnifiedDiffFormatter.Format("Reg.cs", Source, updated);
+        Assert.Contains("@@ -7,1 +7,0 @@", diff);
+        Assert.DoesNotContain("StemTempCleanup", diff);
+    }
+
+    [Fact]
+    public void Removes_lambda_host_AddSingleton_registration()
+    {
+        const string source = """
+            using Amazon.SQS;
+            using Microsoft.Extensions.DependencyInjection;
+
+            public static class LambdaHost
+            {
+                public static ServiceProvider Build()
+                {
+                    var services = new ServiceCollection();
+                    services.AddSingleton<IAmazonSQS, AmazonSQSClient>();
+                    return services.BuildServiceProvider();
+                }
+            }
+            """;
+
+        var updated = RegistrationStatementRemover.TryRemove(source, line: 9, "IAmazonSQS");
+        Assert.NotNull(updated);
+        Assert.DoesNotContain("IAmazonSQS", updated);
+        Assert.Contains("ServiceCollection", updated);
+    }
 }
 
 public sealed class FixEngineIntegrationTests

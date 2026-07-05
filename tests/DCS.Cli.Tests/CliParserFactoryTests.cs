@@ -24,6 +24,8 @@ public sealed class CliParserFactoryTests
     [InlineData("broken", "Broken")]
     [InlineData("broken-chain", "Broken")]
     [InlineData("broken-chains", "Broken")]
+    [InlineData("leaked", "Leaked")]
+    [InlineData("leak", "Leaked")]
     [InlineData("DUPLICATE", "Duplicate")]
     public void ParseFixClass_accepts_known_aliases(string value, string expectedName)
     {

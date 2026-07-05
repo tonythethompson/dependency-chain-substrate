@@ -32,6 +32,7 @@
     <Compile Include="..\verification\CorpusGateTraits.cs" Link="Verification\CorpusGateTraits.cs" />
     <Compile Include="..\verification\CorpusGateCollection.cs" Link="Verification\CorpusGateCollection.cs" />
     <Compile Include="..\verification\CorpusPathResolver.cs" Link="Verification\CorpusPathResolver.cs" />
+    <Compile Include="..\verification\StabilityMatrixPin.cs" Link="Verification\StabilityMatrixPin.cs" />
   </ItemGroup>
 
 </Project>

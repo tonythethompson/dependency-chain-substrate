@@ -432,15 +432,26 @@ public sealed class CSharpStaticParser : IStaticParser
             path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
             return true;
 
+        var normalized = path.Replace('\\', '/');
+        if (IsAgentArtifactPath(normalized))
+            return true;
+
         if (includeTests)
             return false;
 
-        var normalized = path.Replace('\\', '/');
         if (normalized.Contains("/tests/fixtures/", StringComparison.OrdinalIgnoreCase) ||
             normalized.StartsWith("tests/fixtures/", StringComparison.OrdinalIgnoreCase))
             return false;
 
         return normalized.Contains("/tests/", StringComparison.OrdinalIgnoreCase) ||
                normalized.StartsWith("tests/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAgentArtifactPath(string normalized)
+    {
+        return normalized.Contains("/.claude/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(".claude/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("/.cursor/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(".cursor/", StringComparison.OrdinalIgnoreCase);
     }
 }

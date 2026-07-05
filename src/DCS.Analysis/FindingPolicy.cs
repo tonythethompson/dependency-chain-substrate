@@ -69,6 +69,34 @@ public static class FindingPolicy
         return tryAdd >= 1 && explicitCount == 1;
     }
 
+    /// <summary>
+    /// Registrations in if/else arms of the same statement are mutually exclusive at runtime.
+    /// </summary>
+    public static bool IsMutuallyExclusiveIfElseBranch(
+        IReadOnlyList<RegistrationNode> nodes,
+        FindingPolicyOptions? options = null)
+    {
+        if (IsStrict(options) || nodes.Count < 2)
+            return false;
+
+        if (nodes.Any(n => n.Annotations.GetValueOrDefault("conditional") != "if_else"))
+            return false;
+
+        var filePaths = nodes
+            .Select(n => n.SourceLocation?.FilePath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (filePaths.Count != 1)
+            return false;
+
+        var branches = nodes
+            .Select(n => n.Annotations.GetValueOrDefault("conditional_branch"))
+            .Where(b => !string.IsNullOrEmpty(b))
+            .ToHashSet(StringComparer.Ordinal);
+        return branches.Contains("if") && branches.Contains("else");
+    }
+
     public static IEnumerable<BlindSpotReport> ActionableBlindSpots(
         IEnumerable<BlindSpotReport> blindSpots,
         FindingPolicyOptions? options = null) =>

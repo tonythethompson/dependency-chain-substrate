@@ -6,7 +6,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -17,7 +17,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Runtime.Tests/DCS.Runtime.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -28,7 +28,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Fix.Tests/DCS.Fix.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -39,10 +39,21 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Diff.Tests/DCS.Diff.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "3c4e374d23fe3941ed7ca376775937941973b313",
+      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
+    },
+    {
+      "id": "csharp-negative-control",
+      "runner": "windows-latest",
+      "dotnet": "10.0.x",
+      "testProject": "tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj",
+      "repository": "LykosAI/StabilityMatrix",
+      "ref": "d97f6ccb9634a7ccfa7513be083aa70653112147",
+      "checkoutPath": "corpus/csharp-negative-control",
+      "pathEnv": "CORPUS_CSHARP_NEGATIVE_CONTROL_PATH",
+      "privateCheckout": false
     },
     {
       "id": "java-spring",

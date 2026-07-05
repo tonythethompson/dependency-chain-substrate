@@ -70,7 +70,7 @@ public static class FactoryLambdaToExplicitConverter
                 .WithTriviaFrom(statement);
 
             var updated = root.ReplaceNode(statement, replacementStmt);
-            return updated.NormalizeWhitespace().ToFullString();
+            return updated.ToFullString();
         }
 
         return null;

@@ -362,13 +362,75 @@ internal static class ProgramCommands
         if (RepoLanguageDetector.Resolve(options.RepoPath, options.Language) != RepoLanguage.CSharp)
             return Task.FromResult(ErrorExit("fix currently supports C# DI registrations only."));
 
-        if (options.Commit != null)
-            return Task.FromResult(ErrorExit("fix operates on the working directory; omit --commit."));
+        if (options.Commit != null && options.ApplyFix)
+        {
+            return Task.FromResult(ErrorExit(
+                "fix --apply writes the working directory; use --preview with --commit or omit --commit to apply."));
+        }
 
         try
         {
             var graph = ExtractGraph(options);
             var analysis = new GraphAnalyzer(graph, LoadBoundaries(options.FrameworksPath), options.RootClass).Analyze();
+            var fileContext = CreateFixFileContext(options);
+
+            if (options.Commit == null)
+            {
+                Console.Error.WriteLine(
+                    "[DCS] fix parses the working directory; use --commit <sha> --preview to match pinned analyze.");
+            }
+            else
+            {
+                Console.Error.WriteLine(
+                    $"[DCS] fix preview uses source at {options.Commit[..Math.Min(8, options.Commit.Length)]} " +
+                    "(read-only; --apply still writes working tree files).");
+            }
+
+            if (options.FixClass == FixClass.Leaked)
+            {
+                var measurement = LeakedFixMeasurement.Measure(options.RepoPath!, graph, analysis);
+                Console.Error.WriteLine(
+                    $"[DCS] Leaked measurement: total={measurement.TotalLeaked}, eligible={measurement.EligibleForFixPreview}");
+
+                if (measurement.EligibleForFixPreview == 0)
+                {
+                    Console.WriteLine("No eligible leaked registration fixes available.");
+                    Console.WriteLine(measurement.FormatSummary());
+                    return Task.FromResult(0);
+                }
+
+                var leakedTokenFilter = options.FixToken;
+                LeakedFixResult leakedResult;
+
+                if (options.ApplyFix)
+                {
+                    leakedResult = FixEngine.ApplyLeakedFixes(
+                        options.RepoPath!,
+                        graph,
+                        analysis,
+                        leakedTokenFilter,
+                        options.ForceFix);
+                    VerifyFixGuardsAfterApply(options, analysis, leakedResult.Patches);
+                    Console.Error.WriteLine("[DCS] LEAKED apply: running mandatory build verification");
+                    FixBuildVerifier.VerifyOrRollback(
+                        options.RepoPath!,
+                        leakedResult.Patches,
+                        FixBuildVerifier.RunDotnetBuild);
+                    Console.Error.WriteLine("[DCS] Build verification: OK");
+                    Console.Error.WriteLine($"[DCS] Applied {leakedResult.Proposals.Count} leaked fix(es).");
+                }
+                else
+                {
+                    leakedResult = FixEngine.BuildLeakedFixes(
+                        options.RepoPath!,
+                        graph,
+                        analysis,
+                        leakedTokenFilter);
+                }
+
+                Console.WriteLine(FixEngine.FormatLeakedPreview(leakedResult, measurement));
+                return Task.FromResult(0);
+            }
 
             if (options.FixClass == FixClass.Broken)
             {
@@ -396,7 +458,10 @@ internal static class ProgramCommands
                         options.ForceFix);
                     VerifyFixGuardsAfterApply(options, analysis, brokenResult.Patches);
                     if (options.VerifyBuild)
-                        VerifyBuildAfterApply(options.RepoPath!, brokenResult.Patches, RunDotnetBuild);
+                        FixBuildVerifier.VerifyOrRollback(
+                            options.RepoPath!,
+                            brokenResult.Patches,
+                            FixBuildVerifier.RunDotnetBuild);
                     Console.Error.WriteLine($"[DCS] Applied {brokenResult.Proposals.Count} broken fix(es).");
                 }
                 else
@@ -433,16 +498,20 @@ internal static class ProgramCommands
                         graph,
                         analysis,
                         orphanedTokenFilter,
-                        options.ForceFix);
+                        options.ForceFix,
+                        fileContext);
                     VerifyFixGuardsAfterApply(options, analysis, orphanedResult.Patches);
                     if (options.VerifyBuild)
-                        VerifyBuildAfterApply(options.RepoPath!, orphanedResult.Patches, RunDotnetBuild);
+                        FixBuildVerifier.VerifyOrRollback(
+                            options.RepoPath!,
+                            orphanedResult.Patches,
+                            FixBuildVerifier.RunDotnetBuild);
                     Console.Error.WriteLine($"[DCS] Applied {orphanedResult.Proposals.Count} orphaned fix(es).");
                 }
                 else
                 {
                     orphanedResult = FixEngine.BuildOrphanedFixes(
-                        options.RepoPath!, graph, analysis, orphanedTokenFilter);
+                        options.RepoPath!, graph, analysis, orphanedTokenFilter, fileContext);
                 }
 
                 Console.WriteLine(FixEngine.FormatOrphanedPreview(orphanedResult, measurement));
@@ -465,15 +534,19 @@ internal static class ProgramCommands
                     graph,
                     analysis,
                     tokenFilter,
-                    options.ForceFix);
+                    options.ForceFix,
+                    fileContext);
                 VerifyFixGuardsAfterApply(options, analysis, result.Patches);
                 if (options.VerifyBuild)
-                    VerifyBuildAfterApply(options.RepoPath!, result.Patches, RunDotnetBuild);
+                    FixBuildVerifier.VerifyOrRollback(
+                        options.RepoPath!,
+                        result.Patches,
+                        FixBuildVerifier.RunDotnetBuild);
                 Console.Error.WriteLine($"[DCS] Applied {result.Proposals.Count} duplicate fix(es).");
             }
             else
             {
-                result = FixEngine.BuildDuplicateFixes(options.RepoPath, graph, analysis, tokenFilter);
+                result = FixEngine.BuildDuplicateFixes(options.RepoPath, graph, analysis, tokenFilter, fileContext);
             }
 
             Console.WriteLine(FixEngine.FormatPreview(result));
@@ -658,10 +731,12 @@ internal static class ProgramCommands
               --from <sha>          Base commit SHA
               --to <sha>            Target commit SHA
 
-            FIX OPTIONS (working directory only; C# repos)
+            FIX OPTIONS (C# repos)
               --preview             Show unified diff without writing (default)
-              --apply               Write patched files (requires clean git tree)
-              --fix-class <kind>    duplicate (default) | orphaned | broken
+              --apply               Write patched files (requires clean git tree; working directory only)
+              --commit <sha>        Preview fixes against pinned commit source (with --preview; no --apply)
+              --context <id>        Match analyze context (e.g. "csharp|net10.0")
+              --fix-class <kind>    duplicate (default) | orphaned | broken | leaked
               --force               Apply even when git working tree is dirty
               --verify-build        Run dotnet build after apply; rollback on failure
               --token <name>        Fix a specific duplicate, orphaned, or broken target
@@ -691,7 +766,8 @@ internal static class ProgramCommands
             EXAMPLES
               dcs fix /path/to/repo --preview --token IVoiceCloneConsentCoordinator
               dcs fix /path/to/repo --fix-class orphaned --preview
-              dcs fix /path/to/repo --fix-class broken --preview --token IDependency
+              dcs fix /path/to/repo --fix-class leaked --preview --token ISharedFeature
+              dcs fix /path/to/repo --fix-class leaked --apply --token ISharedFeature
               dcs fix /path/to/repo --apply --force --verify-build
               dcs analyze /path/to/repo --commit abc1234 --format json --report-out report.json
               dcs analyze /path/to/repo --commit abc1234 --format text --report-out report.txt
@@ -751,6 +827,16 @@ internal static class ProgramCommands
             w.WriteLine("NOTE: breaking changes detected (removed nodes/edges)");
     }
 
+    private static FixFileContext CreateFixFileContext(CliOptions options)
+    {
+        var repoPath = options.RepoPath!;
+        if (options.Commit == null)
+            return new FixFileContext(repoPath);
+
+        var readAtCommit = CommitFileReader.Create(repoPath, options.Commit);
+        return new FixFileContext(repoPath, readAtCommit);
+    }
+
     private static void VerifyFixGuardsAfterApply(
         CliOptions options,
         AnalysisResult before,
@@ -779,44 +865,12 @@ internal static class ProgramCommands
         IReadOnlyList<FilePatch> patches,
         Func<string, BuildVerificationResult> buildRunner)
     {
-        var result = buildRunner(repoRoot);
-        if (result.Succeeded)
-        {
-            Console.Error.WriteLine("[DCS] Build verification: OK");
-            return;
-        }
-
-        FixSafetyGuard.RollbackPatches(repoRoot, patches);
-        var detail = string.IsNullOrWhiteSpace(result.Output)
-            ? $"exit code {result.ExitCode}"
-            : result.Output.Trim();
-        throw new InvalidOperationException($"Fix rolled back: build verification failed ({detail}).");
+        FixBuildVerifier.VerifyOrRollback(repoRoot, patches, buildRunner);
+        Console.Error.WriteLine("[DCS] Build verification: OK");
     }
 
-    private static BuildVerificationResult RunDotnetBuild(string repoRoot)
-    {
-        var start = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            Arguments = "build",
-            WorkingDirectory = repoRoot,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = Process.Start(start)
-            ?? throw new InvalidOperationException("Could not start dotnet build.");
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        return new BuildVerificationResult(
-            process.ExitCode == 0,
-            process.ExitCode,
-            string.Join(Environment.NewLine, new[] { stdout, stderr }.Where(s => !string.IsNullOrWhiteSpace(s))));
-    }
+    private static BuildVerificationResult RunDotnetBuild(string repoRoot) =>
+        FixBuildVerifier.RunDotnetBuild(repoRoot);
 
     private static async Task WriteIr(RegistrationGraph graph, string path)
     {

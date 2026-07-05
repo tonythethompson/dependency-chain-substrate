@@ -51,19 +51,51 @@ cd dependency-chain-substrate
 dotnet build
 ```
 
+### Install as a global tool
+
+**From NuGet** (when published):
+
+```bash
+dotnet tool install --global DependencyChainSubstrate.Cli
+dcs --help
+```
+
+**From a local build** (development or pre-release):
+
+```bash
+dotnet pack src/DCS.Cli/DCS.Cli.csproj -c Release -o artifacts/nupkg
+dotnet tool install --global DependencyChainSubstrate.Cli --add-source ./artifacts/nupkg
+dcs --help
+```
+
+Upgrade: `dotnet tool update --global DependencyChainSubstrate.Cli`  
+Uninstall: `dotnet tool uninstall --global DependencyChainSubstrate.Cli`
+
+The global command is **`dcs`**. Package id: `DependencyChainSubstrate.Cli` (see [CHANGELOG.md](CHANGELOG.md) for version notes).
+
 ### Run the CLI
+
+**With the global tool** (after install):
+
+```bash
+dcs analyze /path/to/your/repo
+```
+
+**Without installing** (development):
 
 ```bash
 dotnet run --project src/DCS.Cli -- analyze /path/to/your/repo
 ```
 
-During development, prefix commands with `dotnet run --project src/DCS.Cli --` (or build once and invoke `src/DCS.Cli/bin/Debug/net8.0/dcs.exe` directly).
+Or build once and invoke `src/DCS.Cli/bin/Debug/net8.0/dcs` directly.
 
 ### Analyze a specific commit
 
 ```bash
-dotnet run --project src/DCS.Cli -- analyze /path/to/repo --commit abc1234
+dcs analyze /path/to/repo --commit abc1234
 ```
+
+Or with `dotnet run --project src/DCS.Cli -- analyze ...` if not using the global tool.
 
 Exit code **0** = no blocking errors. Exit code **1** = `LEAKED` or `BROKEN` findings (CI gate). Exit code **2** = usage error.
 
@@ -122,15 +154,15 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `path <repo> --to <registration>` | Dependency path to a registration |
 | `enrich <ir-file> --runtime-log <path>` | Merge static IR with runtime JSONL resolution log |
 | `viz <repo>` | Generate self-contained HTML visualization |
-| `fix <repo>` | Preview/apply DUPLICATE, ORPHANED, or simple BROKEN fixes (C# working tree) |
+| `fix <repo>` | Preview/apply C# fixes: duplicate, orphaned, broken, leaked |
 
 ### Common options
 
 | Flag | Applies to | Description |
 |------|------------|-------------|
-| `--commit <sha>` | analyze, atlas, dump-ir, path, viz | Analyze a specific git commit (blob read) |
+| `--commit <sha>` | analyze, atlas, dump-ir, path, viz, fix (preview) | Pin source to a git commit (blob read) |
 | `--language auto\|csharp\|java` | analyze, diff, atlas, viz | Parser selection |
-| `--context <id>` | analyze, path | Select TFM/context (`all` for summary) |
+| `--context <id>` | analyze, path, fix | Select TFM/context (`all` for summary) |
 | `--target-framework <tfm>` | analyze | Single TFM graph |
 | `--all-target-frameworks` | analyze | One graph per discovered TFM |
 | `--frameworks <json>` | analyze, diff | Additive custom framework boundary config |
@@ -141,7 +173,10 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `--metrics` | analyze | Print extraction quality metrics on stderr |
 | `--cache-dir <path>` | repo commands | Override extraction cache |
 | `--no-cache` | repo commands | Bypass cache (use after parser updates) |
-| `--preview` / `--apply` | fix | Preview diff vs write changes |
+| `--preview` / `--apply` | fix | Preview diff vs write changes (`--apply` requires clean working tree) |
+| `--fix-class <kind>` | fix | `duplicate` (default), `orphaned`, `broken`, `leaked` |
+| `--token <name>` | fix | Limit fix to one registration token |
+| `--all-duplicates` | fix | Preview/apply all strict duplicate fixes |
 | `--verify-build` | fix | After `--apply`, run `dotnet build`; rollback patches on failure |
 
 **PowerShell note:** quote pipe characters in context IDs: `--context "csharp|net10.0"`.
@@ -188,6 +223,7 @@ Run `dotnet run --project src/DCS.Cli -- --help` for full usage.
 | `docs/DESIGN.md` | Design document (problem, IR, modules) |
 | `docs/decisions/` | Architecture decision records (ADRs) |
 | `docs/schemas/` | JSON schemas (e.g. `analysis-report-1.0.json`) |
+| `vscode-extension/` | Phase 7 VS Code extension scaffold (report JSON consumer) |
 | `PLAN.md` | Milestone tracker and phase gates |
 
 ---
@@ -216,10 +252,12 @@ DCS is validated against real migration corpora, not toy fixtures alone.
 | Corpus | Role | Gate |
 |--------|------|------|
 | **Trackdub** | Private WinUI→Avalonia mid-migration reference | Parser, runtime, diff-rename, and fix corpus gates |
+| **StabilityMatrix** | Public Avalonia single-shell negative control | `CsharpNegativeControlGateTests` (`csharp-negative-control`) |
 | **Spring PetClinic** | Java/Spring IR smoke test | `SpringPetClinicIntegrationTests` |
 | **di-patterns fixtures** | Parser pattern catalog regression | Golden CLI/JSON tests |
 
-Trackdub pin: `3c4e374d23fe3941ed7ca376775937941973b313`
+Trackdub pin: `5fd8b481` (post–WinUI-retire migration head; see `tests/verification/TrackdubPin.cs`)  
+StabilityMatrix pin: `d97f6ccb9634a7ccfa7513be083aa70653112147` (analyzes `StabilityMatrix/` subproject)
 
 ### Running corpus gates locally
 
@@ -239,6 +277,16 @@ dotnet test tests/DCS.Fix.Tests --filter "Category=CorpusGate&CorpusId=csharp-mi
 
 Legacy `TRACKDUB_PATH` is still supported.
 
+**C# negative-control corpus (`csharp-negative-control`):**
+
+```bash
+git clone https://github.com/LykosAI/StabilityMatrix.git
+cd StabilityMatrix && git checkout d97f6ccb9634a7ccfa7513be083aa70653112147
+set CORPUS_CSHARP_NEGATIVE_CONTROL_PATH=C:\path\to\StabilityMatrix
+
+dotnet test tests/DCS.Parser.CSharp.Tests --filter "Category=CorpusGate&CorpusId=csharp-negative-control"
+```
+
 **Java Spring corpus (`java-spring`):**
 
 ```bash
@@ -252,6 +300,32 @@ CI checks out each corpus under `corpus/<id>/` and sets `DCS_CORPUS_PATH`. Priva
 
 ---
 
+## Releases
+
+| Channel | How to install |
+|---------|----------------|
+| **Global tool (recommended)** | `dotnet tool install --global DependencyChainSubstrate.Cli` |
+| **GitHub Releases** | Download `DependencyChainSubstrate.Cli.*.nupkg` from [Releases](https://github.com/tonythethompson/dependency-chain-substrate/releases), then `dotnet tool install --global --add-source . DependencyChainSubstrate.Cli` |
+| **From source** | `dotnet pack src/DCS.Cli/DCS.Cli.csproj -c Release -o artifacts/nupkg` |
+
+Version history: [CHANGELOG.md](CHANGELOG.md).
+
+### Publishing a release (maintainers)
+
+1. Bump `<Version>` in `src/DCS.Cli/DCS.Cli.csproj` and add a section to [CHANGELOG.md](CHANGELOG.md).
+2. Commit, merge to `main`, then tag:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+3. The [release workflow](.github/workflows/release.yml) runs on `v*` tags: unit tests → pack → GitHub Release (`.nupkg` attached) → optional NuGet.org push.
+
+**Secrets (optional):** set `NUGET_API_KEY` on the repository to publish `DependencyChainSubstrate.Cli` to NuGet.org automatically. Without it, the release job still uploads the package to GitHub Releases.
+
+**Manual draft release:** Actions → **release** → **Run workflow** with a version matching the csproj (creates a draft GitHub Release for smoke-testing).
+
+---
+
 ## Development
 
 ```bash
@@ -260,7 +334,14 @@ dotnet build
 dotnet test
 ```
 
-CI runs three job types on push/PR:
+CI runs on push/PR to `main`:
+
+| Workflow | Trigger |
+|----------|---------|
+| [`ci.yml`](../.github/workflows/ci.yml) | push, pull_request |
+| [`release.yml`](../.github/workflows/release.yml) | push tag `v*`, manual dispatch |
+
+CI job types on push/PR:
 
 1. **build-test** (Windows, .NET 8) — unit and fixture tests, excluding corpus gates
 2. **corpus-matrix** — loads gate definitions from [`ci/corpus-gates.json`](ci/corpus-gates.json)

@@ -11,5 +11,8 @@ public static class CorpusGateTraits
     public const string CategoryValue = "CorpusGate";
 
     public const string CsharpMigration = "csharp-migration";
+    /// <summary>Optional local gate — not in ci/corpus-gates.json. Aspirational semantic quality floor.</summary>
+    public const string CsharpMigrationQuality = "csharp-migration-quality";
+    public const string CsharpNegativeControl = "csharp-negative-control";
     public const string JavaSpring = "java-spring";
 }

@@ -1,4 +1,3 @@
-using DCS.Cli;
 using DCS.Fix;
 
 namespace DCS.Cli.Tests;

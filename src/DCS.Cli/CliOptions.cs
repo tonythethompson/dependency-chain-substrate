@@ -46,7 +46,8 @@ internal enum FixClass
 {
     Duplicate,
     Orphaned,
-    Broken
+    Broken,
+    Leaked
 }
 
 internal enum OutputFormat
@@ -290,7 +291,7 @@ internal static class CliArgParser
 
     public static CliOptions ParseFixCommand(string[] args)
     {
-        var baseOptions = ParseRepoCommand(args, allowCommit: false, allowRoot: false);
+        var baseOptions = ParseRepoCommand(args, allowCommit: true, allowRoot: false);
         var apply = false;
         var force = false;
         var fixAll = false;
@@ -558,6 +559,7 @@ internal static class CliArgParser
         "duplicate" or "duplicates" => FixClass.Duplicate,
         "orphaned" or "orphan" => FixClass.Orphaned,
         "broken" or "broken-chain" or "broken-chains" => FixClass.Broken,
-        _ => throw new ArgumentException($"Unknown fix class '{value}'. Use duplicate, orphaned, or broken.")
+        "leaked" or "leak" => FixClass.Leaked,
+        _ => throw new ArgumentException($"Unknown fix class '{value}'. Use duplicate, orphaned, broken, or leaked.")
     };
 }

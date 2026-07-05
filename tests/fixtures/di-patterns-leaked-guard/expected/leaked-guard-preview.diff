@@ -1,0 +1,7 @@
+--- a/winuishellregistrations.cs
++++ b/winuishellregistrations.cs
+@@ -14,1 +14,3 @@
+-        services.AddSingleton<ISharedFeature, WinuiFeature>();
++        #if WINUI
++        services.AddSingleton<ISharedFeature, WinuiFeature>();
++        #endif

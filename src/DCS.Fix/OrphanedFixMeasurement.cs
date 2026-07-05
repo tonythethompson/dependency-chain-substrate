@@ -18,6 +18,11 @@ public sealed record OrphanedFixMeasurementReport(
         builder.AppendLine($"Total orphaned:              {TotalOrphaned}");
         builder.AppendLine($"Explicit with file:line:     {ExplicitWithSite}");
         builder.AppendLine($"Eligible for preview fix:    {EligibleForFixPreview}");
+        if (TotalOrphaned > EligibleForFixPreview)
+        {
+            builder.AppendLine(
+                "Note: ineligible orphans include composition root, infrastructure, and non-explicit sites.");
+        }
         builder.AppendLine();
         builder.AppendLine("Eligible (explicit, non-seed, non-infrastructure):");
         foreach (var orphan in EligibleOrphans)

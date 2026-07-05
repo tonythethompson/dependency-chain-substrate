@@ -24,7 +24,7 @@ model must be explicit before implementation.
 |---------|-----|-------|
 | DUPLICATE | **In scope** | Remove lower-confidence duplicate registration line |
 | ORPHANED | **In scope (8.1b)** | Remove explicit orphaned registration when eligible; same Roslyn remover + git guards as DUPLICATE |
-| LEAKED | Deferred | Preprocessor guards touch more than registration |
+| LEAKED | Deferred | Preprocessor guard codemod — [ADR-007 LEAKED amendment](ADR-007-amendment-leaked-fix.md) Accepted 2026-07-03; `LeakedFixPlanner` not implemented |
 | BROKEN | **In scope (8.1d)** | Convert simple `factory_lambda_shallow` blind spots to explicit registration when they cause broken chains |
 
 ### Phase 8.1b amendment — ORPHANED `--apply` (Accepted 2026-07-01)
@@ -108,7 +108,7 @@ Spring/Java duplicate removal deferred until Java registration nodes carry stabl
 ## Implementation
 
 - Module: `DCS.Fix` (`DuplicateFixPlanner`, `OrphanedFixPlanner`, `RegistrationStatementRemover`, `FixEngine`)
-- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned|broken] [--token <name>] [--all-duplicates] [--force] [--verify-build]`
+- CLI: `dcs fix <repo-path> [--preview|--apply] [--fix-class duplicate|orphaned|broken|leaked] [--token <name>] [--all-duplicates] [--force] [--verify-build]`
 - Gate (DUPLICATE): remove one Trackdub WinUI duplicate; `dcs analyze` shows one fewer duplicate group.
 - Gate (ORPHANED): fixture apply removes `IOrphanService`; re-analyze shows one fewer eligible orphan.
 - Gate (LEAKED guard): duplicate fixture apply does not worsen LEAKED; synthetic worsened analysis triggers rollback.

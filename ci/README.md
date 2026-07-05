@@ -42,6 +42,10 @@ dotnet test tests/DCS.Runtime.Tests --filter "Category=CorpusGate&CorpusId=cshar
 dotnet test tests/DCS.Diff.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
 dotnet test tests/DCS.Fix.Tests --filter "Category=CorpusGate&CorpusId=csharp-migration"
 
+# C# negative-control corpus (public OSS Avalonia single-shell)
+set CORPUS_CSHARP_NEGATIVE_CONTROL_PATH=C:\path\to\StabilityMatrix
+dotnet test tests/DCS.Parser.CSharp.Tests --filter "Category=CorpusGate&CorpusId=csharp-negative-control"
+
 # Java Spring corpus
 set CORPUS_JAVA_SPRING_PATH=/path/to/spring-petclinic
 dotnet test tests/DCS.Parser.Java.Tests --filter "Category=CorpusGate&CorpusId=java-spring"
@@ -51,14 +55,36 @@ Legacy env vars (`TRACKDUB_PATH`, `PETCLINIC_PATH`) still work.
 
 ## Runtime enrichment fixture (Phase 9)
 
-Pinned JSONL: `tests/fixtures/corpus/csharp-migration/runtime-3c4e374d.jsonl`
+Pinned JSONL follows the Trackdub pin short SHA: `tests/fixtures/corpus/csharp-migration/runtime-<pin8>.jsonl`
+(e.g. `runtime-5fd8b481.jsonl` for pin `5fd8b4814c9142f3980999c178b49adae9e725a6`).
+
+Legacy fixture `runtime-3c4e374d.jsonl` retained for history; gate tests resolve path from `TrackdubPin.CommitSha`.
 
 Regenerate after composition changes (run from Trackdub repo root so model manifest resolves):
 
 ```bash
 dotnet run --project tools/TrackdubRuntimeProbe -- \
   --trackdub-root A:\Trackdub \
-  --out tests/fixtures/corpus/csharp-migration/runtime-3c4e374d.jsonl
+  --out tests/fixtures/corpus/csharp-migration/runtime-5fd8b481.jsonl
 ```
 
 Gate test: `dotnet test tests/DCS.Runtime.Tests --filter Trackdub_runtime_enrichment_gate`
+
+## Global tool releases
+
+Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+
+| Trigger | Result |
+|---------|--------|
+| Push tag `v*` (e.g. `v0.1.0`) | Test → pack → GitHub Release + `.nupkg`; NuGet.org if `NUGET_API_KEY` is set |
+| Manual **release** workflow | Same pipeline; creates a **draft** GitHub Release |
+
+Release version must match `src/DCS.Cli/DCS.Cli.csproj` `<Version>` (validated in CI).
+
+## Semantic quality (optional, not in CI matrix)
+
+Portable TFM extraction floor separate from migration pin gates:
+
+```bash
+dotnet test tests/DCS.Parser.CSharp.Tests --filter CorpusId=csharp-migration-quality
+```

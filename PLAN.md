@@ -111,6 +111,7 @@ Trackdub; disk cache eliminates redundant re-extraction on repeated CLI runs.
 | Per-commit disk cache — implement | ✅ Done | 2026-06-28 — ExtractionCache; default %LOCALAPPDATA%/dependency-chain-substrate |
 | Registration Atlas polish — implement | ✅ Done | 2026-06-28 — `dcs atlas` human-readable listing |
 | Rename weight tuning | 🟨 Partially verified | Labelled Trackdub pair locked: `8fda806d` detects `BabelStudioStoragePaths` → `TrackdubStoragePaths`; broader false-positive tuning remains open |
+| Negative-control corpus (`csharp-negative-control`) | ✅ Done | 2026-07-03 — StabilityMatrix @ pin; primary shell 0 LEAKED / 0 DUPLICATE |
 
 **Phase 5 gate:** ✅ CLOSED — DESIGN.md fully answered; `--frameworks` on analyze/diff/atlas; disk cache on repeated `analyze --commit`.
 
@@ -139,22 +140,21 @@ LEAKED detection work on a real Spring Boot repo with multiple framework context
 
 ---
 
-## Phase 7 — IDE Extension (deferred)
+## Phase 7 — IDE Extension
 
-**Status:** Deferred until after Phase 8/9. CLI-first delivery remains the primary
-form factor (ADR-003). IDE extension is a thin consumer once fix + analysis stabilize.
+**Status:** ADR-006 Accepted 2026-07-03. Extension implementation not started.
 
 **Done means:** A VS Code extension shows inline error badges on DI registration
 call sites without leaving the editor.
 
 | Task | Status | Notes |
 |------|--------|-------|
-| ADR-006: IDE integration form factor | ⬜ Deferred | After Phase 8/9 |
-| Extension scaffold | ⬜ Deferred | |
-| On-save analysis trigger | ⬜ Deferred | |
-| Inline diagnostic decorations (LEAKED, BROKEN, DUPLICATE) | ⬜ Deferred | |
-| IR cache reuse within IDE session | ⬜ Deferred | |
-| Phase 7 verification | ⬜ Deferred | Inline badge on Trackdub without CLI |
+| ADR-006: IDE integration form factor | ✅ Accepted | 2026-07-03 — VS Code extension; subprocess; report schema 1.0 public API |
+| Extension scaffold | 🟨 In progress | `vscode-extension/` — subprocess + diagnostics from report JSON |
+| On-save analysis trigger | ⬜ Not started | |
+| Inline diagnostic decorations (LEAKED, BROKEN, DUPLICATE) | ⬜ Not started | |
+| IR cache reuse within IDE session | ⬜ Not started | Disk cache via `--cache-dir` |
+| Phase 7 verification | ⬜ Not started | Inline badge on Trackdub; clean on `csharp-negative-control` |
 
 **Phase 7 gate:** LEAKED badge appears inline within 5 seconds of opening
 Trackdub in VS Code; no false positive on clean commit.
@@ -172,7 +172,7 @@ removal) with a preview diff and rollback via git.
 | DCS.Fix — DUPLICATE removal | ✅ Done | 2026-06-29 — Roslyn statement removal + preview/apply |
 | CLI `dcs fix` | ✅ Done | 2026-06-29 — `--preview` default, `--apply`, `--token`, `--force` |
 | Fix classes: ORPHANED removal | ✅ Done | 8.1a preview, 8.1b apply |
-| Fix classes: LEAKED (add framework guard) | ⬜ Deferred | Codemod; not the apply safety guard |
+| Fix classes: LEAKED (add framework guard) | 🟨 Apply preview | `LeakedFixPlanner` preview + `--apply` with mandatory build verification |
 | Fix classes: BROKEN (factory → explicit) | ✅ Done | 8.1d — simple shallow factory only |
 | LEAKED guard on `--apply` | ✅ Done | 8.1c — re-analyze + rollback if leakage worsens |
 | Phase 8 verification | ✅ Done | 2026-06-29 — Fixture + Trackdub optional gate |

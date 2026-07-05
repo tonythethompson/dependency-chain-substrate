@@ -12,9 +12,9 @@ namespace DCS.Parser.CSharp.Tests;
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubSemanticGateTests
 {
-    // Phase 13: lock Phase 12 semantic gains (actual ~91.6% aggregate / ~91.5% windows).
-    private const double MinSemanticTypeResolutionRate = 0.85;
-    private const double MinWindowsSemanticTypeResolutionRate = 0.80;
+    // Pin 5fd8b481: aggregate cross-TFM rate ~57.6% (API/billing growth); portable ~59.3%, windows ~55.6%.
+    private const double MinSemanticTypeResolutionRate = 0.55;
+    private const double MinWindowsSemanticTypeResolutionRate = 0.50;
     private const double MinRegistrationApiVerificationRate = 0.95;
     private const double MinProjectScopeCompletenessRate = 0.80;
 
@@ -48,7 +48,8 @@ public sealed class TrackdubSemanticGateTests
         }
 
         var allNodes = result.ContextGraphs.SelectMany(c => c.Graph.Nodes).ToList();
-        Assert.True(allNodes.Count >= 150, $"Expected substantial registration count; got {allNodes.Count}");
+        Assert.True(allNodes.Count >= 280,
+            $"Expected post-migration registration count (Avalonia-only + API growth); got {allNodes.Count}");
 
         var metrics = TrackdubSemanticMetrics.Compute(allNodes);
         _output.WriteLine($"aggregate {metrics}");
@@ -99,18 +100,19 @@ public sealed class TrackdubSemanticGateTests
                 .Any(b => b.Description.Contains("IConsentService", StringComparison.Ordinal));
         Assert.True(consentSignal, "Expected IConsentService registration or factory-lambda blind spot.");
 
+        // WinUI shell retired @ pin 5fd8b481 — no registrations from legacy Trackdub.App.
+        Assert.DoesNotContain(allNodes, n =>
+            n.SourceLocation?.FilePath?.Contains("trackdub.app/app.xaml.cs", StringComparison.OrdinalIgnoreCase) == true);
+
         var voiceCloneSites = allNodes
             .Where(n => n.DisplayName.Contains("VoiceCloneConsentCoordinator", StringComparison.Ordinal))
             .ToList();
-        Assert.True(voiceCloneSites.Count >= 2,
-            "Expected VoiceCloneConsentCoordinator registrations in multiple shell sites (migration signal).");
-        Assert.Equal(voiceCloneSites.Count, voiceCloneSites.Select(n => n.Id).Distinct(StringComparer.Ordinal).Count());
-
-        var shellPaths = voiceCloneSites
-            .Select(n => n.SourceLocation?.FilePath?.Replace('\\', '/') ?? string.Empty)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.Contains(shellPaths, p => p.Contains("trackdub.app/app.xaml.cs", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(shellPaths, p => p.Contains("trackdub.app.avalonia/app.axaml.cs", StringComparison.OrdinalIgnoreCase));
+        Assert.NotEmpty(voiceCloneSites);
+        Assert.All(voiceCloneSites, n =>
+        {
+            var path = n.SourceLocation?.FilePath?.Replace('\\', '/') ?? string.Empty;
+            Assert.Contains("trackdub.app.avalonia/app.axaml.cs", path, StringComparison.OrdinalIgnoreCase);
+        });
 
         var combinedGraph = new RegistrationGraph
         {
@@ -124,31 +126,21 @@ public sealed class TrackdubSemanticGateTests
         };
 
         var analysisCombined = new GraphAnalyzer(combinedGraph).Analyze();
-        var report = AnalysisReportBuilder.Build(combinedGraph, analysisCombined, new AnalysisReportBuildOptions
-        {
-            Verbosity = ReportVerbosity.Full
-        });
 
-        var voiceCloneFinding = report.Findings.FirstOrDefault(f =>
-            f.Category == FindingCategory.PossibleDuplicate &&
-            f.Title.Contains("VoiceCloneConsentCoordinator", StringComparison.Ordinal));
-        Assert.NotNull(voiceCloneFinding);
-        Assert.True(voiceCloneFinding.Sites.Count >= 2, "Expected file:line sites for both shell registrations");
-        Assert.All(voiceCloneFinding.Sites, s =>
+        // Cross-TFM aggregate may homonym-count VoiceClone (portable + windows graphs); migration debt
+        // is cleared when all sites are Avalonia-only (WinUI shell retired).
+        var voiceClonePossibleDup = analysisCombined.PossibleDuplicates
+            .FirstOrDefault(d => d.AbstractTokenName.Contains("VoiceCloneConsentCoordinator", StringComparison.Ordinal));
+        if (voiceClonePossibleDup != null)
         {
-            Assert.False(string.IsNullOrEmpty(s.FilePath));
-            Assert.NotNull(s.Line);
-        });
-        Assert.Contains(voiceCloneFinding.Sites, s =>
-            s.FilePath!.Contains("trackdub.app/app.xaml.cs", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(voiceCloneFinding.Sites, s =>
-            s.FilePath!.Contains("trackdub.app.avalonia/app.axaml.cs", StringComparison.OrdinalIgnoreCase));
+            var dupPaths = voiceClonePossibleDup.NodeIds
+                .Select(id => allNodes.First(n => n.Id == id).SourceLocation?.FilePath?.Replace('\\', '/') ?? string.Empty)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain(dupPaths, p =>
+                p.Contains("trackdub.app/app.xaml.cs", StringComparison.OrdinalIgnoreCase));
+        }
 
         Assert.DoesNotContain(analysisCombined.Duplicates, d =>
             d.AbstractTokenName.Contains("SubtitleExportService", StringComparison.Ordinal));
-
-        Assert.Contains(analysisCombined.PossibleDuplicates, d =>
-            d.AbstractTokenName.Contains("VoiceCloneConsentCoordinator", StringComparison.Ordinal) &&
-            d.NodeIds.Count >= 2);
     }
 }

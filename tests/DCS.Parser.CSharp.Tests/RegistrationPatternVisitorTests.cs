@@ -149,6 +149,21 @@ public sealed class RegistrationPatternVisitorTests
     }
 
     [Fact]
+    public void If_else_branches_annotated_as_conditional()
+    {
+        var (nodes, _) = Parse("""
+            if (useDynamoDb)
+                services.AddScoped<IJobQueue, DynamoDbJobQueue>();
+            else
+                services.AddSingleton<IJobQueue, InMemoryJobQueue>();
+            """);
+        Assert.Equal(2, nodes.Count);
+        Assert.All(nodes, n => Assert.Equal("if_else", n.Annotations.GetValueOrDefault("conditional")));
+        Assert.Contains(nodes, n => n.Annotations.GetValueOrDefault("conditional_branch") == "if");
+        Assert.Contains(nodes, n => n.Annotations.GetValueOrDefault("conditional_branch") == "else");
+    }
+
+    [Fact]
     public void Framework_tags_inferred_from_avalonia_using()
     {
         var (nodes, _) = Parse("""

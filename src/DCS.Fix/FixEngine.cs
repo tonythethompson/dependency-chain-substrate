@@ -16,43 +16,18 @@ public static class FixEngine
         string repoRoot,
         RegistrationGraph graph,
         AnalysisResult analysis,
-        string? tokenFilter = null)
+        string? tokenFilter = null,
+        FixFileContext? files = null)
     {
         var proposals = DuplicateFixPlanner.Plan(graph, analysis, tokenFilter);
         if (proposals.Count == 0)
             return new FixResult([], [], false);
 
-        var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var proposal in proposals.OrderByDescending(p => p.Line))
-        {
-            var relativePath = proposal.RelativeFilePath;
-            var absolutePath = Path.IsPathRooted(relativePath)
-                ? relativePath
-                : Path.Combine(repoRoot, relativePath);
-
-            if (!File.Exists(absolutePath))
-                throw new InvalidOperationException($"Registration file not found: {absolutePath}");
-
-            var current = patchesByPath.TryGetValue(relativePath, out var existing)
-                ? existing.UpdatedContent
-                : File.ReadAllText(absolutePath);
-
-            var updated = RegistrationStatementRemover.TryRemove(
-                current,
-                proposal.Line,
-                proposal.AbstractTokenName);
-
-            if (updated == null)
-            {
-                throw new InvalidOperationException(
-                    $"Could not locate registration statement for {proposal.AbstractTokenName} " +
-                    $"at {relativePath}:{proposal.Line}.");
-            }
-
-            var original = existing?.OriginalContent ?? current;
-            patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
-        }
+        files ??= new FixFileContext(repoRoot);
+        var patchesByPath = RegistrationPatchBuilder.BuildRemovalPatches(
+            files,
+            proposals.Select(p => (p.RelativeFilePath, p.Line, p.AbstractTokenName)),
+            "duplicate");
 
         return new FixResult(proposals, patchesByPath.Values.ToList(), false);
     }
@@ -62,7 +37,8 @@ public static class FixEngine
         RegistrationGraph graph,
         AnalysisResult analysis,
         string? tokenFilter = null,
-        bool forceDirtyTree = false)
+        bool forceDirtyTree = false,
+        FixFileContext? files = null)
     {
         if (!forceDirtyTree && !GitWorkingTreeGuard.IsClean(repoRoot))
         {
@@ -70,7 +46,7 @@ public static class FixEngine
                 "Working tree is not clean. Commit or stash changes, or pass --force to apply anyway.");
         }
 
-        var preview = BuildDuplicateFixes(repoRoot, graph, analysis, tokenFilter);
+        var preview = BuildDuplicateFixes(repoRoot, graph, analysis, tokenFilter, files);
         foreach (var patch in preview.Patches)
         {
             var absolutePath = Path.IsPathRooted(patch.RelativePath)
@@ -106,43 +82,18 @@ public static class FixEngine
         string repoRoot,
         RegistrationGraph graph,
         AnalysisResult analysis,
-        string? displayNameFilter = null)
+        string? displayNameFilter = null,
+        FixFileContext? files = null)
     {
         var proposals = OrphanedFixPlanner.Plan(graph, analysis, displayNameFilter);
         if (proposals.Count == 0)
             return new OrphanedFixResult([], [], false);
 
-        var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var proposal in proposals.OrderByDescending(p => p.Line))
-        {
-            var relativePath = proposal.RelativeFilePath;
-            var absolutePath = Path.IsPathRooted(relativePath)
-                ? relativePath
-                : Path.Combine(repoRoot, relativePath);
-
-            if (!File.Exists(absolutePath))
-                throw new InvalidOperationException($"Registration file not found: {absolutePath}");
-
-            var current = patchesByPath.TryGetValue(relativePath, out var existing)
-                ? existing.UpdatedContent
-                : File.ReadAllText(absolutePath);
-
-            var updated = RegistrationStatementRemover.TryRemove(
-                current,
-                proposal.Line,
-                proposal.DisplayName);
-
-            if (updated == null)
-            {
-                throw new InvalidOperationException(
-                    $"Could not locate registration statement for {proposal.DisplayName} " +
-                    $"at {relativePath}:{proposal.Line}.");
-            }
-
-            var original = existing?.OriginalContent ?? current;
-            patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
-        }
+        files ??= new FixFileContext(repoRoot);
+        var patchesByPath = RegistrationPatchBuilder.BuildRemovalPatches(
+            files,
+            proposals.Select(p => (p.RelativeFilePath, p.Line, p.DisplayName)),
+            "orphaned");
 
         return new OrphanedFixResult(proposals, patchesByPath.Values.ToList(), false);
     }
@@ -152,7 +103,8 @@ public static class FixEngine
         RegistrationGraph graph,
         AnalysisResult analysis,
         string? displayNameFilter = null,
-        bool forceDirtyTree = false)
+        bool forceDirtyTree = false,
+        FixFileContext? files = null)
     {
         if (!forceDirtyTree && !GitWorkingTreeGuard.IsClean(repoRoot))
         {
@@ -160,7 +112,7 @@ public static class FixEngine
                 "Working tree is not clean. Commit or stash changes, or pass --force to apply anyway.");
         }
 
-        var preview = BuildOrphanedFixes(repoRoot, graph, analysis, displayNameFilter);
+        var preview = BuildOrphanedFixes(repoRoot, graph, analysis, displayNameFilter, files);
         foreach (var patch in preview.Patches)
         {
             var absolutePath = Path.IsPathRooted(patch.RelativePath)
@@ -282,6 +234,103 @@ public static class FixEngine
         {
             builder.AppendLine(
                 $"FIX ORPHANED {proposal.DisplayName}: remove {proposal.RelativeFilePath}:{proposal.Line}");
+        }
+
+        builder.AppendLine();
+        foreach (var patch in result.Patches)
+            builder.Append(UnifiedDiffFormatter.Format(patch.RelativePath, patch.OriginalContent, patch.UpdatedContent));
+
+        return builder.ToString();
+    }
+
+    public static LeakedFixResult BuildLeakedFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? displayNameFilter = null)
+    {
+        var proposals = LeakedFixPlanner.Plan(repoRoot, graph, analysis, displayNameFilter);
+        if (proposals.Count == 0)
+            return new LeakedFixResult([], [], false);
+
+        var patchesByPath = new Dictionary<string, FilePatch>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var proposal in proposals.OrderByDescending(p => p.Line))
+        {
+            var relativePath = proposal.RelativeFilePath;
+            var absolutePath = Path.IsPathRooted(relativePath)
+                ? relativePath
+                : Path.Combine(repoRoot, relativePath);
+
+            if (!File.Exists(absolutePath))
+                throw new InvalidOperationException($"Registration file not found: {absolutePath}");
+
+            var current = patchesByPath.TryGetValue(relativePath, out var existing)
+                ? existing.UpdatedContent
+                : File.ReadAllText(absolutePath);
+
+            var updated = FrameworkGuardInserter.TryWrapRegistration(
+                current,
+                proposal.Line,
+                proposal.DisplayName,
+                proposal.GuardSymbol);
+
+            if (updated == null)
+            {
+                throw new InvalidOperationException(
+                    $"Could not wrap registration for {proposal.DisplayName} " +
+                    $"at {relativePath}:{proposal.Line} with #{proposal.GuardSymbol}.");
+            }
+
+            var original = existing?.OriginalContent ?? current;
+            patchesByPath[relativePath] = new FilePatch(relativePath, original, updated);
+        }
+
+        return new LeakedFixResult(proposals, patchesByPath.Values.ToList(), false);
+    }
+
+    public static LeakedFixResult ApplyLeakedFixes(
+        string repoRoot,
+        RegistrationGraph graph,
+        AnalysisResult analysis,
+        string? displayNameFilter = null,
+        bool forceDirtyTree = false)
+    {
+        if (!forceDirtyTree && !GitWorkingTreeGuard.IsClean(repoRoot))
+        {
+            throw new InvalidOperationException(
+                "Working tree is not clean. Commit or stash changes, or pass --force to apply anyway.");
+        }
+
+        var preview = BuildLeakedFixes(repoRoot, graph, analysis, displayNameFilter);
+        foreach (var patch in preview.Patches)
+        {
+            var absolutePath = Path.IsPathRooted(patch.RelativePath)
+                ? patch.RelativePath
+                : Path.Combine(repoRoot, patch.RelativePath);
+            File.WriteAllText(absolutePath, patch.UpdatedContent);
+        }
+
+        return preview with { Applied = true };
+    }
+
+    public static string FormatLeakedPreview(
+        LeakedFixResult result,
+        LeakedFixMeasurementReport measurement)
+    {
+        if (result.Patches.Count == 0)
+            return measurement.FormatSummary() + Environment.NewLine + "No leaked registration fixes available.";
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine(measurement.FormatSummary());
+        builder.AppendLine(result.Applied
+            ? "=== Leaked Fix Applied ==="
+            : "=== Leaked Fix Preview (no files written) ===");
+        foreach (var proposal in result.Proposals)
+        {
+            builder.AppendLine(
+                $"FIX LEAKED {proposal.DisplayName}: wrap {proposal.RelativeFilePath}:{proposal.Line} " +
+                $"with #if {proposal.GuardSymbol} ({proposal.ShellTag})");
         }
 
         builder.AppendLine();

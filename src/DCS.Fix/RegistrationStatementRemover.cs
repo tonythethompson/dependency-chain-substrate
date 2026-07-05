@@ -14,11 +14,28 @@ public static class RegistrationStatementRemover
         "TryAddKeyedSingleton", "TryAddKeyedScoped", "TryAddKeyedTransient",
     };
 
-    public static string? TryRemove(string source, int line, string abstractTokenShortName)
+    public static string? TryRemove(string source, int line, string abstractTokenShortName) =>
+        TryRemoveMany(source, [new RegistrationRemovalRequest(line, abstractTokenShortName)]);
+
+    public static string? TryRemoveMany(string source, IReadOnlyList<RegistrationRemovalRequest> removals)
     {
+        if (removals.Count == 0)
+            return source;
+
         var tree = CSharpSyntaxTree.ParseText(source);
         var root = tree.GetRoot();
 
+        foreach (var removal in removals.OrderByDescending(r => r.Line))
+        {
+            if (!TryRemoveOne(ref root, removal.Line, removal.TokenName))
+                return null;
+        }
+
+        return root.ToFullString();
+    }
+
+    private static bool TryRemoveOne(ref SyntaxNode root, int line, string abstractTokenShortName)
+    {
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             var startLine = invocation.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
@@ -30,16 +47,17 @@ public static class RegistrationStatementRemover
 
             var statement = invocation.Ancestors().OfType<ExpressionStatementSyntax>().FirstOrDefault();
             if (statement == null)
-                return null;
+                return false;
 
             var updated = root.RemoveNode(statement, SyntaxRemoveOptions.KeepNoTrivia);
             if (updated == null)
-                return null;
+                return false;
 
-            return updated.NormalizeWhitespace().ToFullString();
+            root = updated;
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     private static bool MatchesRegistration(InvocationExpressionSyntax invocation, string abstractTokenShortName)

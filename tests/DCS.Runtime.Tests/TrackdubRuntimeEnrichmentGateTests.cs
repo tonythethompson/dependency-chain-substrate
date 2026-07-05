@@ -52,7 +52,21 @@ public sealed class TrackdubRuntimeEnrichmentGateTests
 
         if (analysis.Orphaned.Count > 0)
         {
-            Assert.NotEmpty(report.OrphanedReclassifiedNodeIds);
+            var orphanIds = analysis.Orphaned
+                .Select(o => o.NodeId)
+                .ToHashSet(StringComparer.Ordinal);
+            var orphansRuntimeConfirmed = report.EnrichedGraph.Nodes.Count(n =>
+                orphanIds.Contains(n.Id) &&
+                n.Annotations.GetValueOrDefault(RuntimeGraphEnricher.RuntimeConfirmedKey) == "true");
+
+            _output.WriteLine(
+                $"Orphan reclassification: {report.OrphanedReclassifiedNodeIds.Count} reclassified; " +
+                $"{orphansRuntimeConfirmed}/{analysis.Orphaned.Count} static orphans runtime-confirmed");
+
+            if (orphansRuntimeConfirmed > 0)
+            {
+                Assert.Equal(orphansRuntimeConfirmed, report.OrphanedReclassifiedNodeIds.Count);
+            }
         }
         else
         {
@@ -87,5 +101,15 @@ public sealed class TrackdubRuntimeEnrichmentGateTests
         Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
-            "tests", "fixtures", "corpus", "csharp-migration", "runtime-3c4e374d.jsonl"));
+            "tests", "fixtures", "corpus", "csharp-migration",
+            $"runtime-{TrackdubPin.CommitSha[..8]}.jsonl"));
+
+    [Fact]
+    public void Trackdub_runtime_fixture_exists_for_pin()
+    {
+        var path = RuntimeFixturePath();
+        Assert.True(File.Exists(path),
+            $"Missing runtime fixture for pin {TrackdubPin.CommitSha[..8]}: {path}. " +
+            "Regenerate via tools/TrackdubRuntimeProbe (see ci/README.md).");
+    }
 }
