@@ -409,8 +409,25 @@ public sealed class CSharpStaticParser : IStaticParser
             }
         }
 
-        var depNode = candidates.FirstOrDefault(c =>
-            c.CompositionScopeId == node.CompositionScopeId) ?? candidates.First();
+        var depNode = candidates
+            .Where(c => c.ParserConfidence is Confidence.Explicit or Confidence.Inferred)
+            .FirstOrDefault(c => c.CompositionScopeId == node.CompositionScopeId)
+            ?? candidates.FirstOrDefault(c => c.ParserConfidence is Confidence.Explicit or Confidence.Inferred);
+
+        if (depNode == null)
+        {
+            unresolved.Add(new UnresolvedInjection
+            {
+                Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
+                FromRegistrationId = node.Id,
+                DeclaredType = param.Identity != null
+                    ? TypeIdentityFormatter.ToTypeRef(param.Identity)
+                    : TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
+                ParameterName = param.SyntacticName,
+                Reason = "no_matching_registration"
+            });
+            return true;
+        }
 
         edges.Add(new DependencyEdge
         {
