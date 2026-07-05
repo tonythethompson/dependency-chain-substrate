@@ -416,9 +416,12 @@ public sealed class CSharpStaticParser : IStaticParser
 
         if (depNode == null)
         {
+            var dependencyKey = param.Identity != null
+                ? ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey
+                : param.SyntacticName;
             unresolved.Add(new UnresolvedInjection
             {
-                Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
+                Id = UnresolvedInjection.ComputeId(node.Id, dependencyKey, edgeIndexGlobal++),
                 FromRegistrationId = node.Id,
                 DeclaredType = param.Identity != null
                     ? TypeIdentityFormatter.ToTypeRef(param.Identity)
