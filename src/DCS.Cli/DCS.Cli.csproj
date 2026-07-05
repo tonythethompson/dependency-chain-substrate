@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dcs</ToolCommandName>
     <PackageId>DependencyChainSubstrate.Cli</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>tonythethompson</Authors>
     <Description>Static DI graph extraction, migration verification, and drift analysis for C# and Java/Spring.</Description>
     <PackageTags>dependency-injection;di;static-analysis;migration;roslyn;cli</PackageTags>

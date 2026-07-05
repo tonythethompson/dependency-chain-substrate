@@ -63,6 +63,18 @@ jobs:
           path: ${{ matrix.checkoutPath }}
           token: ${{ matrix.privateCheckout && (secrets.CORPUS_CHECKOUT_PAT || secrets.TRACKDUB_PAT) || github.token }}
 
+      - name: Verify corpus ref exists
+        if: matrix.privateCheckout
+        shell: bash
+        run: |
+          if [ ! -d "${{ matrix.checkoutPath }}/.git" ]; then
+            echo "::error::Corpus checkout failed for ${{ matrix.repository }} @ ${{ matrix.ref }}."
+            echo "Ensure the commit is pushed to GitHub and CORPUS_CHECKOUT_PAT (or TRACKDUB_PAT) is set for private repos."
+            exit 1
+          fi
+          cd "${{ matrix.checkoutPath }}"
+          git rev-parse --verify HEAD^{commit} >/dev/null
+
       - name: Restore
         run: dotnet restore
 

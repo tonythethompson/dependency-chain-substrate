@@ -4,6 +4,19 @@ All notable changes to the `DependencyChainSubstrate.Cli` global tool are docume
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.1] - 2026-07-05
+
+### Fixed
+
+- **CI corpus pin** — Trackdub pin moved to `b57fc832` (GitHub `main`); prior pin `5fd8b481` was local-only and broke corpus checkout in Actions.
+- **Release validation** — align `src/DCS.Cli/DCS.Cli.csproj` `<Version>` with git tag before pushing `v*`.
+
+### Added
+
+- Leaked fix path and related tests (see commit history on `main`).
+
+[0.1.1]: https://github.com/tonythethompson/dependency-chain-substrate/releases/tag/v0.1.1
+
 ## [0.1.0] - 2026-07-05
 
 ### Added
@@ -22,6 +35,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`dcs fix --apply`** still writes the working tree only; use `--commit` with `--preview` to match CI pin analysis.
 - **Broken-chain auto-fix** remains limited to shallow factory lambdas without `GetRequiredService`.
-- **Trackdub corpus pin** for gates: `5fd8b481` (see `tests/verification/TrackdubPin.cs`).
+- **Trackdub corpus pin** for gates: `b57fc832` (see `tests/verification/TrackdubPin.cs`).
 
 [0.1.0]: https://github.com/tonythethompson/dependency-chain-substrate/releases/tag/v0.1.0

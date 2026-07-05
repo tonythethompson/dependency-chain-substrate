@@ -6,7 +6,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Parser.CSharp.Tests/DCS.Parser.CSharp.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
+      "ref": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -17,7 +17,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Runtime.Tests/DCS.Runtime.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
+      "ref": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -28,7 +28,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Fix.Tests/DCS.Fix.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
+      "ref": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true
@@ -39,7 +39,7 @@
       "dotnet": "10.0.x",
       "testProject": "tests/DCS.Diff.Tests/DCS.Diff.Tests.csproj",
       "repository": "tonythethompson/Trackdub",
-      "ref": "5fd8b4814c9142f3980999c178b49adae9e725a6",
+      "ref": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
       "checkoutPath": "corpus/csharp-migration",
       "pathEnv": "CORPUS_CSHARP_MIGRATION_PATH",
       "privateCheckout": true

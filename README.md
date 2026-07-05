@@ -256,7 +256,7 @@ DCS is validated against real migration corpora, not toy fixtures alone.
 | **Spring PetClinic** | Java/Spring IR smoke test | `SpringPetClinicIntegrationTests` |
 | **di-patterns fixtures** | Parser pattern catalog regression | Golden CLI/JSON tests |
 
-Trackdub pin: `5fd8b481` (post–WinUI-retire migration head; see `tests/verification/TrackdubPin.cs`)  
+Trackdub pin: `b57fc832` (post–WinUI-retire migration head on GitHub; see `tests/verification/TrackdubPin.cs`)  
 StabilityMatrix pin: `d97f6ccb9634a7ccfa7513be083aa70653112147` (analyzes `StabilityMatrix/` subproject)
 
 ### Running corpus gates locally
@@ -318,9 +318,9 @@ Version history: [CHANGELOG.md](CHANGELOG.md).
    git tag v0.1.0
    git push origin v0.1.0
    ```
-3. The [release workflow](.github/workflows/release.yml) runs on `v*` tags: unit tests → pack → GitHub Release (`.nupkg` attached) → optional NuGet.org push.
+3. The [release workflow](.github/workflows/release.yml) runs on `v*` tags: unit tests → pack → GitHub Release (`.nupkg` attached) → NuGet.org push via **trusted publisher**.
 
-**Secrets (optional):** set `NUGET_API_KEY` on the repository to publish `DependencyChainSubstrate.Cli` to NuGet.org automatically. Without it, the release job still uploads the package to GitHub Releases.
+**NuGet.org:** configure a trusted publisher on [nuget.org](https://www.nuget.org) for package `DependencyChainSubstrate.Cli` → GitHub → `tonythethompson/dependency-chain-substrate` → workflow **`release.yml`**. No `NUGET_API_KEY` secret required (OIDC via `--api-key az`).
 
 **Manual draft release:** Actions → **release** → **Run workflow** with a version matching the csproj (creates a draft GitHub Release for smoke-testing).
 

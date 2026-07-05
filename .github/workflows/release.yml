@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   validate:
@@ -136,32 +137,24 @@ jobs:
     needs: [validate, pack]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    env:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    permissions:
+      id-token: write
+      contents: read
     steps:
-      - name: Skip when NuGet API key is not configured
-        if: env.NUGET_API_KEY == ''
-        run: |
-          echo "NUGET_API_KEY secret not set; skipping NuGet.org publish."
-          echo "GitHub Release still publishes the .nupkg for manual or add-source install."
-
       - name: Download package
-        if: env.NUGET_API_KEY != ''
         uses: actions/download-artifact@v4
         with:
           name: nupkg
           path: artifacts/nupkg
 
       - name: Setup .NET
-        if: env.NUGET_API_KEY != ''
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      - name: Publish to NuGet.org
-        if: env.NUGET_API_KEY != ''
+      - name: Publish to NuGet.org (trusted publisher)
         run: >
           dotnet nuget push artifacts/nupkg/*.nupkg
           --source https://api.nuget.org/v3/index.json
-          --api-key "$NUGET_API_KEY"
+          --api-key az
           --skip-duplicate

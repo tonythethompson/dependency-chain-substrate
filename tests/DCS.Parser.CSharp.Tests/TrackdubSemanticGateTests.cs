@@ -12,7 +12,7 @@ namespace DCS.Parser.CSharp.Tests;
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
 public sealed class TrackdubSemanticGateTests
 {
-    // Pin 5fd8b481: aggregate cross-TFM rate ~57.6% (API/billing growth); portable ~59.3%, windows ~55.6%.
+    // Pin b57fc832 (GitHub main): aggregate cross-TFM rate ~57.6%; portable ~59.3%, windows ~55.6%.
     private const double MinSemanticTypeResolutionRate = 0.55;
     private const double MinWindowsSemanticTypeResolutionRate = 0.50;
     private const double MinRegistrationApiVerificationRate = 0.95;
@@ -100,7 +100,7 @@ public sealed class TrackdubSemanticGateTests
                 .Any(b => b.Description.Contains("IConsentService", StringComparison.Ordinal));
         Assert.True(consentSignal, "Expected IConsentService registration or factory-lambda blind spot.");
 
-        // WinUI shell retired @ pin 5fd8b481 — no registrations from legacy Trackdub.App.
+        // WinUI shell retired @ pin b57fc832 — no registrations from legacy Trackdub.App.
         Assert.DoesNotContain(allNodes, n =>
             n.SourceLocation?.FilePath?.Contains("trackdub.app/app.xaml.cs", StringComparison.OrdinalIgnoreCase) == true);
 
