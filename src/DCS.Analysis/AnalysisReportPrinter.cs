@@ -41,6 +41,9 @@ public static class AnalysisReportPrinter
         if (report.Metrics != null)
             PrintMetrics(report.Metrics, writer);
 
+        if (report.IslandSummaries.Count > 0)
+            PrintCompositionIslands(report, writer);
+
         if (verbosity == ReportVerbosity.Summary)
         {
             PrintSummaryLine(report, writer);
@@ -52,7 +55,8 @@ public static class AnalysisReportPrinter
         PrintCategory(writer, report, FindingCategory.Duplicate, "DUPLICATE REGISTRATIONS");
         PrintCategory(writer, report, FindingCategory.PossibleDuplicate, "POSSIBLE DUPLICATES");
         PrintCategory(writer, report, FindingCategory.Unresolved, "UNRESOLVED DEPENDENCIES");
-        PrintCategory(writer, report, FindingCategory.Orphaned, "ORPHANED");
+        PrintOrphanedActionable(writer, report);
+        PrintIslandValidOrphans(writer, report);
         PrintCategory(writer, report, FindingCategory.Cycle, "CYCLES");
         PrintBlindSpots(writer, report, verboseBlindSpots);
 
@@ -101,6 +105,42 @@ public static class AnalysisReportPrinter
         writer.WriteLine($"--- {title} ({findings.Count}) ---");
         foreach (var f in findings)
             PrintFinding(writer, f, category);
+    }
+
+    private static void PrintOrphanedActionable(TextWriter writer, AnalysisReport report)
+    {
+        var findings = report.Findings
+            .Where(f => f.Category == FindingCategory.Orphaned && f.Tier == FindingTier.Actionable)
+            .ToList();
+        writer.WriteLine($"--- ORPHANED ({findings.Count}) ---");
+        foreach (var f in findings)
+            PrintFinding(writer, f, FindingCategory.Orphaned);
+    }
+
+    private static void PrintCompositionIslands(AnalysisReport report, TextWriter writer)
+    {
+        writer.WriteLine("--- COMPOSITION ISLANDS ---");
+        writer.WriteLine($"{"Island",-10} {"Seeds",6} {"Reach",6} {"Valid",6} {"Orphan",6}");
+        foreach (var island in report.IslandSummaries)
+        {
+            writer.WriteLine(
+                $"{CompositionIslandAttribution.ToAnnotationValue(island.Island),-10} " +
+                $"{island.SeedCount,6} {island.ReachableCount,6} {island.IslandValidCount,6} {island.TrueOrphanCount,6}");
+        }
+        writer.WriteLine();
+    }
+
+    private static void PrintIslandValidOrphans(TextWriter writer, AnalysisReport report)
+    {
+        var islandValid = report.Findings
+            .Where(f => f.Category == FindingCategory.Orphaned && f.Tier == FindingTier.IslandValid)
+            .ToList();
+        if (islandValid.Count == 0)
+            return;
+
+        writer.WriteLine($"--- ISLAND-VALID REGISTRATIONS ({islandValid.Count}) ---");
+        foreach (var f in islandValid)
+            PrintFinding(writer, f, FindingCategory.Orphaned);
     }
 
     private static void PrintBlindSpots(TextWriter writer, AnalysisReport report, bool verboseBlindSpots)
@@ -174,6 +214,7 @@ public static class AnalysisReportPrinter
         FindingTier.Informational => "informational",
         FindingTier.ParserLimit => "parser_limit",
         FindingTier.Intentional => "intentional",
+        FindingTier.IslandValid => "island_valid",
         _ => tier.ToString().ToLowerInvariant()
     };
 }

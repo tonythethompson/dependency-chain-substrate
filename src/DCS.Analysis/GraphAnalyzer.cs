@@ -8,17 +8,20 @@ public sealed class GraphAnalyzer
     private readonly FrameworkBoundaryModel _boundaries;
     private readonly string? _rootOverride;
     private readonly FindingPolicyOptions _policy;
+    private readonly bool _islandAware;
 
     public GraphAnalyzer(
         RegistrationGraph graph,
         FrameworkBoundaryModel? boundaries = null,
         string? rootClassOverride = null,
-        FindingPolicyOptions? policy = null)
+        FindingPolicyOptions? policy = null,
+        bool islandAware = false)
     {
         _graph = graph;
         _boundaries = boundaries ?? FrameworkBoundaryModel.Default;
         _rootOverride = rootClassOverride;
         _policy = policy ?? FindingPolicyOptions.Default;
+        _islandAware = islandAware;
     }
 
     public AnalysisResult Analyze()
@@ -34,7 +37,21 @@ public sealed class GraphAnalyzer
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
         var rootId = FindCompositionRoot(nodeById, outEdges);
-        var reachable = FindReachableFromRoots(FindReachabilitySeeds(nodeById), outEdges);
+        var legacyReachable = FindReachableFromRoots(
+            _islandAware ? FindLegacyReachabilitySeeds(nodeById) : FindReachabilitySeeds(nodeById),
+            outEdges);
+        var reachable = _islandAware
+            ? legacyReachable
+            : FindReachableFromRoots(FindReachabilitySeeds(nodeById), outEdges);
+        var islandReachableByIsland = _islandAware
+            ? BuildIslandReachable(nodeById, outEdges)
+            : new Dictionary<CompositionIsland, HashSet<string>>();
+        var islandSummaries = _islandAware
+            ? BuildIslandSummaries(nodeById, inEdges, islandReachableByIsland)
+            : [];
+        var (orphaned, islandValidOrphans) = string.Equals(_graph.SourceLanguage, "java", StringComparison.OrdinalIgnoreCase)
+            ? ([], [])
+            : FindOrphaned(nodeById, inEdges, rootId, reachable, islandReachableByIsland, _islandAware);
 
         var actionableBlindSpots = FindingPolicy.ActionableBlindSpots(_graph.BlindSpots, _policy).Count();
         var actionableUnresolved = CountActionableUnresolved();
@@ -42,9 +59,8 @@ public sealed class GraphAnalyzer
         return new AnalysisResult
         {
             Leaked = FindLeaked(),
-            Orphaned = string.Equals(_graph.SourceLanguage, "java", StringComparison.OrdinalIgnoreCase)
-                ? []
-                : FindOrphaned(nodeById, inEdges, rootId, reachable),
+            Orphaned = orphaned,
+            IslandValidOrphans = islandValidOrphans,
             BrokenChains = FindBrokenChains(nodeById, outEdges),
             Duplicates = FindStrictDuplicates(),
             PossibleDuplicates = FindPossibleDuplicates(),
@@ -53,7 +69,8 @@ public sealed class GraphAnalyzer
             TotalNodes = _graph.Nodes.Count,
             TotalEdges = _graph.Edges.Count,
             TotalBlindSpots = actionableBlindSpots,
-            TotalUnresolvedInjections = actionableUnresolved
+            TotalUnresolvedInjections = actionableUnresolved,
+            IslandSummaries = islandSummaries
         };
     }
 
@@ -64,11 +81,19 @@ public sealed class GraphAnalyzer
                 u.DeclaredType.FullyQualifiedName,
                 _policy));
 
-    private static List<string> FindReachabilitySeeds(Dictionary<string, RegistrationNode> nodes)
+    private static List<string> FindReachabilitySeeds(Dictionary<string, RegistrationNode> nodes) =>
+        CollectReachabilitySeeds(nodes, FindingPolicy.IsSecondaryReachabilityRootFile);
+
+    private static List<string> FindLegacyReachabilitySeeds(Dictionary<string, RegistrationNode> nodes) =>
+        CollectReachabilitySeeds(nodes, FindingPolicy.IsLegacyReachabilityRootFile);
+
+    private static List<string> CollectReachabilitySeeds(
+        Dictionary<string, RegistrationNode> nodes,
+        Func<string?, bool> isRootFile)
     {
         var seeds = FindCompositionRootCandidates(nodes);
         var secondary = nodes.Values
-            .Where(n => FindingPolicy.IsSecondaryReachabilityRootFile(n.SourceLocation?.FilePath))
+            .Where(n => isRootFile(n.SourceLocation?.FilePath))
             .Select(n => n.Id);
 
         return seeds.Concat(secondary).Distinct(StringComparer.Ordinal).ToList();
@@ -226,24 +251,101 @@ public sealed class GraphAnalyzer
         return leaked;
     }
 
-    private static List<OrphanedRegistration> FindOrphaned(
+    private static (List<OrphanedRegistration> TrueOrphans, List<OrphanedRegistration> IslandValid) FindOrphaned(
         Dictionary<string, RegistrationNode> nodes,
         Dictionary<string, List<DependencyEdge>> inEdges,
         string? rootId,
-        HashSet<string> reachable)
+        HashSet<string> reachable,
+        Dictionary<CompositionIsland, HashSet<string>> islandReachableByIsland,
+        bool islandAware)
     {
-        return nodes.Values
+        var candidates = nodes.Values
             .Where(n =>
                 n.Id != rootId &&
                 !inEdges.ContainsKey(n.Id) &&
                 !reachable.Contains(n.Id) &&
                 !IsFrameworkInfrastructure(n))
-            .Select(n => new OrphanedRegistration(
-                n.Id, n.DisplayName,
-                n.SourceLocation?.FilePath,
-                n.SourceLocation?.Line))
+            .Select(n =>
+            {
+                var island = CompositionIslandAttribution.InferFromFilePath(n.SourceLocation?.FilePath);
+                var islandValid = islandAware &&
+                    island != CompositionIsland.Unknown &&
+                    island != CompositionIsland.External &&
+                    islandReachableByIsland.TryGetValue(island, out var islandReach) &&
+                    islandReach.Contains(n.Id);
+                return new OrphanedRegistration(
+                    n.Id, n.DisplayName,
+                    n.SourceLocation?.FilePath,
+                    n.SourceLocation?.Line,
+                    island,
+                    islandValid);
+            })
+            .ToList();
+
+        var trueOrphans = candidates
+            .Where(o => !islandAware || !o.IsIslandValid)
             .OrderBy(o => o.DisplayName, StringComparer.Ordinal)
             .ToList();
+        var islandValid = candidates
+            .Where(o => islandAware && o.IsIslandValid)
+            .OrderBy(o => o.DisplayName, StringComparer.Ordinal)
+            .ToList();
+
+        return (trueOrphans, islandValid);
+    }
+
+    private static Dictionary<CompositionIsland, HashSet<string>> BuildIslandReachable(
+        Dictionary<string, RegistrationNode> nodes,
+        Dictionary<string, List<DependencyEdge>> outEdges)
+    {
+        var lookup = new Dictionary<CompositionIsland, HashSet<string>>();
+        foreach (var island in new[] { CompositionIsland.Desktop, CompositionIsland.Api, CompositionIsland.Lambda })
+        {
+            var seeds = nodes.Values
+                .Where(n => FindingPolicy.IsIslandReachabilitySeedFile(n.SourceLocation?.FilePath, island))
+                .Select(n => n.Id)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (seeds.Count == 0)
+                continue;
+
+            lookup[island] = FindReachableFromRoots(seeds, outEdges);
+        }
+
+        return lookup;
+    }
+
+    private static List<CompositionIslandSummary> BuildIslandSummaries(
+        Dictionary<string, RegistrationNode> nodes,
+        Dictionary<string, List<DependencyEdge>> inEdges,
+        Dictionary<CompositionIsland, HashSet<string>> islandReachableByIsland)
+    {
+        var summaries = new List<CompositionIslandSummary>();
+        foreach (var (island, islandReachable) in islandReachableByIsland)
+        {
+            var islandNodes = nodes.Values
+                .Where(n => CompositionIslandAttribution.InferFromFilePath(n.SourceLocation?.FilePath) == island)
+                .ToList();
+
+            var zeroInDegree = islandNodes
+                .Where(n => !inEdges.ContainsKey(n.Id) && !IsFrameworkInfrastructure(n))
+                .ToList();
+            var islandValid = zeroInDegree.Count(n => islandReachable.Contains(n.Id));
+            var trueOrphans = zeroInDegree.Count(n => !islandReachable.Contains(n.Id));
+
+            summaries.Add(new CompositionIslandSummary
+            {
+                Island = island,
+                SeedCount = nodes.Values.Count(n =>
+                    FindingPolicy.IsIslandReachabilitySeedFile(n.SourceLocation?.FilePath, island)),
+                ReachableCount = islandReachable.Count,
+                OrphanedCount = zeroInDegree.Count,
+                IslandValidCount = islandValid,
+                TrueOrphanCount = trueOrphans
+            });
+        }
+
+        return summaries;
     }
 
     private static bool IsFrameworkInfrastructure(RegistrationNode node)
@@ -273,19 +375,29 @@ public sealed class GraphAnalyzer
             foreach (var edge in edges)
             {
                 if (!nodes.TryGetValue(edge.To, out var target)) continue;
-                if (target.ParserConfidence == Confidence.BlindSpot)
-                {
-                    broken.Add(new BrokenChain(
-                        node.Id, node.DisplayName,
-                        target.AbstractToken.ShortName,
-                        node.SourceLocation?.FilePath,
-                        node.SourceLocation?.Line));
-                }
+                if (target.ParserConfidence != Confidence.BlindSpot)
+                    continue;
+
+                if (IsParameterlessShallowFactory(target))
+                    continue;
+
+                broken.Add(new BrokenChain(
+                    node.Id, node.DisplayName,
+                    target.AbstractToken.ShortName,
+                    node.SourceLocation?.FilePath,
+                    node.SourceLocation?.Line));
             }
         }
 
         return broken;
     }
+
+    private static bool IsParameterlessShallowFactory(RegistrationNode target) =>
+        string.Equals(
+            target.Annotations.GetValueOrDefault("pattern"),
+            "factory_lambda_shallow",
+            StringComparison.Ordinal) &&
+        !target.Annotations.ContainsKey("factory_lambda_service_keys");
 
     private List<DuplicateAbstractToken> FindStrictDuplicates() =>
         _graph.Nodes

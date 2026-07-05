@@ -22,4 +22,8 @@
     <ProjectReference Include="..\DCS.Analysis\DCS.Analysis.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DCS.Parser.CSharp.Tests" />
+  </ItemGroup>
+
 </Project>

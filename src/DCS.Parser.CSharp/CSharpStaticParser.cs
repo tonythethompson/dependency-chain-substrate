@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.2";
+    public const string ParserVersion = "0.3.5";
 
     private readonly CSharpParseOptions _options;
 
@@ -217,6 +217,7 @@ public sealed class CSharpStaticParser : IStaticParser
         }
 
         var (edges, unresolved) = BuildEdges(registrations, constructorDeps);
+        registrations = FactoryNodeConfidenceRefiner.Refine(registrations, edges, unresolved);
 
         return new RegistrationGraph
         {
@@ -265,6 +266,11 @@ public sealed class CSharpStaticParser : IStaticParser
             .GroupBy(n => n.ServiceType!.CanonicalKey, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
 
+        var byCanonicalKey = nodes
+            .Where(n => !string.IsNullOrWhiteSpace(n.ServiceType?.CanonicalKey))
+            .GroupBy(n => n.ServiceType!.CanonicalKey, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
         var depsByShortName = constructorDeps.Values
             .GroupBy(d => d.ImplementationShortName, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
@@ -294,56 +300,7 @@ public sealed class CSharpStaticParser : IStaticParser
 
             var edgeIndex = 0;
             foreach (var param in depEntry.Parameters)
-            {
-                if (FrameworkProvidedServices.IsFrameworkProvided(
-                        param.SyntacticName,
-                        param.Identity?.MetadataName))
-                    continue;
-
-                if (param.Quality != TypeResolutionQuality.Resolved || param.Identity == null)
-                {
-                    unresolved.Add(new UnresolvedInjection
-                    {
-                        Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
-                        FromRegistrationId = node.Id,
-                        DeclaredType = TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
-                        ParameterName = param.SyntacticName,
-                        Reason = "semantic_unresolved"
-                    });
-                    continue;
-                }
-
-                var serviceKey = ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey;
-                if (!byServiceIdentity.TryGetValue(serviceKey, out var candidates))
-                {
-                    unresolved.Add(new UnresolvedInjection
-                    {
-                        Id = UnresolvedInjection.ComputeId(node.Id, serviceKey, edgeIndexGlobal++),
-                        FromRegistrationId = node.Id,
-                        DeclaredType = TypeIdentityFormatter.ToTypeRef(param.Identity),
-                        ParameterName = param.SyntacticName,
-                        Reason = "no_matching_registration"
-                    });
-                    continue;
-                }
-
-                var depNode = candidates.FirstOrDefault(c =>
-                    c.CompositionScopeId == node.CompositionScopeId) ?? candidates.First();
-
-                edges.Add(new DependencyEdge
-                {
-                    Id = DependencyEdge.ComputeId(node.Id, depNode.Id, edgeIndex++),
-                    From = node.Id,
-                    To = depNode.Id,
-                    InjectionMechanism = Mechanism.Constructor,
-                    ParameterName = param.SyntacticName,
-                    ParserConfidence =
-                        node.ParserConfidence == Confidence.Explicit &&
-                        depNode.ParserConfidence == Confidence.Explicit
-                            ? Confidence.Explicit
-                            : Confidence.Inferred
-                });
-            }
+                TryAddDependencyEdge(node, param, byServiceIdentity, nodes, edges, unresolved, ref edgeIndex, ref edgeIndexGlobal);
         }
 
         foreach (var node in nodes)
@@ -354,7 +311,13 @@ public sealed class CSharpStaticParser : IStaticParser
             var factoryEdgeIndex = 0;
             foreach (var serviceKey in keysRaw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                if (!byServiceIdentity.TryGetValue(serviceKey, out var candidates))
+                if (IsFrameworkServiceKey(serviceKey))
+                    continue;
+
+                if (!byCanonicalKey.TryGetValue(serviceKey, out var candidates))
+                    candidates = TryResolveOptionsCandidatesFromKey(serviceKey, nodes);
+
+                if (candidates == null || candidates.Count == 0)
                 {
                     unresolved.Add(new UnresolvedInjection
                     {
@@ -362,6 +325,7 @@ public sealed class CSharpStaticParser : IStaticParser
                         FromRegistrationId = node.Id,
                         DeclaredType = TypeRef.FromShortName(serviceKey),
                         ParameterName = serviceKey,
+                        InjectionMechanism = Mechanism.FactoryParameter,
                         Reason = "no_matching_registration"
                     });
                     continue;
@@ -387,6 +351,121 @@ public sealed class CSharpStaticParser : IStaticParser
         }
 
         return (edges, unresolved);
+    }
+
+    private static bool TryAddDependencyEdge(
+        RegistrationNode node,
+        ResolvedParameterDependency param,
+        Dictionary<string, List<RegistrationNode>> byServiceIdentity,
+        List<RegistrationNode> nodes,
+        List<DependencyEdge> edges,
+        List<UnresolvedInjection> unresolved,
+        ref int edgeIndex,
+        ref int edgeIndexGlobal)
+    {
+        if (FrameworkProvidedServices.IsFrameworkProvided(
+                param.SyntacticName,
+                param.Identity?.MetadataName))
+            return true;
+
+        if (param.Quality != TypeResolutionQuality.Resolved || param.Identity == null)
+        {
+            unresolved.Add(new UnresolvedInjection
+            {
+                Id = UnresolvedInjection.ComputeId(node.Id, param.SyntacticName, edgeIndexGlobal++),
+                FromRegistrationId = node.Id,
+                DeclaredType = TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
+                ParameterName = param.SyntacticName,
+                Reason = "semantic_unresolved"
+            });
+            return true;
+        }
+
+        var serviceKey = ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey;
+        if (!byServiceIdentity.TryGetValue(serviceKey, out var candidates))
+        {
+            candidates = TryResolveOptionsCandidates(param, nodes) ??
+                         TryResolveConfiguredOptionsByGenericArg(param, nodes);
+            if (candidates == null)
+            {
+                unresolved.Add(new UnresolvedInjection
+                {
+                    Id = UnresolvedInjection.ComputeId(node.Id, serviceKey, edgeIndexGlobal++),
+                    FromRegistrationId = node.Id,
+                    DeclaredType = TypeIdentityFormatter.ToTypeRef(param.Identity),
+                    ParameterName = param.SyntacticName,
+                    Reason = "no_matching_registration"
+                });
+                return true;
+            }
+        }
+
+        var depNode = candidates.FirstOrDefault(c =>
+            c.CompositionScopeId == node.CompositionScopeId) ?? candidates.First();
+
+        edges.Add(new DependencyEdge
+        {
+            Id = DependencyEdge.ComputeId(node.Id, depNode.Id, edgeIndex++),
+            From = node.Id,
+            To = depNode.Id,
+            InjectionMechanism = Mechanism.Constructor,
+            ParameterName = param.SyntacticName,
+            ParserConfidence =
+                node.ParserConfidence == Confidence.Explicit &&
+                depNode.ParserConfidence == Confidence.Explicit
+                    ? Confidence.Explicit
+                    : Confidence.Inferred
+        });
+        return true;
+    }
+
+    private static List<RegistrationNode>? TryResolveOptionsCandidates(
+        ResolvedParameterDependency param,
+        List<RegistrationNode> nodes)
+    {
+        var metadataName = param.Identity?.MetadataName;
+        if (metadataName == null || !metadataName.StartsWith("Microsoft.Extensions.Options.IOptions", StringComparison.Ordinal))
+            return null;
+
+        var optionsTypeName = param.Identity?.TypeArguments.FirstOrDefault()?.MetadataName;
+        if (string.IsNullOrEmpty(optionsTypeName))
+            return null;
+
+        var shortName = optionsTypeName.Split('.').Last();
+        var matches = nodes
+            .Where(n => n.Annotations.GetValueOrDefault("pattern") == "options_configuration" &&
+                        string.Equals(n.Annotations.GetValueOrDefault("options_type"), shortName, StringComparison.Ordinal))
+            .ToList();
+        return matches.Count > 0 ? matches : null;
+    }
+
+    private static List<RegistrationNode>? TryResolveConfiguredOptionsByGenericArg(
+        ResolvedParameterDependency param,
+        List<RegistrationNode> nodes)
+    {
+        var shortName = param.Identity?.MetadataName?.Split('.').Last();
+        if (string.IsNullOrEmpty(shortName))
+            return null;
+
+        var matches = nodes
+            .Where(n => n.Annotations.GetValueOrDefault("pattern") == "options_configuration" &&
+                        (string.Equals(n.DisplayName, shortName, StringComparison.Ordinal) ||
+                         string.Equals(n.Annotations.GetValueOrDefault("options_type"), shortName, StringComparison.Ordinal)))
+            .ToList();
+        return matches.Count > 0 ? matches : null;
+    }
+
+    private static List<RegistrationNode>? TryResolveOptionsCandidatesFromKey(
+        string serviceKey,
+        List<RegistrationNode> nodes)
+    {
+        if (!serviceKey.Contains("IOptions", StringComparison.Ordinal))
+            return null;
+
+        var matches = nodes
+            .Where(n => n.Annotations.GetValueOrDefault("pattern") == "options_configuration")
+            .ToList();
+        return matches.Count > 0 ? matches : null;
     }
 
     private static bool MatchesConcreteImplementation(ResolvedTypeIdentity identity, TypeRef concrete)
@@ -423,6 +502,33 @@ public sealed class CSharpStaticParser : IStaticParser
                     break;
             }
         }
+    }
+
+    private static bool IsFrameworkServiceKey(string serviceKey)
+    {
+        if (serviceKey.StartsWith("Microsoft.Extensions.Http|", StringComparison.Ordinal))
+            return true;
+
+        string? syntactic = serviceKey.StartsWith("syntactic:", StringComparison.Ordinal)
+            ? serviceKey["syntactic:".Length..]
+            : null;
+
+        string? fullyQualified = null;
+        if (serviceKey.StartsWith("scope:", StringComparison.Ordinal))
+        {
+            var parts = serviceKey.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length > 0)
+                fullyQualified = parts[^1];
+        }
+
+        if (syntactic == null && fullyQualified != null)
+        {
+            var lastDot = fullyQualified.LastIndexOf('.');
+            syntactic = lastDot >= 0 ? fullyQualified[(lastDot + 1)..] : fullyQualified;
+        }
+
+        return syntactic != null &&
+               FrameworkProvidedServices.IsFrameworkProvided(syntactic, fullyQualified);
     }
 
     private static bool IsExcludedPath(string path, bool includeTests)

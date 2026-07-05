@@ -19,6 +19,12 @@ public static class AnalysisReportSerializer
     public static string Serialize(MultiContextAnalysisReport report) =>
         JsonSerializer.Serialize(report, Options);
 
+    public static AnalysisReport? Deserialize(string json) =>
+        JsonSerializer.Deserialize<AnalysisReport>(json, Options);
+
+    public static MultiContextAnalysisReport? DeserializeMulti(string json) =>
+        JsonSerializer.Deserialize<MultiContextAnalysisReport>(json, Options);
+
     public static async Task WriteToFileAsync(AnalysisReport report, string path, CancellationToken ct = default)
     {
         await File.WriteAllTextAsync(path, Serialize(report), ct);

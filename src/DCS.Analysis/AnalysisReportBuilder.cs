@@ -12,6 +12,8 @@ public sealed class AnalysisReportBuildOptions
     public string? TargetFramework { get; init; }
     public string? ParserVersion { get; init; }
     public IReadOnlyList<string> AvailableContexts { get; init; } = [];
+    public bool IslandAware { get; init; }
+    public string? IslandFilter { get; init; }
 }
 
 public static class AnalysisReportBuilder
@@ -32,9 +34,17 @@ public static class AnalysisReportBuilder
         findings.AddRange(BuildDuplicateFindings(result.PossibleDuplicates, graph, nodeById, policy, strict: false));
         findings.AddRange(BuildIntentionalTryAddFindings(graph, nodeById, policy));
         findings.AddRange(BuildUnresolvedFindings(graph, nodeById, policy));
-        findings.AddRange(BuildOrphanedFindings(result.Orphaned, nodeById));
+        findings.AddRange(BuildOrphanedFindings(result.Orphaned, nodeById, FindingTier.Actionable));
+        findings.AddRange(BuildOrphanedFindings(result.IslandValidOrphans, nodeById, FindingTier.IslandValid));
         findings.AddRange(BuildCycleFindings(result.Cycles, graph, nodeById));
         findings.AddRange(BuildBlindSpotFindings(graph.BlindSpots, policy));
+
+        if (!string.IsNullOrWhiteSpace(options.IslandFilter))
+        {
+            findings = findings
+                .Where(f => FindingMatchesIslandFilter(f, options.IslandFilter))
+                .ToList();
+        }
 
         var filtered = FilterByVerbosity(findings, options.Verbosity, options.VerboseBlindSpots);
         var summary = BuildSummary(findings, result);
@@ -50,8 +60,19 @@ public static class AnalysisReportBuilder
             Metrics = options.IncludeMetrics ? ExtractionQualityMetricsComputer.Compute(graph.Nodes) : null,
             Summary = summary,
             Findings = filtered,
-            AvailableContexts = options.AvailableContexts
+            AvailableContexts = options.AvailableContexts,
+            IslandSummaries = result.IslandSummaries
         };
+    }
+
+    private static bool FindingMatchesIslandFilter(AnalysisFinding finding, string? islandFilter)
+    {
+        if (!CompositionIslandAttribution.MatchesFilter(CompositionIsland.Unknown, islandFilter))
+            return true;
+
+        var sitePath = finding.Sites.FirstOrDefault()?.FilePath;
+        var island = CompositionIslandAttribution.InferFromFilePath(sitePath);
+        return CompositionIslandAttribution.MatchesFilter(island, islandFilter);
     }
 
     public static IReadOnlyList<AnalysisFinding> FilterByVerbosity(
@@ -279,7 +300,8 @@ public static class AnalysisReportBuilder
 
     private static IEnumerable<AnalysisFinding> BuildOrphanedFindings(
         IEnumerable<OrphanedRegistration> orphaned,
-        Dictionary<string, RegistrationNode> nodeById)
+        Dictionary<string, RegistrationNode> nodeById,
+        FindingTier tier)
     {
         foreach (var o in orphaned)
         {
@@ -288,8 +310,11 @@ public static class AnalysisReportBuilder
                 FindingId = FindingId(FindingCategory.Orphaned, o.DisplayName, o.NodeId),
                 Category = FindingCategory.Orphaned,
                 Severity = FindingSeverity.Warn,
-                Tier = FindingTier.Actionable,
+                Tier = tier,
                 Title = o.DisplayName,
+                Detail = tier == FindingTier.IslandValid
+                    ? $"valid within {CompositionIslandAttribution.ToAnnotationValue(o.Island)} island"
+                    : null,
                 Sites = [SiteFromNode(o.NodeId, o.DisplayName, o.SourceFile, o.SourceLine, nodeById)]
             };
         }

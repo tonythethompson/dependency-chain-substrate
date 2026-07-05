@@ -30,10 +30,20 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         "AddServicesFromAssembly", "AddFromAssembly", "RegisterAll"
     };
 
-    private static readonly HashSet<string> KnownCompositionExtensions = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> OptionsRegistrationMethods = new(StringComparer.Ordinal)
+    {
+        "Configure", "Bind", "AddOptions"
+    };
+
+    private static readonly HashSet<string> TypedHttpClientMethods = new(StringComparer.Ordinal)
+    {
+        "AddHttpClient"
+    };
+
+    private static readonly HashSet<string> WalkableCompositionExtensions = new(StringComparer.Ordinal)
     {
         "AddTrackdub", "AddHeadlessTrackdub", "AddAvaloniaPlayback", "AddLocalization",
-        "AddBilling", "AddHttpClient", "AddHostedService"
+        "AddBilling", "AddHostedService"
     };
 
     private static readonly HashSet<string> SuppressedExtensionBlindSpots = new(StringComparer.Ordinal)
@@ -79,9 +89,20 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 var reg = TryExtractRegistration(node, ma.Name, methodName);
                 if (reg != null) _registrations.Add(reg);
             }
-            else if (KnownCompositionExtensions.Contains(methodName))
+            else if (OptionsRegistrationMethods.Contains(methodName) &&
+                     ma.Name is GenericNameSyntax { TypeArgumentList.Arguments: [var optionsType, ..] })
             {
-                // Composition entry points — registrations live in callee bodies (separate files).
+                var reg = MakeOptionsConfigurationNode(optionsType, location: LocationOf(node), node, methodName);
+                if (reg != null) _registrations.Add(reg);
+            }
+            else if (TypedHttpClientMethods.Contains(methodName))
+            {
+                var reg = TryExtractTypedHttpClientRegistration(node, ma.Name, methodName);
+                if (reg != null) _registrations.Add(reg);
+            }
+            else if (WalkableCompositionExtensions.Contains(methodName))
+            {
+                InlineCompositionExtensionRegistrations(node, methodName);
             }
             else if (methodName.StartsWith("Add", StringComparison.Ordinal) ||
                      methodName.StartsWith("TryAdd", StringComparison.Ordinal))
@@ -125,7 +146,16 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 {
                     var shallowType = ExtractCreatedTypeFromLambdaExpression(firstDataArg.Expression);
                     if (shallowType != null)
-                        return MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
+                    {
+                        return firstDataArg.Expression switch
+                        {
+                            LambdaExpressionSyntax lambdaExpr => MakeShallowFactoryNode(
+                                types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, lambda: lambdaExpr),
+                            AnonymousMethodExpressionSyntax anonExpr => MakeShallowFactoryNode(
+                                types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, anonLambda: anonExpr),
+                            _ => MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition)
+                        };
+                    }
                     return MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda");
                 }
                 return MakeExplicitNode(types[0], types[1], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
@@ -136,9 +166,13 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                 var firstDataArg = dataArgs.FirstOrDefault();
                 return firstDataArg?.Expression switch
                 {
-                    LambdaExpressionSyntax or AnonymousMethodExpressionSyntax =>
-                        ExtractCreatedTypeFromLambdaExpression(firstDataArg.Expression) is { } shallowType
-                            ? MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition)
+                    LambdaExpressionSyntax lambdaExpr =>
+                        ExtractCreatedTypeFromLambdaExpression(lambdaExpr) is { } shallowType
+                            ? MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, lambda: lambdaExpr)
+                            : MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
+                    AnonymousMethodExpressionSyntax anonExpr =>
+                        ExtractCreatedTypeFromLambdaExpression(anonExpr) is { } shallowAnonType
+                            ? MakeShallowFactoryNode(types[0], shallowAnonType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, anonLambda: anonExpr)
                             : MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
                     ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax =>
                         MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "instance_arg"),
@@ -200,13 +234,107 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         return null;
     }
 
-    private static TypeSyntax? ExtractCreatedTypeFromLambdaExpression(ExpressionSyntax expression) =>
+    private TypeSyntax? ExtractCreatedTypeFromLambdaExpression(ExpressionSyntax expression) =>
         expression switch
         {
-            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractCreatedType(lambda),
+            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractCreatedType(lambda) ??
+                                             TryExtractImplicitNewType(lambda),
             AnonymousMethodExpressionSyntax anon => ShallowFactoryLambdaExtractor.TryExtractCreatedType(anon),
             _ => null
         };
+
+    private TypeSyntax? TryExtractImplicitNewType(LambdaExpressionSyntax lambda)
+    {
+        if (_semantic?.Model == null || !ShallowFactoryLambdaExtractor.ContainsImplicitObjectCreation(lambda))
+            return null;
+
+        var converted = _semantic.Model.GetTypeInfo(lambda).ConvertedType;
+        if (converted == null || converted.SpecialType == SpecialType.System_Void)
+            return null;
+
+        var display = converted.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        return SyntaxFactory.ParseTypeName(display);
+    }
+
+    private RegistrationNode? MakeOptionsConfigurationNode(
+        TypeSyntax optionsType,
+        SourceRef location,
+        InvocationExpressionSyntax invocation,
+        string methodName)
+    {
+        var resolved = ResolveType(optionsType);
+        var recognition = _semantic?.Model != null
+            ? RegistrationApiVerifier.Verify(invocation, _semantic.Model, methodName)
+            : RegistrationRecognitionQuality.SyntaxCandidateUnverified;
+
+        var node = BuildNode(
+            resolved, resolved, Lifetime.Singleton, isKeyed: false, isTryAdd: false,
+            location, invocation, methodName, recognition, Confidence.Explicit, "options_configuration");
+        node.Annotations["options_type"] = resolved.TypeRef.ShortName;
+        return node;
+    }
+
+    private RegistrationNode? TryExtractTypedHttpClientRegistration(
+        InvocationExpressionSyntax node,
+        SimpleNameSyntax nameNode,
+        string methodName)
+    {
+        if (nameNode is not GenericNameSyntax { TypeArgumentList.Arguments: var typeArgs } ||
+            typeArgs.Count == 0)
+        {
+            _blindSpots.Add(new BlindSpotReport
+            {
+                Pattern = "extension_method",
+                Location = LocationOf(node),
+                Description = "AddHttpClient() — untyped client registration not traced"
+            });
+            return null;
+        }
+
+        var location = LocationOf(node);
+        var recognition = _semantic?.Model != null
+            ? RegistrationApiVerifier.Verify(node, _semantic.Model, methodName)
+            : RegistrationRecognitionQuality.SyntaxCandidateUnverified;
+
+        if (typeArgs.Count >= 2)
+        {
+            return MakeExplicitNode(
+                typeArgs[0], typeArgs[1], Lifetime.Transient, isKeyed: false, isTryAdd: false,
+                location, node, methodName, recognition);
+        }
+
+        var clientType = typeArgs[0];
+        return MakeExplicitNode(
+            clientType, clientType, Lifetime.Transient, isKeyed: false, isTryAdd: false,
+            location, node, methodName, recognition);
+    }
+
+    private void InlineCompositionExtensionRegistrations(InvocationExpressionSyntax node, string methodName)
+    {
+        if (_semantic?.Model == null)
+            return;
+
+        var symbol = _semantic.Model.GetSymbolInfo(node).Symbol as IMethodSymbol;
+        if (symbol == null)
+            return;
+
+        foreach (var syntaxRef in symbol.DeclaringSyntaxReferences)
+        {
+            var syntax = syntaxRef.GetSyntax();
+            if (syntax is not MethodDeclarationSyntax methodDecl)
+                continue;
+
+            var calleePath = syntaxRef.SyntaxTree.FilePath.Replace('\\', '/');
+            var calleeVisitor = new RegistrationPatternVisitor(calleePath, _usings, _boundaries, _semantic);
+            if (methodDecl.Body != null)
+                calleeVisitor.Visit(methodDecl.Body);
+            else if (methodDecl.ExpressionBody != null)
+                calleeVisitor.Visit(methodDecl.ExpressionBody);
+
+            _registrations.AddRange(calleeVisitor.Registrations);
+            _blindSpots.AddRange(calleeVisitor.BlindSpots);
+        }
+    }
 
     private RegistrationNode? TryExtractInstanceRegistration(
         ExpressionSyntax expression,
@@ -259,6 +387,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
 
         if (serviceKeys.Count > 0)
             node.Annotations["factory_lambda_service_keys"] = string.Join(";", serviceKeys);
+
+        if (serviceKeys.Count == 0)
+            return node with { ParserConfidence = Confidence.Degraded };
 
         return node;
     }

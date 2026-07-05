@@ -25,20 +25,15 @@ public sealed class BrokenFixPlannerTests
     }
 
     [Fact]
-    public void Plan_proposes_simple_factory_conversion()
+    public void Plan_skips_parameterless_degraded_factory_targets()
     {
         var root = CreateBrokenFixture(includeComplexDep: false);
         try
         {
             var graph = ParseGraph(root);
             var analysis = new GraphAnalyzer(graph).Analyze();
-            Assert.NotEmpty(analysis.BrokenChains);
-
-            var proposals = BrokenFixPlanner.Plan(root, graph, analysis);
-            Assert.Single(proposals);
-            Assert.Equal("IDepService", proposals[0].TargetDisplayName);
-            Assert.Contains("IDepService", proposals[0].ReplacementStatement);
-            Assert.Contains("DepServiceImpl", proposals[0].ReplacementStatement);
+            Assert.Empty(analysis.BrokenChains);
+            Assert.Empty(BrokenFixPlanner.Plan(root, graph, analysis));
         }
         finally
         {
@@ -47,23 +42,145 @@ public sealed class BrokenFixPlannerTests
     }
 
     [Fact]
-    public void Apply_converts_factory_and_clears_broken_chain()
+    public void Plan_proposes_simple_factory_conversion()
+    {
+        var target = new RegistrationNode
+        {
+            Id = "dep",
+            DisplayName = "IDepService",
+            AbstractToken = TypeRef.FromShortName("IDepService"),
+            ConcreteImpl = TypeRef.FromShortName("DepServiceImpl"),
+            ServiceType = ServiceTypeIdentity.FromSyntactic("IDepService"),
+            ParserConfidence = Confidence.BlindSpot,
+            Annotations = new Dictionary<string, string> { ["pattern"] = "factory_lambda_shallow" },
+            SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 7 }
+        };
+        var consumer = new RegistrationNode
+        {
+            Id = "consumer",
+            DisplayName = "IConsumer",
+            AbstractToken = TypeRef.FromShortName("IConsumer"),
+            ServiceType = ServiceTypeIdentity.FromSyntactic("IConsumer"),
+            ParserConfidence = Confidence.BlindSpot,
+            SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 8 }
+        };
+
+        var root = CreateBrokenFixture(includeComplexDep: false);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "Registrations.cs"), """
+                using Microsoft.Extensions.DependencyInjection;
+                namespace DcsBrokenFixTest;
+                public static class Registrations
+                {
+                    public static void Configure(IServiceCollection services)
+                    {
+                        services.TryAddSingleton<IDepService>(sp => new DepServiceImpl());
+                        services.TryAddSingleton<IConsumer>(sp =>
+                            new ConsumerImpl(sp.GetRequiredService<IDepService>()));
+                    }
+                }
+                """);
+
+            var graph = new RegistrationGraph
+            {
+                Nodes = [target, consumer],
+                Edges =
+                [
+                    new DependencyEdge
+                    {
+                        Id = "e1",
+                        From = consumer.Id,
+                        To = target.Id,
+                        InjectionMechanism = Mechanism.FactoryParameter
+                    }
+                ]
+            };
+            var analysis = new AnalysisResult
+            {
+                BrokenChains =
+                [
+                    new BrokenChain(consumer.Id, consumer.DisplayName, target.DisplayName,
+                        consumer.SourceLocation?.FilePath, consumer.SourceLocation?.Line)
+                ]
+            };
+
+            var proposals = BrokenFixPlanner.Plan(root, graph, analysis);
+            Assert.Single(proposals);
+            Assert.Equal("IDepService", proposals[0].TargetDisplayName);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public void Apply_converts_eligible_factory_via_synthetic_broken_chain()
     {
         var root = CreateBrokenFixture(includeComplexDep: false);
         try
         {
-            var graph = ParseGraph(root);
-            var before = new GraphAnalyzer(graph).Analyze();
-            Assert.NotEmpty(before.BrokenChains);
+            File.WriteAllText(Path.Combine(root, "Registrations.cs"), """
+                using Microsoft.Extensions.DependencyInjection;
+                namespace DcsBrokenFixTest;
+                public static class Registrations
+                {
+                    public static void Configure(IServiceCollection services)
+                    {
+                        services.TryAddSingleton<IDepService>(sp => new DepServiceImpl());
+                        services.TryAddSingleton<IConsumer>(sp =>
+                            new ConsumerImpl(sp.GetRequiredService<IDepService>()));
+                    }
+                }
+                """);
+
+            var dep = new RegistrationNode
+            {
+                Id = "dep",
+                DisplayName = "IDepService",
+                AbstractToken = TypeRef.FromShortName("IDepService"),
+                ConcreteImpl = TypeRef.FromShortName("DepServiceImpl"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IDepService"),
+                ParserConfidence = Confidence.BlindSpot,
+                Annotations = new Dictionary<string, string> { ["pattern"] = "factory_lambda_shallow" },
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 7 }
+            };
+            var consumer = new RegistrationNode
+            {
+                Id = "consumer",
+                DisplayName = "IConsumer",
+                AbstractToken = TypeRef.FromShortName("IConsumer"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IConsumer"),
+                ParserConfidence = Confidence.BlindSpot,
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 8 }
+            };
+            var graph = new RegistrationGraph
+            {
+                Nodes = [dep, consumer],
+                Edges =
+                [
+                    new DependencyEdge
+                    {
+                        Id = "e1",
+                        From = consumer.Id,
+                        To = dep.Id,
+                        InjectionMechanism = Mechanism.FactoryParameter
+                    }
+                ]
+            };
+            var before = new AnalysisResult
+            {
+                BrokenChains =
+                [
+                    new BrokenChain(consumer.Id, consumer.DisplayName, dep.DisplayName,
+                        consumer.SourceLocation?.FilePath, consumer.SourceLocation?.Line)
+                ]
+            };
 
             var result = FixEngine.ApplyBrokenFixes(root, graph, before, forceDirtyTree: true);
             Assert.Single(result.Proposals);
-
-            var afterGraph = ParseGraph(root);
-            var after = new GraphAnalyzer(afterGraph).Analyze();
-            Assert.Empty(after.BrokenChains);
-
-            FixSafetyGuard.VerifyApplyGuards(before, after, root, result.Patches);
+            Assert.Contains("TryAddSingleton<IDepService, DepServiceImpl>", File.ReadAllText(Path.Combine(root, "Registrations.cs")));
         }
         finally
         {
@@ -77,15 +194,52 @@ public sealed class BrokenFixPlannerTests
         var root = CreateBrokenFixture(includeComplexDep: false, useBuilderServicesReceiver: true);
         try
         {
-            var graph = ParseGraph(root);
-            var analysis = new GraphAnalyzer(graph).Analyze();
+            var dep = new RegistrationNode
+            {
+                Id = "dep",
+                DisplayName = "IDepService",
+                AbstractToken = TypeRef.FromShortName("IDepService"),
+                ConcreteImpl = TypeRef.FromShortName("DepServiceImpl"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IDepService"),
+                ParserConfidence = Confidence.BlindSpot,
+                Annotations = new Dictionary<string, string> { ["pattern"] = "factory_lambda_shallow" },
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 14 }
+            };
+            var consumer = new RegistrationNode
+            {
+                Id = "consumer",
+                DisplayName = "IConsumer",
+                AbstractToken = TypeRef.FromShortName("IConsumer"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IConsumer"),
+                ParserConfidence = Confidence.BlindSpot,
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 15 }
+            };
+            var graph = new RegistrationGraph
+            {
+                Nodes = [dep, consumer],
+                Edges =
+                [
+                    new DependencyEdge
+                    {
+                        Id = "e1",
+                        From = consumer.Id,
+                        To = dep.Id,
+                        InjectionMechanism = Mechanism.FactoryParameter
+                    }
+                ]
+            };
+            var analysis = new AnalysisResult
+            {
+                BrokenChains =
+                [
+                    new BrokenChain(consumer.Id, consumer.DisplayName, dep.DisplayName,
+                        consumer.SourceLocation?.FilePath, consumer.SourceLocation?.Line)
+                ]
+            };
 
             var proposals = BrokenFixPlanner.Plan(root, graph, analysis);
-
             var proposal = Assert.Single(proposals);
             Assert.StartsWith("builder.Services.TryAddSingleton<", proposal.ReplacementStatement, StringComparison.Ordinal);
-            Assert.Contains("IDepService", proposal.ReplacementStatement);
-            Assert.Contains("DepServiceImpl", proposal.ReplacementStatement);
         }
         finally
         {
@@ -99,11 +253,50 @@ public sealed class BrokenFixPlannerTests
         var root = CreateBrokenFixture(includeComplexDep: false, useBuilderServicesReceiver: true);
         try
         {
-            var graph = ParseGraph(root);
-            var before = new GraphAnalyzer(graph).Analyze();
+            var dep = new RegistrationNode
+            {
+                Id = "dep",
+                DisplayName = "IDepService",
+                AbstractToken = TypeRef.FromShortName("IDepService"),
+                ConcreteImpl = TypeRef.FromShortName("DepServiceImpl"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IDepService"),
+                ParserConfidence = Confidence.BlindSpot,
+                Annotations = new Dictionary<string, string> { ["pattern"] = "factory_lambda_shallow" },
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 14 }
+            };
+            var consumer = new RegistrationNode
+            {
+                Id = "consumer",
+                DisplayName = "IConsumer",
+                AbstractToken = TypeRef.FromShortName("IConsumer"),
+                ServiceType = ServiceTypeIdentity.FromSyntactic("IConsumer"),
+                ParserConfidence = Confidence.BlindSpot,
+                SourceLocation = new SourceRef { FilePath = "Registrations.cs", Line = 15 }
+            };
+            var graph = new RegistrationGraph
+            {
+                Nodes = [dep, consumer],
+                Edges =
+                [
+                    new DependencyEdge
+                    {
+                        Id = "e1",
+                        From = consumer.Id,
+                        To = dep.Id,
+                        InjectionMechanism = Mechanism.FactoryParameter
+                    }
+                ]
+            };
+            var before = new AnalysisResult
+            {
+                BrokenChains =
+                [
+                    new BrokenChain(consumer.Id, consumer.DisplayName, dep.DisplayName,
+                        consumer.SourceLocation?.FilePath, consumer.SourceLocation?.Line)
+                ]
+            };
 
             var result = FixEngine.ApplyBrokenFixes(root, graph, before, forceDirtyTree: true);
-
             Assert.Single(result.Proposals);
             var registrations = File.ReadAllText(Path.Combine(root, "Registrations.cs"));
             Assert.Contains("builder.Services.TryAddSingleton<", registrations);

@@ -56,6 +56,7 @@ public static class ProjectTargetScopeDiscovery
                     SourceMembershipProfileHash = membershipHash,
                     SourceFiles = memberFiles.Select(f => NormalizePath(f.path)).ToList(),
                     ProjectReferences = meta.ProjectReferences,
+                    PackageReferences = meta.PackageReferences,
                     DefineConstants = meta.DefineConstants,
                     LangVersion = meta.LangVersion,
                     NullableEnabled = meta.Nullable ?? true,

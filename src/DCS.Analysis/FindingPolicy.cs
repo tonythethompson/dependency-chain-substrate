@@ -37,7 +37,7 @@ public static class FindingPolicy
     private static readonly HashSet<string> SecondaryRootFileNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "Program.cs", "Startup.cs", "AppHost.cs", "ServiceRegistration.cs",
-        "DependencyInjection.cs",
+        "DependencyInjection.cs", "Function.cs", "LocalEntryPoint.cs",
     };
 
     public static bool IsInformationalBlindSpot(string pattern, FindingPolicyOptions? options = null) =>
@@ -54,7 +54,55 @@ public static class FindingPolicy
 
         var normalized = filePath.Replace('\\', '/');
         return normalized.Contains("Composition", StringComparison.OrdinalIgnoreCase) ||
-               normalized.Contains("ServiceRegistration", StringComparison.OrdinalIgnoreCase);
+               normalized.Contains("ServiceRegistration", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("ServiceCollectionExtensions", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Pre-ADR-010 union reachability seeds (excludes island-only entry points).
+    /// Used to detect false-positive orphans that island attribution re-tiers.
+    /// </summary>
+    public static bool IsLegacyReachabilityRootFile(string? filePath)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            return false;
+
+        var fileName = Path.GetFileName(filePath);
+        if (string.Equals(fileName, "Function.cs", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(fileName, "LocalEntryPoint.cs", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var normalized = filePath.Replace('\\', '/');
+        if (normalized.Contains("ServiceCollectionExtensions", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return IsSecondaryReachabilityRootFile(filePath);
+    }
+
+    public static bool IsIslandReachabilitySeedFile(string? filePath, CompositionIsland island)
+    {
+        if (string.IsNullOrEmpty(filePath))
+            return false;
+
+        var normalized = filePath.Replace('\\', '/');
+        var fileName = Path.GetFileName(filePath);
+
+        return island switch
+        {
+            CompositionIsland.Desktop =>
+                string.Equals(fileName, "CompositionRoot.cs", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fileName, "App.axaml.cs", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fileName, "App.xaml.cs", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("avaloniaplaybackcomposition", StringComparison.OrdinalIgnoreCase),
+            CompositionIsland.Api =>
+                normalized.Contains("trackdub.api", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(fileName, "Program.cs", StringComparison.OrdinalIgnoreCase) ||
+                 normalized.Contains("ServiceCollectionExtensions", StringComparison.OrdinalIgnoreCase)),
+            CompositionIsland.Lambda =>
+                string.Equals(fileName, "Function.cs", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("trackdub.webhookdelivery", StringComparison.OrdinalIgnoreCase),
+            _ => IsSecondaryReachabilityRootFile(filePath)
+        };
     }
 
     public static bool IsIntentionalTryAddOverride(

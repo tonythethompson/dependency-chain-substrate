@@ -78,7 +78,7 @@ internal static class ProgramCommands
                     Console.Error.WriteLine(
                         $"[DCS] Context {ctx.ContextId}: {ctxGraph.Nodes.Count} registrations, {ctxGraph.Edges.Count} edges, {ctxGraph.BlindSpots.Count} blind spots");
 
-                    var result = new GraphAnalyzer(ctxGraph, boundaries, options.RootClass, policy).Analyze();
+                    var result = new GraphAnalyzer(ctxGraph, boundaries, options.RootClass, policy, options.IslandAware).Analyze();
                     var report = BuildReport(ctxGraph, result, options, policy, includeMetrics, ctx.ContextId, parseResult);
                     contextReports.Add(report);
                     if (result.HasErrors) hasErrors = true;
@@ -102,7 +102,7 @@ internal static class ProgramCommands
             Console.Error.WriteLine(
                 $"[DCS] {graph.Nodes.Count} registrations, {graph.Edges.Count} edges, {graph.BlindSpots.Count} blind spots");
 
-            var analysisResult = new GraphAnalyzer(graph, boundaries, options.RootClass, policy).Analyze();
+            var analysisResult = new GraphAnalyzer(graph, boundaries, options.RootClass, policy, options.IslandAware).Analyze();
             var singleReport = BuildReport(
                 graph,
                 analysisResult,
@@ -143,7 +143,9 @@ internal static class ProgramCommands
             ContextId = contextId,
             TargetFramework = options.TargetFramework,
             ParserVersion = graph.ParserVersion,
-            AvailableContexts = parseResult.ContextGraphs.Select(c => c.ContextId).ToList()
+            AvailableContexts = parseResult.ContextGraphs.Select(c => c.ContextId).ToList(),
+            IslandAware = options.IslandAware,
+            IslandFilter = options.IslandFilter
         });
 
     private static async Task EmitAnalyzeOutput(AnalysisReport report, CliOptions options)
@@ -717,6 +719,8 @@ internal static class ProgramCommands
               --production-only     Exclude test/benchmark projects (default)
               --include-tests       Include test projects and tests/ sources
               --verbosity <level>   summary | actionable (default) | full
+              --island <name>       Filter by composition island: desktop | api | lambda | all
+              --no-island-aware     Disable per-island orphan re-tiering
               --strict              Disable finding suppressions (audit mode)
               --verbose-blind-spots List informational blind spots in text output
               --metrics             Print extraction quality metrics on stderr

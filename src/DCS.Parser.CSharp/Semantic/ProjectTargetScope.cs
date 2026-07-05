@@ -10,6 +10,7 @@ public sealed record ProjectTargetScope
     public required string SourceMembershipProfileHash { get; init; }
     public IReadOnlyList<string> SourceFiles { get; init; } = [];
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
+    public IReadOnlyList<string> PackageReferences { get; init; } = [];
     public IReadOnlyList<string> DefineConstants { get; init; } = [];
     public string? LangVersion { get; init; }
     public bool NullableEnabled { get; init; } = true;

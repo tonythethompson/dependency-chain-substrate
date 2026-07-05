@@ -32,30 +32,102 @@ internal static class ShallowFactoryLambdaExtractor
     private static IReadOnlyList<TypeSyntax> ExtractServiceRequestTypes(SyntaxNode body)
     {
         var results = new List<TypeSyntax>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddType(TypeSyntax? typeArg)
+        {
+            if (typeArg == null)
+                return;
+            var key = typeArg.ToString();
+            if (seen.Add(key))
+                results.Add(typeArg);
+        }
+
         foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            TypeSyntax? typeArg = invocation.Expression switch
+            AddType(TryExtractServiceTypeFromInvocation(invocation));
+        }
+
+        foreach (var creation in body.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
+        {
+            foreach (var arg in creation.ArgumentList?.Arguments ?? default)
+                AddType(TryExtractServiceTypeFromExpression(arg.Expression));
+        }
+
+        foreach (var creation in body.DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>())
+        {
+            foreach (var arg in creation.ArgumentList?.Arguments ?? default)
+                AddType(TryExtractServiceTypeFromExpression(arg.Expression));
+        }
+
+        foreach (var local in body.DescendantNodes().OfType<LocalDeclarationStatementSyntax>())
+        {
+            foreach (var variable in local.Declaration.Variables)
             {
-                MemberAccessExpressionSyntax
+                if (variable.Initializer?.Value is not InvocationExpressionSyntax initInvocation)
+                    continue;
+
+                TypeSyntax? typeArg = TryExtractServiceTypeFromInvocation(initInvocation);
+
+                if (typeArg == null)
+                    continue;
+
+                AddType(typeArg);
+
+                var varName = variable.Identifier.Text;
+                foreach (var creation in body.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
                 {
-                    Name: GenericNameSyntax { Identifier.Text: "GetRequiredService" or "GetService" } genericName
-                } => genericName.TypeArgumentList.Arguments.FirstOrDefault(),
-                _ => null
-            };
+                    foreach (var arg in creation.ArgumentList?.Arguments ?? default)
+                    {
+                        if (arg.Expression is IdentifierNameSyntax { Identifier.Text: var id } && id == varName)
+                            AddType(typeArg);
+                    }
+                }
 
-            if (typeArg == null &&
-                invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" or "GetService" } &&
-                invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is TypeOfExpressionSyntax typeOf)
-            {
-                typeArg = typeOf.Type;
+                foreach (var implicitCreation in body.DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>())
+                {
+                    foreach (var arg in implicitCreation.ArgumentList?.Arguments ?? default)
+                    {
+                        if (arg.Expression is IdentifierNameSyntax { Identifier.Text: var id } && id == varName)
+                            AddType(typeArg);
+                    }
+                }
             }
-
-            if (typeArg != null)
-                results.Add(typeArg);
         }
 
         return results;
     }
+
+    private static TypeSyntax? TryExtractServiceTypeFromInvocation(InvocationExpressionSyntax invocation)
+    {
+        TypeSyntax? typeArg = invocation.Expression switch
+        {
+            MemberAccessExpressionSyntax
+            {
+                Name: GenericNameSyntax { Identifier.Text: "GetRequiredService" or "GetService" } genericName
+            } => genericName.TypeArgumentList.Arguments.FirstOrDefault(),
+            _ => null
+        };
+
+        if (typeArg == null &&
+            invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" or "GetService" } &&
+            invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is TypeOfExpressionSyntax typeOf)
+        {
+            typeArg = typeOf.Type;
+        }
+
+        return typeArg;
+    }
+
+    private static TypeSyntax? TryExtractServiceTypeFromExpression(ExpressionSyntax expression) =>
+        expression switch
+        {
+            InvocationExpressionSyntax invocation => TryExtractServiceTypeFromInvocation(invocation),
+            MemberAccessExpressionSyntax member => TryExtractServiceTypeFromExpression(member.Expression),
+            _ => expression.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Select(TryExtractServiceTypeFromInvocation)
+                .FirstOrDefault(t => t != null)
+        };
 
     public static bool UsesGetRequiredService(LambdaExpressionSyntax lambda)
     {
@@ -129,8 +201,28 @@ internal static class ShallowFactoryLambdaExtractor
         {
             ObjectCreationExpressionSyntax { Type: { } type } => type,
             ImplicitObjectCreationExpressionSyntax => null,
+            InvocationExpressionSyntax
+            {
+                Expression: MemberAccessExpressionSyntax
+                {
+                    Expression: IdentifierNameSyntax or QualifiedNameSyntax,
+                    Name.Identifier.Text: not ("GetRequiredService" or "GetService")
+                }
+            } invocation when invocation.Expression is MemberAccessExpressionSyntax { Expression: { } typeExpr } =>
+                typeExpr as TypeSyntax,
             _ => null
         };
+
+    public static bool ContainsImplicitObjectCreation(LambdaExpressionSyntax lambda)
+    {
+        if (lambda.Body is ImplicitObjectCreationExpressionSyntax)
+            return true;
+
+        if (lambda.Body is ExpressionSyntax expr && expr is ImplicitObjectCreationExpressionSyntax)
+            return true;
+
+        return lambda.Body.DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>().Any();
+    }
 
     private static bool ContainsGetRequiredService(SyntaxNode node)
     {

@@ -5,7 +5,8 @@ public enum FindingTier
     Actionable,
     Informational,
     ParserLimit,
-    Intentional
+    Intentional,
+    IslandValid
 }
 
 public enum FindingCategory
@@ -98,6 +99,7 @@ public sealed record AnalysisReport
     public AnalysisReportSummary Summary { get; init; } = new();
     public IReadOnlyList<AnalysisFinding> Findings { get; init; } = [];
     public IReadOnlyList<string> AvailableContexts { get; init; } = [];
+    public IReadOnlyList<CompositionIslandSummary> IslandSummaries { get; init; } = [];
 }
 
 public sealed record MultiContextAnalysisReport

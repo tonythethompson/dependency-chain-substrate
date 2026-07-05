@@ -31,6 +31,7 @@ public static class ReferenceProfileProvider
     public static ReferenceProfile Get(ProjectTargetScope scope)
     {
         var refs = ResolveFrameworkReferences(scope.TargetFramework);
+        NuGetPackageReferenceResolver.AddPackageReferences(refs, scope.PackageReferences, scope.TargetFramework);
         var fingerprintParts = new List<string>
         {
             scope.TargetFramework,

@@ -4,6 +4,7 @@ public sealed class AnalysisResult
 {
     public List<LeakedRegistration> Leaked { get; init; } = [];
     public List<OrphanedRegistration> Orphaned { get; init; } = [];
+    public List<OrphanedRegistration> IslandValidOrphans { get; init; } = [];
     public List<BrokenChain> BrokenChains { get; init; } = [];
     public List<DuplicateAbstractToken> Duplicates { get; init; } = [];
     public List<DuplicateAbstractToken> PossibleDuplicates { get; init; } = [];
@@ -13,7 +14,18 @@ public sealed class AnalysisResult
     public int TotalEdges { get; init; }
     public int TotalBlindSpots { get; init; }
     public int TotalUnresolvedInjections { get; init; }
+    public IReadOnlyList<CompositionIslandSummary> IslandSummaries { get; init; } = [];
     public bool HasErrors => Leaked.Count > 0 || BrokenChains.Count > 0;
+}
+
+public sealed record CompositionIslandSummary
+{
+    public required CompositionIsland Island { get; init; }
+    public int SeedCount { get; init; }
+    public int ReachableCount { get; init; }
+    public int OrphanedCount { get; init; }
+    public int IslandValidCount { get; init; }
+    public int TrueOrphanCount { get; init; }
 }
 
 public record LeakedRegistration(
@@ -28,7 +40,9 @@ public record OrphanedRegistration(
     string NodeId,
     string DisplayName,
     string? SourceFile,
-    int? SourceLine);
+    int? SourceLine,
+    CompositionIsland Island = CompositionIsland.Unknown,
+    bool IsIslandValid = false);
 
 public record BrokenChain(
     string NodeId,

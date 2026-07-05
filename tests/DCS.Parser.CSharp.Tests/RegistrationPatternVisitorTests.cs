@@ -72,7 +72,7 @@ public sealed class RegistrationPatternVisitorTests
             services.AddSingleton<IFoo>(sp => new FooImpl());
             """);
         Assert.Single(nodes);
-        Assert.Equal(Confidence.BlindSpot, nodes[0].ParserConfidence);
+        Assert.Equal(Confidence.Degraded, nodes[0].ParserConfidence);
         Assert.Contains(spots, s => s.Pattern == "factory_lambda_shallow");
         Assert.Equal("factory_lambda_shallow", nodes[0].Annotations.GetValueOrDefault("pattern"));
     }

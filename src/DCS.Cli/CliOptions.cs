@@ -40,6 +40,8 @@ internal sealed record CliOptions
     public string? PathTo { get; init; }
     public FixClass FixClass { get; init; } = FixClass.Duplicate;
     public string? RuntimeLogPath { get; init; }
+    public string? IslandFilter { get; init; }
+    public bool IslandAware { get; init; } = true;
 }
 
 internal enum FixClass
@@ -76,6 +78,8 @@ internal static class CliArgParser
         string? reportOut = null;
         string? textOut = null;
         var contextAll = false;
+        string? islandFilter = null;
+        var islandAware = true;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -155,6 +159,13 @@ internal static class CliArgParser
                 case "--text-out" when i + 1 < args.Length:
                     textOut = args[++i];
                     break;
+                case "--island" when i + 1 < args.Length:
+                    islandFilter = args[++i];
+                    islandAware = true;
+                    break;
+                case "--no-island-aware":
+                    islandAware = false;
+                    break;
                 default:
                     if (!args[i].StartsWith('-') && repoPath == null)
                         repoPath = args[i];
@@ -185,7 +196,9 @@ internal static class CliArgParser
             Format = format,
             ReportOut = reportOut,
             TextOut = textOut,
-            ContextAll = contextAll
+            ContextAll = contextAll,
+            IslandFilter = islandFilter,
+            IslandAware = islandAware
         };
     }
 

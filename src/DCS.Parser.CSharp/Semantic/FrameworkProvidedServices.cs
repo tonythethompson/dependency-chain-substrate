@@ -46,10 +46,31 @@ public static class FrameworkProvidedServices
 
         foreach (var prefix in SyntacticPrefixes)
         {
-            if (check.StartsWith(prefix, StringComparison.Ordinal))
-                return true;
+            if (!check.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+
+            if (prefix is "IOptions" or "IOptionsMonitor" or "IOptionsSnapshot")
+            {
+                var genericArg = TryGetGenericArgumentName(check);
+                if (genericArg != null && !IsFrameworkOptionsType(genericArg))
+                    return false;
+            }
+
+            return true;
         }
 
         return false;
     }
+
+    private static string? TryGetGenericArgumentName(string syntacticName)
+    {
+        var start = syntacticName.IndexOf('<');
+        var end = syntacticName.LastIndexOf('>');
+        if (start < 0 || end <= start)
+            return null;
+        return syntacticName[(start + 1)..end].TrimEnd('?');
+    }
+
+    private static bool IsFrameworkOptionsType(string typeName) =>
+        typeName is "IConfiguration" or "IHostEnvironment" or "IWebHostEnvironment";
 }

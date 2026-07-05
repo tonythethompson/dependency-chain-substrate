@@ -191,6 +191,20 @@ public sealed class GraphAnalyzerTests
     }
 
     [Fact]
+    public void Broken_chain_skips_parameterless_shallow_factory_target()
+    {
+        var consumer = MakeNode("IConsumer") with { ConcreteImpl = TypeRef.FromShortName("ConsumerImpl") };
+        var parameterlessFactory = MakeNode("IFactory", file: "Factory.cs", line: 2) with
+        {
+            ParserConfidence = Confidence.BlindSpot,
+            Annotations = new Dictionary<string, string> { ["pattern"] = "factory_lambda_shallow" }
+        };
+        var graph = new RegistrationGraph { Nodes = [consumer, parameterlessFactory], Edges = [MakeEdge(consumer, parameterlessFactory)] };
+        var result = new GraphAnalyzer(graph).Analyze();
+        Assert.Empty(result.BrokenChains);
+    }
+
+    [Fact]
     public void Broken_chain_reported_for_blind_spot_dependency()
     {
         var consumer = MakeNode("IConsumer") with { ConcreteImpl = TypeRef.FromShortName("ConsumerImpl") };

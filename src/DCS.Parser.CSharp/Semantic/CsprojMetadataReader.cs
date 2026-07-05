@@ -17,6 +17,7 @@ public sealed record CsprojMetadata
     public IReadOnlyList<string> CompileIncludes { get; init; } = [];
     public IReadOnlyList<string> CompileRemoves { get; init; } = [];
     public IReadOnlyList<string> ProjectReferences { get; init; } = [];
+    public IReadOnlyList<string> PackageReferences { get; init; } = [];
     public bool HasConditionalItems { get; init; }
     public bool HasUnresolvedImports { get; init; }
     public bool IsTestProject { get; init; }
@@ -90,6 +91,14 @@ public static class CsprojMetadataReader
             .Select(v => Path.GetFullPath(Path.Combine(Path.GetDirectoryName(csprojPath)!, v!)))
             .ToList();
 
+        var packageRefs = root.Elements(ns + "ItemGroup")
+            .SelectMany(g => g.Elements(ns + "PackageReference"))
+            .Where(e => e.Attribute("Condition") == null)
+            .Select(e => e.Attribute("Include")?.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!)
+            .ToList();
+
         var hasConditional = root.Descendants()
             .Any(e => e.Attribute("Condition") != null &&
                       (e.Name.LocalName is "Compile" or "ProjectReference" or "None"));
@@ -118,6 +127,7 @@ public static class CsprojMetadataReader
             CompileIncludes = compileIncludes,
             CompileRemoves = compileRemoves,
             ProjectReferences = projectRefs,
+            PackageReferences = packageRefs,
             HasConditionalItems = hasConditional,
             HasUnresolvedImports = hasUnresolvedImports,
             IsTestProject = ParseBool(PickProperty("IsTestProject")) == true ||
