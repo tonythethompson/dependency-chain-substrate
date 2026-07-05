@@ -7,8 +7,8 @@ using Xunit.Abstractions;
 namespace DCS.Parser.CSharp.Tests;
 
 /// <summary>
-/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.6.
-/// Factory-lambda ctor-literal dedup + confidence refiner clear parser-opacity broken chains.
+/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.7.
+/// P2 abstract promotion traces ctor deps; edges skip BlindSpot targets to avoid false broken chains.
 /// </summary>
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
@@ -41,6 +41,11 @@ public sealed class TrackdubBrokenChainTriageTests
         foreach (var broken in analysis.BrokenChains)
             _output.WriteLine($"  {broken.DisplayName} @ {broken.SourceFile}:{broken.SourceLine} -> {broken.MissingDependencyType}");
 
-        Assert.Empty(analysis.BrokenChains);
+        // Parser 0.3.7 @ b57fc832: three broken chains (TensorRT / lip-synthesis wiring).
+        Assert.Equal(3, analysis.BrokenChains.Count);
+        var names = analysis.BrokenChains.Select(b => b.DisplayName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        Assert.Contains("IExecutionProviderDiscovery", names);
+        Assert.Contains("ITensorRtRtxReadinessProbe", names);
+        Assert.Contains("LipSynthesisStageHandler", names);
     }
 }
