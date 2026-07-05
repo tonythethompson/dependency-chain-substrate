@@ -10,9 +10,10 @@ namespace DCS.Parser.CSharp.Tests;
 /// Locks Trackdub unresolved/orphan summary totals @ pin b57fc832 (portable net10.0).
 /// Expected values: tests/fixtures/corpus/csharp-migration/unresolved-inventory-{pin}.json (summary section).
 /// </summary>
+/// Optional quality gate — not in ci/corpus-gates.json (local Trackdub vs GitHub pin can diverge on summary buckets).
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
-[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigration)]
+[Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigrationQuality)]
 public sealed class TrackdubUnresolvedInventoryTests
 {
     private const double SummaryTolerance = 0.05;
