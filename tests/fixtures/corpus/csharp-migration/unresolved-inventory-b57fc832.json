@@ -1,90 +1,39 @@
 {
   "schema_version": "1.0",
-  "commit_sha": "b57fc832",
+  "commit_sha": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
   "context_id": "csharp|net10.0",
   "target_framework": "net10.0",
-  "parser_version": "0.3.7",
+  "parser_version": "0.3.10",
   "total_nodes": 339,
-  "total_edges": 121,
+  "total_edges": 170,
+  "metrics": {
+    "semantic_type_resolution_rate": 0.8790560471976401,
+    "registration_api_verification_rate": 0.9528023598820059,
+    "project_scope_completeness_rate": 1,
+    "total_registrations": 339,
+    "resolved_registrations": 298,
+    "verified_registrations": 323,
+    "syntax_candidate_registrations": 339,
+    "composition_scope_count": 5,
+    "complete_composition_scope_count": 5
+  },
   "summary": {
-    "actionable_count": 28,
+    "actionable_count": 5,
     "informational_count": 93,
-    "parser_limit_count": 37,
+    "parser_limit_count": 12,
     "intentional_count": 5,
-    "error_count": 3,
+    "error_count": 0,
     "leaked_count": 0,
-    "broken_count": 3,
+    "broken_count": 0,
     "duplicate_count": 5,
     "possible_duplicate_count": 2,
-    "unresolved_count": 57,
+    "unresolved_count": 12,
     "orphaned_count": 0,
     "cycle_count": 0,
     "blind_spot_count": 0,
-    "has_errors": true
+    "has_errors": false
   },
   "findings": [
-    {
-      "finding_id": "broken_itensorrtrtxreadinessprobe_be59dcba429b824a",
-      "category": "broken",
-      "severity": "error",
-      "tier": "actionable",
-      "title": "ITensorRtRtxReadinessProbe",
-      "detail": "\u2192 ITensorRtRtxProviderBootstrap not resolved",
-      "sites": [
-        {
-          "registration_id": "be59dcba429b824a",
-          "display_name": "ITensorRtRtxReadinessProbe",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 279,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "broken_iexecutionproviderdiscovery_a0ccf2f1ce75db0b",
-      "category": "broken",
-      "severity": "error",
-      "tier": "actionable",
-      "title": "IExecutionProviderDiscovery",
-      "detail": "\u2192 ITensorRtRtxReadinessProbe not resolved",
-      "sites": [
-        {
-          "registration_id": "a0ccf2f1ce75db0b",
-          "display_name": "IExecutionProviderDiscovery",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IExecutionProviderDiscovery",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 506,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "broken_lipsynthesisstagehandler_fb5db743589d80dd",
-      "category": "broken",
-      "severity": "error",
-      "tier": "actionable",
-      "title": "LipSynthesisStageHandler",
-      "detail": "\u2192 ILipSynthesisEngine not resolved",
-      "sites": [
-        {
-          "registration_id": "fb5db743589d80dd",
-          "display_name": "LipSynthesisStageHandler",
-          "fully_qualified_name": "Trackdub.Application.LipSynthesis.LipSynthesisStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 598,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
     {
       "finding_id": "duplicate_iamazoncloudwatch_3da05760d25075f30bf1f97e406e40e4",
       "category": "duplicate",
@@ -260,19 +209,62 @@
       ]
     },
     {
-      "finding_id": "unresolved_iexecutionproviderdiscovery_152c3e2498bc005e",
-      "category": "unresolved",
+      "finding_id": "duplicate_icloudapikeyprovider_intentional",
+      "category": "possible_duplicate",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "IExecutionProviderDiscovery",
-      "detail": "missing IExecutionProviderDiscovery (no_matching_registration)",
+      "tier": "intentional",
+      "title": "ICloudApiKeyProvider",
+      "detail": "TryAdd baseline \u002B explicit Add override",
       "sites": [
         {
-          "registration_id": "152c3e2498bc005e",
-          "display_name": "IDiagnosticsRuntimeInfo",
-          "fully_qualified_name": "Trackdub.Contracts.Diagnostics.IDiagnosticsRuntimeInfo",
+          "registration_id": "e73904286cdf83a3",
+          "display_name": "ICloudApiKeyProvider",
+          "fully_qualified_name": "Trackdub.Contracts.ICloudApiKeyProvider",
           "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 167,
+          "line": 282,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        },
+        {
+          "registration_id": "3d1a229fc800da5b",
+          "display_name": "ICloudApiKeyProvider",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 168,
+          "framework_tags": [
+            "avalonia",
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "duplicate_iupdateservice_intentional",
+      "category": "possible_duplicate",
+      "severity": "warn",
+      "tier": "intentional",
+      "title": "IUpdateService",
+      "detail": "TryAdd baseline \u002B explicit Add override",
+      "sites": [
+        {
+          "registration_id": "93902bf199d2dcd5",
+          "display_name": "IUpdateService",
+          "fully_qualified_name": "Trackdub.Application.Services.IUpdateService",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 213,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        },
+        {
+          "registration_id": "8d75bd482626b657",
+          "display_name": "IUpdateService",
+          "fully_qualified_name": "Trackdub.Application.Updates.IUpdateService",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 355,
           "framework_tags": [
             "ms-extensions",
             "msdi"
@@ -281,12 +273,108 @@
       ]
     },
     {
-      "finding_id": "unresolved_trackdubstoragepaths_0a834aa4a8dbaa62",
+      "finding_id": "duplicate_121a4336973d2e5c_intentional",
+      "category": "duplicate",
+      "severity": "warn",
+      "tier": "intentional",
+      "title": "PlaybackCapabilityProbe",
+      "detail": "TryAdd baseline \u002B explicit Add override",
+      "sites": [
+        {
+          "registration_id": "9e2a4cc86c41022c",
+          "display_name": "PlaybackCapabilityProbe",
+          "fully_qualified_name": "Trackdub.Media.Playback.PlaybackCapabilityProbe",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 313,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        },
+        {
+          "registration_id": "cbc9dc7cec20093b",
+          "display_name": "PlaybackCapabilityProbe",
+          "fully_qualified_name": "Trackdub.Media.Playback.PlaybackCapabilityProbe",
+          "file_path": "src/trackdub.app.avalonia/playback/avaloniaplaybackcomposition.cs",
+          "line": 26,
+          "framework_tags": [
+            "avalonia",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "duplicate_605b0da92caebc94_intentional",
+      "category": "duplicate",
+      "severity": "warn",
+      "tier": "intentional",
+      "title": "IPlaybackBackendFactory",
+      "detail": "TryAdd baseline \u002B explicit Add override",
+      "sites": [
+        {
+          "registration_id": "ff2f97256369c78a",
+          "display_name": "IPlaybackBackendFactory",
+          "fully_qualified_name": "Trackdub.Media.Playback.IPlaybackBackendFactory",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 314,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        },
+        {
+          "registration_id": "9e650f9e08b38291",
+          "display_name": "IPlaybackBackendFactory",
+          "fully_qualified_name": "Trackdub.Media.Playback.IPlaybackBackendFactory",
+          "file_path": "src/trackdub.app.avalonia/playback/avaloniaplaybackcomposition.cs",
+          "line": 27,
+          "framework_tags": [
+            "avalonia",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "duplicate_40558178c5c6b40f_intentional",
+      "category": "duplicate",
+      "severity": "warn",
+      "tier": "intentional",
+      "title": "SubtitleExportService",
+      "detail": "TryAdd baseline \u002B explicit Add override",
+      "sites": [
+        {
+          "registration_id": "43161b4e1a249f16",
+          "display_name": "SubtitleExportService",
+          "fully_qualified_name": "Trackdub.Application.Transcripts.SubtitleExportService",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 477,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        },
+        {
+          "registration_id": "db11c74764df5f4a",
+          "display_name": "SubtitleExportService",
+          "fully_qualified_name": "Trackdub.Application.Transcripts.SubtitleExportService",
+          "file_path": "src/trackdub.app.avalonia/playback/avaloniaplaybackcomposition.cs",
+          "line": 40,
+          "framework_tags": [
+            "avalonia",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_long_0a834aa4a8dbaa62",
       "category": "unresolved",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "TrackdubStoragePaths",
-      "detail": "missing TrackdubStoragePaths (no_matching_registration)",
+      "tier": "parser_limit",
+      "title": "long",
+      "detail": "missing long (semantic_unresolved)",
       "sites": [
         {
           "registration_id": "0a834aa4a8dbaa62",
@@ -302,19 +390,19 @@
       ]
     },
     {
-      "finding_id": "unresolved_localmodelcacherecordstore_0a834aa4a8dbaa62",
+      "finding_id": "unresolved_int_4e26533401c174fc",
       "category": "unresolved",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "LocalModelCacheRecordStore",
-      "detail": "missing LocalModelCacheRecordStore (no_matching_registration)",
+      "tier": "parser_limit",
+      "title": "int",
+      "detail": "missing int (semantic_unresolved)",
       "sites": [
         {
-          "registration_id": "0a834aa4a8dbaa62",
-          "display_name": "IDiagnosticsBundleExporter",
-          "fully_qualified_name": "Trackdub.Contracts.IDiagnosticsBundleExporter",
+          "registration_id": "4e26533401c174fc",
+          "display_name": "IWaveformSummaryGenerator",
+          "fully_qualified_name": "Trackdub.Contracts.IWaveformSummaryGenerator",
           "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 175,
+          "line": 379,
           "framework_tags": [
             "ms-extensions",
             "msdi"
@@ -323,180 +411,12 @@
       ]
     },
     {
-      "finding_id": "unresolved_idiagnosticsruntimeinfo_0a834aa4a8dbaa62",
+      "finding_id": "unresolved_ireadonlydictionaryruntimestages_611aa9651dddd1aa",
       "category": "unresolved",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "IDiagnosticsRuntimeInfo",
-      "detail": "missing IDiagnosticsRuntimeInfo (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "0a834aa4a8dbaa62",
-          "display_name": "IDiagnosticsBundleExporter",
-          "fully_qualified_name": "Trackdub.Contracts.IDiagnosticsBundleExporter",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 175,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iappstoragepaths_a77c0a28545cb653",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAppStoragePaths",
-      "detail": "missing IAppStoragePaths (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "a77c0a28545cb653",
-          "display_name": "IOliveEnvironmentService",
-          "fully_qualified_name": "Trackdub.Contracts.ModelOptimization.IOliveEnvironmentService",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 346,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_ioliveenvironmentservice_f35f1f850b37e121",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IOliveEnvironmentService",
-      "detail": "missing IOliveEnvironmentService (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "f35f1f850b37e121",
-          "display_name": "IModelOptimizationService",
-          "fully_qualified_name": "Trackdub.Contracts.ModelOptimization.IModelOptimizationService",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 348,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iappstoragepaths_f35f1f850b37e121",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAppStoragePaths",
-      "detail": "missing IAppStoragePaths (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "f35f1f850b37e121",
-          "display_name": "IModelOptimizationService",
-          "fully_qualified_name": "Trackdub.Contracts.ModelOptimization.IModelOptimizationService",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 348,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_istreamingprocessrunner_f35f1f850b37e121",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IStreamingProcessRunner",
-      "detail": "missing IStreamingProcessRunner (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "f35f1f850b37e121",
-          "display_name": "IModelOptimizationService",
-          "fully_qualified_name": "Trackdub.Contracts.ModelOptimization.IModelOptimizationService",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 348,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_imodelvariantregistrar_f35f1f850b37e121",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IModelVariantRegistrar",
-      "detail": "missing IModelVariantRegistrar (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "f35f1f850b37e121",
-          "display_name": "IModelOptimizationService",
-          "fully_qualified_name": "Trackdub.Contracts.ModelOptimization.IModelOptimizationService",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 348,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_glossarytermnormalizer_d20e0454fc3fbfd1",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "GlossaryTermNormalizer",
-      "detail": "missing GlossaryTermNormalizer (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "d20e0454fc3fbfd1",
-          "display_name": "IGlossaryTermMatcher",
-          "fully_qualified_name": "Trackdub.Contracts.Transcripts.IGlossaryTermMatcher",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 413,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iglossaryanalyzercatalog_d20e0454fc3fbfd1",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IGlossaryAnalyzerCatalog",
-      "detail": "missing IGlossaryAnalyzerCatalog (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "d20e0454fc3fbfd1",
-          "display_name": "IGlossaryTermMatcher",
-          "fully_qualified_name": "Trackdub.Contracts.Transcripts.IGlossaryTermMatcher",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 413,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_bundledmodelmanifestregistry_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "BundledModelManifestRegistry",
-      "detail": "missing BundledModelManifestRegistry (no_matching_registration)",
+      "tier": "parser_limit",
+      "title": "IReadOnlyDictionary\u003CRuntimeStage, StageRuntimeRequirements\u003E?",
+      "detail": "missing IReadOnlyDictionary\u003CRuntimeStage, StageRuntimeRequirements\u003E? (semantic_unresolved)",
       "sites": [
         {
           "registration_id": "611aa9651dddd1aa",
@@ -512,138 +432,12 @@
       ]
     },
     {
-      "finding_id": "unresolved_ihardwareprofileprovider_611aa9651dddd1aa",
+      "finding_id": "unresolved_string_09db3bc9a3e8ee12",
       "category": "unresolved",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "IHardwareProfileProvider",
-      "detail": "missing IHardwareProfileProvider (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iexecutionproviderdiscovery_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IExecutionProviderDiscovery",
-      "detail": "missing IExecutionProviderDiscovery (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iexecutionprovidersmoketester_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IExecutionProviderSmokeTester",
-      "detail": "missing IExecutionProviderSmokeTester (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_imodelcacheinventory_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IModelCacheInventory",
-      "detail": "missing IModelCacheInventory (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_ipipelinedeviceexclusionprovider_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IPipelineDeviceExclusionProvider",
-      "detail": "missing IPipelineDeviceExclusionProvider (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_ideviceenumerator_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IDeviceEnumerator",
-      "detail": "missing IDeviceEnumerator (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iprocessrunner_09db3bc9a3e8ee12",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IProcessRunner",
-      "detail": "missing IProcessRunner (no_matching_registration)",
+      "tier": "parser_limit",
+      "title": "string?",
+      "detail": "missing string? (semantic_unresolved)",
       "sites": [
         {
           "registration_id": "09db3bc9a3e8ee12",
@@ -658,12 +452,272 @@
       ]
     },
     {
-      "finding_id": "unresolved_imeterfactory_365d02dacb3f4b92",
+      "finding_id": "unresolved_iappstoragepaths_cc5fe4d7bf8824fa",
       "category": "unresolved",
       "severity": "warn",
-      "tier": "actionable",
-      "title": "IMeterFactory",
-      "detail": "missing IMeterFactory (no_matching_registration)",
+      "tier": "parser_limit",
+      "title": "IAppStoragePaths",
+      "detail": "missing IAppStoragePaths (semantic_unresolved)",
+      "sites": [
+        {
+          "registration_id": "cc5fe4d7bf8824fa",
+          "display_name": "ILayoutPersistenceService",
+          "fully_qualified_name": "Trackdub.App.Avalonia.Services.ILayoutPersistenceService",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 143,
+          "framework_tags": [
+            "avalonia",
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_iapplicationlogger_a7ef892e0b683796",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "IApplicationLogger?",
+      "detail": "missing IApplicationLogger? (semantic_unresolved)",
+      "sites": [
+        {
+          "registration_id": "a7ef892e0b683796",
+          "display_name": "IAppLanguageService",
+          "fully_qualified_name": "Trackdub.App.Avalonia.Services.IAppLanguageService",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 147,
+          "framework_tags": [
+            "avalonia",
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_string_83e2a7c7e9b96542",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "string?",
+      "detail": "missing string? (semantic_unresolved)",
+      "sites": [
+        {
+          "registration_id": "83e2a7c7e9b96542",
+          "display_name": "ILibVlcRuntimeLocator",
+          "fully_qualified_name": "Trackdub.Media.Playback.ILibVlcRuntimeLocator",
+          "file_path": "src/trackdub.app.avalonia/playback/avaloniaplaybackcomposition.cs",
+          "line": 25,
+          "framework_tags": [
+            "avalonia",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_syntacticiruntimeplanningprefere_5f58cd7a5a09b51e",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "syntactic:IRuntimePlanningPreferences",
+      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
+      "sites": [
+        {
+          "registration_id": "5f58cd7a5a09b51e",
+          "display_name": "VadStageHandler",
+          "fully_qualified_name": "Trackdub.Application.Transcripts.VadStageHandler",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 422,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_syntacticiruntimeplanningprefere_6990c79cf79e55df",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "syntactic:IRuntimePlanningPreferences",
+      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
+      "sites": [
+        {
+          "registration_id": "6990c79cf79e55df",
+          "display_name": "AsrStageHandler",
+          "fully_qualified_name": "Trackdub.Application.Transcripts.AsrStageHandler",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 428,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_syntacticiruntimeplanningprefere_bac426ab14254538",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "syntactic:IRuntimePlanningPreferences",
+      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
+      "sites": [
+        {
+          "registration_id": "bac426ab14254538",
+          "display_name": "TextRefinementStageHandler",
+          "fully_qualified_name": "Trackdub.Application.Transcripts.TextRefinementStageHandler",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 434,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_syntacticiruntimeplanningprefere_e8bce3328e2075c6",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "syntactic:IRuntimePlanningPreferences",
+      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
+      "sites": [
+        {
+          "registration_id": "e8bce3328e2075c6",
+          "display_name": "LipSyncStageHandler",
+          "fully_qualified_name": "Trackdub.Application.LipSync.LipSyncStageHandler",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 579,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "unresolved_syntacticiruntimeplanningprefere_fb5db743589d80dd",
+      "category": "unresolved",
+      "severity": "warn",
+      "tier": "parser_limit",
+      "title": "syntactic:IRuntimePlanningPreferences",
+      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
+      "sites": [
+        {
+          "registration_id": "fb5db743589d80dd",
+          "display_name": "LipSynthesisStageHandler",
+          "fully_qualified_name": "Trackdub.Application.LipSynthesis.LipSynthesisStageHandler",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 598,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_billingmetrics_ad3a47ae7ec2457d",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "BillingMetrics",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "ad3a47ae7ec2457d",
+          "display_name": "BillingMetrics",
+          "fully_qualified_name": "Trackdub.Api.Billing.BillingMetrics",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 49,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iamazondynamodb_d110dedb4b071f94",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IAmazonDynamoDB",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "d110dedb4b071f94",
+          "display_name": "IAmazonDynamoDB",
+          "fully_qualified_name": "Amazon.DynamoDBv2.IAmazonDynamoDB",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 25,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_ibillingservice_117870ef5a9cbf2a",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IBillingService",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "117870ef5a9cbf2a",
+          "display_name": "IBillingService",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IBillingService",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 45,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iquotaenforcer_6498a798a1e1c95b",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IQuotaEnforcer",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "6498a798a1e1c95b",
+          "display_name": "IQuotaEnforcer",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IQuotaEnforcer",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 44,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_isubscriptionstore_977982936cd8eeba",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "ISubscriptionStore",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "977982936cd8eeba",
+          "display_name": "ISubscriptionStore",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.ISubscriptionStore",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 35,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iusagemeter_365d02dacb3f4b92",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IUsageMeter",
+      "detail": "valid within api island",
       "sites": [
         {
           "registration_id": "365d02dacb3f4b92",
@@ -671,6 +725,1683 @@
           "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IUsageMeter",
           "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
           "line": 43,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iusagestore_da85d1c6a1f365e7",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IUsageStore",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "da85d1c6a1f365e7",
+          "display_name": "IUsageStore",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IUsageStore",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 34,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iwebhookdeliveryhandler_a088e993fcfe986e",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IWebhookDeliveryHandler",
+      "detail": "valid within lambda island",
+      "sites": [
+        {
+          "registration_id": "a088e993fcfe986e",
+          "display_name": "IWebhookDeliveryHandler",
+          "fully_qualified_name": "Trackdub.WebhookDelivery.IWebhookDeliveryHandler",
+          "file_path": "src/trackdub.webhookdelivery/function.cs",
+          "line": 152,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iwebhookidempotencystore_a31ba41db2dd926d",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IWebhookIdempotencyStore",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "a31ba41db2dd926d",
+          "display_name": "IWebhookIdempotencyStore",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IWebhookIdempotencyStore",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 30,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_iwebhookidempotencystore_4ab5a2d70c8853cd",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "IWebhookIdempotencyStore",
+      "detail": "valid within api island",
+      "sites": [
+        {
+          "registration_id": "4ab5a2d70c8853cd",
+          "display_name": "IWebhookIdempotencyStore",
+          "fully_qualified_name": "Trackdub.Api.Billing.Interfaces.IWebhookIdempotencyStore",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 36,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "orphaned_webhookdeliveryoptions_47d34cbcc08d9035",
+      "category": "orphaned",
+      "severity": "warn",
+      "tier": "island_valid",
+      "title": "WebhookDeliveryOptions",
+      "detail": "valid within lambda island",
+      "sites": [
+        {
+          "registration_id": "47d34cbcc08d9035",
+          "display_name": "WebhookDeliveryOptions",
+          "fully_qualified_name": "Trackdub.WebhookDelivery.WebhookDeliveryOptions",
+          "file_path": "src/trackdub.webhookdelivery/function.cs",
+          "line": 145,
+          "framework_tags": [
+            "ms-extensions",
+            "msdi"
+          ]
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_0",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddLogging() \u2014 internal registrations not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_0",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.webhookdelivery/function.cs",
+          "line": 162,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_1",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IApplicationLogger \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_1",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 168,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_2",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IStarterPackCatalog \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_2",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 181,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_3",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IModelDownloadOrchestrator \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_3",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 206,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_4",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IModelCacheVerifier \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_4",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 207,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_5",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IFileFingerprintService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_5",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 208,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_6",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddHttpClient() \u2014 untyped client registration not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_6",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 218,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_7",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "TrtRtxEpBundleDownloader \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_7",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 219,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_8",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ITensorRtRtxProviderBootstrap \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_8",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 225,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_9",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ITensorRtRtxReadinessProbe \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_9",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 279,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_10",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IConsentService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_10",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 284,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_11",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IFfmpegHealthCheck \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_11",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 290,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_12",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IExplicitFfmpegInstaller \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_12",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 291,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_13",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IDiagnosticsCollector \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_13",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 292,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_14",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "HuggingFaceDownloadOptions \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_14",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 298,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_15",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IModelDownloader \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_15",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 300,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_16",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IModelDownloaderContract \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_16",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 306,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_17",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "ITranscriptWorkspaceContext \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_17",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 318,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_18",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "SqliteProjectDatabase \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_18",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 319,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_19",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IArtifactStore \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_19",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 321,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_20",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "SqliteUserGlossaryDatabase \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_20",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 331,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_21",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IScopedConnectionProvider \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_21",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 340,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_22",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddHttpClient() \u2014 untyped client registration not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_22",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 350,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_23",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IUpdateService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_23",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 355,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_24",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IMediaProbe \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_24",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 364,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_25",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IExportToolAvailabilityService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_25",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 365,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_26",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAudioExtractionService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_26",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 366,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_27",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IFfmpegVideoEncoderCapabilities \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_27",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 367,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_28",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ILoudnessNormalizer \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_28",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 368,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_29",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IExportRenderer \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_29",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 369,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_30",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IVideoRecomposer \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_30",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 370,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_31",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ISpeechAudioProcessingService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_31",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 373,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_32",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ISpeechAudioEnhancementService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_32",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 374,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_33",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAudioTimeStretchService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_33",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 384,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_34",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ITtsAudioPostProcessor \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_34",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 385,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_35",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "TtsTimingOptions \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_35",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 388,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_36",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "ITranscriptGenerationStage \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_36",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 397,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_37",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IGlossaryAnalyzerCatalog \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_37",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 411,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_38",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "VadStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_38",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 422,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_39",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "AsrStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_39",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 428,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_40",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "TextRefinementStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_40",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 434,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_41",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "DiarizationStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_41",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 448,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_42",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "ITranscriptWorkspaceSessionFactory \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_42",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 489,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_43",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "BundledModelManifestRegistry \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_43",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 495,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_44",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IModelCacheInventory \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_44",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 498,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_45",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IExecutionProviderDiscovery \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_45",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 506,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_46",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "BenchmarkModelPathResolver \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_46",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 522,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_47",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IGraphemeToPhoneme \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_47",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 526,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_48",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IVoiceCatalog \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_48",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 527,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_49",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ITextRefinementEngine \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_49",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 547,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_50",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IForcedAlignerAdapter \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_50",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 566,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_51",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IForcedAlignerAdapter \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_51",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 569,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_52",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IForcedAligner \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_52",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 573,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_53",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "LipSyncStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_53",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 579,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_54",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "LipSynthesisStageHandler \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_54",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 598,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_55",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ComponentStore \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_55",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 668,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_56",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "OpenVinoBootstrapper \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_56",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 676,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_57",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IOpenVinoAvailabilityProvider \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_57",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 686,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_58",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IExecutionProviderBootstrapper \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_58",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 714,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_59",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "SqliteUserBenchmarkDatabase \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_59",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 750,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_60",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "PipelineDeviceExclusionProvider \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_60",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 759,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_61",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IPipelineDeviceExclusionProvider \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_61",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 762,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_62",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "Trackdub.Contracts.Pipeline.IPipelineRunLifecycle \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_62",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 764,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_63",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddHttpClient() \u2014 untyped client registration not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_63",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 767,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_64",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "OpenVinoComponentDownloader \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_64",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 777,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_65",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "DeviceAffinitySettings \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_65",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/compositionroot.cs",
+          "line": 788,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_66",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IVideoFrameExtractor \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_66",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 18,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_67",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IVideoFrameAssembler \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_67",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 20,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_68",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ILipSynthesisEngine \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_68",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 25,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_69",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IFaceDetector \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_69",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 34,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_70",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "GeometryLandmarkProvider \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_70",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 39,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_71",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "IFaceLandmarkProvider \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_71",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 44,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_72",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IFacePoseEstimator \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_72",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
+          "line": 47,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_73",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonDynamoDB \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_73",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
+          "line": 25,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_74",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddOpenTelemetry() \u2014 internal registrations not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_74",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 49,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_75",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonDynamoDB \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_75",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 73,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_76",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonSQS \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_76",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 75,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_77",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonECS \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_77",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 76,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_78",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonCloudWatch \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_78",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 77,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_79",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonEventBridge \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_79",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 78,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_80",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonSimpleNotificationService \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_80",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 79,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_81",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "ISqsJobDispatcher \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_81",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 106,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_82",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddValidatorsFromAssemblyContaining() \u2014 internal registrations not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_82",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 163,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_extension_method_83",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "extension_method",
+      "detail": "AddRateLimiter() \u2014 internal registrations not traced",
+      "sites": [
+        {
+          "registration_id": "blind_spot_83",
+          "display_name": "extension_method",
+          "file_path": "src/trackdub.api/program.cs",
+          "line": 205,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_84",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ClippyAssistantViewModel \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_84",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 153,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_85",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "DevLogViewModel \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_85",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 155,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_86",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "DevLogWindow \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_86",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 159,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_87",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda",
+      "detail": "ICloudApiKeyProvider \u2014 registered via factory_lambda, dependencies not resolvable",
+      "sites": [
+        {
+          "registration_id": "blind_spot_87",
+          "display_name": "factory_lambda",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 168,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_88",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "ApiKeysViewModel \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_88",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 169,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_89",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "MainWindow \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_89",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
+          "line": 173,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_90",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonDynamoDB \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_90",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.worker/program.cs",
+          "line": 75,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_91",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonEventBridge \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_91",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.worker/program.cs",
+          "line": 77,
+          "framework_tags": []
+        }
+      ]
+    },
+    {
+      "finding_id": "blind_spot_factory_lambda_shallow_92",
+      "category": "blind_spot",
+      "severity": "warn",
+      "tier": "informational",
+      "title": "factory_lambda_shallow",
+      "detail": "IAmazonCloudWatch \u2014 shallow factory lambda (dependencies partially traced)",
+      "sites": [
+        {
+          "registration_id": "blind_spot_92",
+          "display_name": "factory_lambda_shallow",
+          "file_path": "src/trackdub.worker/program.cs",
+          "line": 79,
           "framework_tags": []
         }
       ]
@@ -683,17 +2414,17 @@
     {
       "island": "desktop",
       "seed_count": 270,
-      "reachable_count": 276,
-      "orphaned_count": 234,
-      "island_valid_count": 231,
-      "true_orphan_count": 3
+      "reachable_count": 277,
+      "orphaned_count": 208,
+      "island_valid_count": 206,
+      "true_orphan_count": 2
     },
     {
       "island": "api",
       "seed_count": 45,
       "reachable_count": 46,
-      "orphaned_count": 31,
-      "island_valid_count": 31,
+      "orphaned_count": 29,
+      "island_valid_count": 29,
       "true_orphan_count": 0
     },
     {

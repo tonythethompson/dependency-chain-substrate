@@ -18,7 +18,8 @@ public static class FrameworkProvidedServices
         "IOptionsMonitor",
         "IOptionsSnapshot",
         "IHost",
-        "CancellationToken"
+        "CancellationToken",
+        "IMeterFactory"
     ];
 
     private static readonly HashSet<string> PrimitiveTypeNames = new(StringComparer.Ordinal)

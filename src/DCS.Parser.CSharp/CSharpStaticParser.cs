@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.7";
+    public const string ParserVersion = "0.3.10";
 
     private readonly CSharpParseOptions _options;
 
@@ -319,6 +319,9 @@ public sealed class CSharpStaticParser : IStaticParser
                     candidates = TryResolveOptionsCandidatesFromKey(serviceKey, nodes);
 
                 if (candidates == null || candidates.Count == 0)
+                    candidates = TryResolveFactoryProviderCandidates(serviceKey, byCanonicalKey, nodes);
+
+                if (candidates == null || candidates.Count == 0)
                 {
                     unresolved.Add(new UnresolvedInjection
                     {
@@ -377,7 +380,9 @@ public sealed class CSharpStaticParser : IStaticParser
             if (!byServiceIdentity.TryGetValue(serviceKey, out candidates))
             {
                 candidates = TryResolveOptionsCandidates(param, nodes) ??
-                             TryResolveConfiguredOptionsByGenericArg(param, nodes);
+                             TryResolveConfiguredOptionsByGenericArg(param, nodes) ??
+                             TryResolveProvidersByDuplicateGroupingKey(param, nodes) ??
+                             TryResolveProviderByTypeName(param, byCanonicalKey, nodes);
                 if (candidates == null)
                 {
                     unresolved.Add(new UnresolvedInjection
@@ -409,10 +414,7 @@ public sealed class CSharpStaticParser : IStaticParser
             }
         }
 
-        var depNode = candidates
-            .Where(IsEligibleConstructorDependencyTarget)
-            .FirstOrDefault(c => c.CompositionScopeId == node.CompositionScopeId)
-            ?? candidates.FirstOrDefault(IsEligibleConstructorDependencyTarget);
+        var depNode = SelectConstructorDependencyTarget(candidates, node.CompositionScopeId);
 
         if (depNode == null)
         {
@@ -446,6 +448,55 @@ public sealed class CSharpStaticParser : IStaticParser
                     : Confidence.Inferred
         });
         return true;
+    }
+
+  /// <summary>
+    /// Fallback when resolved canonical keys miss: match syntactic short name or concrete impl display name.
+    /// </summary>
+    private static List<RegistrationNode>? TryResolveProviderByTypeName(
+        ResolvedParameterDependency param,
+        Dictionary<string, List<RegistrationNode>> byCanonicalKey,
+        List<RegistrationNode> nodes)
+    {
+        var fromSyntactic = TryResolveExplicitProviderForSyntacticParam(param, byCanonicalKey, nodes);
+        if (fromSyntactic != null)
+            return fromSyntactic;
+
+        if (param.Identity == null)
+            return null;
+
+        var shortName = param.Identity.MetadataName.Split('.').Last();
+        var syntacticKey = $"syntactic:{shortName}";
+        if (byCanonicalKey.TryGetValue(syntacticKey, out var syntacticCandidates) &&
+            syntacticCandidates.Count > 0)
+            return syntacticCandidates;
+
+        var concreteMatches = nodes
+            .Where(n => string.Equals(n.DisplayName, shortName, StringComparison.Ordinal) ||
+                        string.Equals(n.ConcreteImpl?.ShortName, shortName, StringComparison.Ordinal) ||
+                        (n.ServiceType?.IsResolved == true &&
+                         ResolvedTypeShortNameMatches(n.ServiceType.Resolved!, shortName)))
+            .ToList();
+        return concreteMatches.Count > 0 ? concreteMatches : null;
+    }
+
+    /// <summary>
+    /// Ctor parameters resolved in implementation assemblies often carry a different scope prefix than
+    /// composition-root registrations for the same metadata type; match on duplicate-grouping key.
+    /// </summary>
+    private static List<RegistrationNode>? TryResolveProvidersByDuplicateGroupingKey(
+        ResolvedParameterDependency param,
+        List<RegistrationNode> nodes)
+    {
+        if (param.Identity == null)
+            return null;
+
+        var groupingKey = ServiceTypeIdentity.FromResolved(param.Identity).DuplicateGroupingKey;
+        var matches = nodes
+            .Where(n => n.ServiceType?.IsResolved == true &&
+                        string.Equals(n.ServiceType.DuplicateGroupingKey, groupingKey, StringComparison.Ordinal))
+            .ToList();
+        return matches.Count > 0 ? matches : null;
     }
 
     private static List<RegistrationNode>? TryResolveExplicitProviderForSyntacticParam(
@@ -574,9 +625,49 @@ public sealed class CSharpStaticParser : IStaticParser
             "factory_lambda_shallow",
             StringComparison.Ordinal);
 
+    private static List<RegistrationNode>? TryResolveFactoryProviderCandidates(
+        string serviceKey,
+        Dictionary<string, List<RegistrationNode>> byCanonicalKey,
+        List<RegistrationNode> nodes)
+    {
+        if (byCanonicalKey.TryGetValue(serviceKey, out var direct))
+            return direct;
+
+        var shortName = serviceKey.StartsWith("syntactic:", StringComparison.Ordinal)
+            ? serviceKey["syntactic:".Length..]
+            : serviceKey.Contains('|')
+                ? serviceKey.Split('|').Last().Split('.').Last()
+                : serviceKey.Split('.').Last();
+
+        var param = new ResolvedParameterDependency(null, shortName, TypeResolutionQuality.SyntacticFallback);
+        return TryResolveProviderByTypeName(param, byCanonicalKey, nodes);
+    }
+
+    private static RegistrationNode? SelectConstructorDependencyTarget(
+        List<RegistrationNode> candidates,
+        string compositionScopeId)
+    {
+        var eligible = candidates.Where(IsEligibleConstructorDependencyTarget).ToList();
+        var match = eligible.FirstOrDefault(c => c.CompositionScopeId == compositionScopeId)
+                    ?? eligible.FirstOrDefault();
+        if (match != null)
+            return match;
+
+        var factoryProviders = candidates.Where(IsFactoryLambdaProvider).ToList();
+        return factoryProviders.FirstOrDefault(c => c.CompositionScopeId == compositionScopeId)
+               ?? factoryProviders.FirstOrDefault();
+    }
+
+    private static bool IsFactoryLambdaProvider(RegistrationNode node)
+    {
+        var pattern = node.Annotations.GetValueOrDefault("pattern");
+        return pattern is "factory_lambda" or "factory_lambda_shallow";
+    }
+
     /// <summary>
     /// Ctor edges may target explicit/inferred providers and non-factory degraded registrations
     /// (e.g. instance-arg <c>TryAddSingleton(instance)</c>), but not blind-spot or factory-lambda providers.
+    /// Use <see cref="SelectConstructorDependencyTarget"/> to fall back to factory providers when they are the only match.
     /// </summary>
     private static bool IsEligibleConstructorDependencyTarget(RegistrationNode node)
     {

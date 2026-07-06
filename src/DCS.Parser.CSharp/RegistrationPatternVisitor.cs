@@ -156,7 +156,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                             _ => MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition)
                         };
                     }
-                    return MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda");
+                    return MakeFactoryLambdaBlindSpotNode(
+                        types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition,
+                        firstDataArg.Expression);
                 }
                 return MakeExplicitNode(types[0], types[1], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition);
             }
@@ -169,11 +171,11 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
                     LambdaExpressionSyntax lambdaExpr =>
                         ExtractCreatedTypeFromLambdaExpression(lambdaExpr) is { } shallowType
                             ? MakeShallowFactoryNode(types[0], shallowType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, lambda: lambdaExpr)
-                            : MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
+                            : MakeFactoryLambdaBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, lambdaExpr),
                     AnonymousMethodExpressionSyntax anonExpr =>
                         ExtractCreatedTypeFromLambdaExpression(anonExpr) is { } shallowAnonType
                             ? MakeShallowFactoryNode(types[0], shallowAnonType, lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, anonLambda: anonExpr)
-                            : MakeBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "factory_lambda"),
+                            : MakeFactoryLambdaBlindSpotNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, anonExpr),
                     ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax =>
                         MakeDegradedNode(types[0], lifetime, isKeyed, isTryAdd, location, node, methodName, recognition, "instance_arg"),
                     null =>
@@ -429,6 +431,50 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
         });
         return BuildNode(abstractResolved, null, lifetime, isKeyed, isTryAdd, location,
             invocation, methodName, recognition, Confidence.BlindSpot, reason);
+    }
+
+    private RegistrationNode MakeFactoryLambdaBlindSpotNode(
+        TypeSyntax abstractType,
+        Lifetime lifetime,
+        bool isKeyed,
+        bool isTryAdd,
+        SourceRef location,
+        InvocationExpressionSyntax invocation,
+        string methodName,
+        RegistrationRecognitionQuality recognition,
+        ExpressionSyntax lambdaExpression)
+    {
+        var node = MakeBlindSpotNode(
+            abstractType, lifetime, isKeyed, isTryAdd, location, invocation, methodName, recognition, "factory_lambda");
+        return AnnotateFactoryServiceKeys(node, lambdaExpression);
+    }
+
+    private RegistrationNode AnnotateFactoryServiceKeys(RegistrationNode node, ExpressionSyntax lambdaExpression)
+    {
+        IReadOnlyList<TypeSyntax> serviceRequests = lambdaExpression switch
+        {
+            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(lambda),
+            AnonymousMethodExpressionSyntax anon => ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(anon),
+            _ => Array.Empty<TypeSyntax>()
+        };
+
+        if (serviceRequests.Count == 0)
+            return node;
+
+        var serviceKeys = serviceRequests
+            .Select(t => ResolveType(t).ServiceType.CanonicalKey)
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (serviceKeys.Count == 0)
+            return node;
+
+        var annotations = new Dictionary<string, string>(node.Annotations, StringComparer.Ordinal)
+        {
+            ["factory_lambda_service_keys"] = string.Join(";", serviceKeys)
+        };
+        return node with { Annotations = annotations };
     }
 
     private RegistrationNode BuildNode(

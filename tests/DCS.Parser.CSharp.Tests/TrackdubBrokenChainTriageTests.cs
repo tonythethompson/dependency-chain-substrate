@@ -7,8 +7,7 @@ using Xunit.Abstractions;
 namespace DCS.Parser.CSharp.Tests;
 
 /// <summary>
-/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.7.
-/// P2 abstract promotion traces ctor deps; edges skip BlindSpot targets to avoid false broken chains.
+/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.9 factory tracing.
 /// </summary>
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]
@@ -41,11 +40,7 @@ public sealed class TrackdubBrokenChainTriageTests
         foreach (var broken in analysis.BrokenChains)
             _output.WriteLine($"  {broken.DisplayName} @ {broken.SourceFile}:{broken.SourceLine} -> {broken.MissingDependencyType}");
 
-        // Parser 0.3.7 @ b57fc832: three broken chains after BlindSpot ctor-edge filter (TensorRT / lip-synthesis).
-        Assert.Equal(3, analysis.BrokenChains.Count);
-        var names = analysis.BrokenChains.Select(b => b.DisplayName).OrderBy(n => n, StringComparer.Ordinal).ToList();
-        Assert.Contains("IExecutionProviderDiscovery", names);
-        Assert.Contains("ITensorRtRtxReadinessProbe", names);
-        Assert.Contains("LipSynthesisStageHandler", names);
+        // Parser 0.3.9 @ b57fc832: block factory GetRequiredService tracing clears TensorRT / lip-synthesis false broken chains.
+        Assert.Empty(analysis.BrokenChains);
     }
 }

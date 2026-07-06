@@ -236,6 +236,171 @@ public sealed class SemanticResolutionTests
     }
 
     [Fact]
+    public void Explicit_ctor_wires_instance_and_bare_type_providers_by_short_name()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test.Infrastructure;
+            public sealed class StoragePaths { }
+            public sealed class CacheStore { }
+            public interface IBundleExporter { }
+            public sealed class BundleExporter : IBundleExporter
+            {
+                public BundleExporter(StoragePaths storagePaths, CacheStore cacheStore) { }
+            }
+            public static class Reg
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    var paths = new StoragePaths();
+                    services.TryAddSingleton(paths);
+                    services.TryAddSingleton<CacheStore>();
+                    services.TryAddSingleton<IBundleExporter, BundleExporter>();
+                }
+            }
+            """;
+
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-ctor-wire-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "CtorWire.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Reg.cs"), source);
+
+            var parser = new CSharpStaticParser(new CSharpParseOptions { NoCache = true });
+            var parseResult = parser.ParseDirectory(root);
+            var graph = parseResult.ContextGraphs.Single().Graph;
+            var exporter = graph.Nodes.Single(n => n.DisplayName == "IBundleExporter");
+            var unresolvedForExporter = graph.UnresolvedInjections
+                .Where(u => u.FromRegistrationId == exporter.Id)
+                .ToList();
+            Assert.Empty(unresolvedForExporter);
+            Assert.Equal(2, graph.Edges.Count(e => e.From == exporter.Id));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Constructor_deps_use_public_activator_ctor_not_internal_helper_ctor()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface ICatalog { }
+            public sealed class Helper { }
+            public sealed class Matcher
+            {
+                public Matcher(ICatalog catalog) { }
+                internal Matcher(ICatalog catalog, Helper helper) { }
+            }
+            public static class Reg
+            {
+                public static void Configure(IServiceCollection services) =>
+                    services.AddSingleton<Matcher>();
+            }
+            """;
+
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-activator-ctor-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "ActivatorCtor.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Reg.cs"), source);
+
+            var parser = new CSharpStaticParser(new CSharpParseOptions { NoCache = true });
+            var graph = parser.ParseDirectory(root).ContextGraphs.Single().Graph;
+            var matcher = graph.Nodes.Single(n => n.DisplayName == "Matcher");
+            var unresolvedForMatcher = graph.UnresolvedInjections
+                .Where(u => u.FromRegistrationId == matcher.Id)
+                .ToList();
+            Assert.Empty(unresolvedForMatcher);
+            Assert.DoesNotContain(unresolvedForMatcher, u => u.DeclaredType.ShortName == "Helper");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Explicit_ctor_wires_to_factory_lambda_provider_when_only_match()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface ICatalog { }
+            public interface IConsumer { }
+            public sealed class Consumer : IConsumer
+            {
+                public Consumer(ICatalog catalog) { }
+            }
+            public static class Reg
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    services.TryAddSingleton<ICatalog>(sp => new CatalogImpl());
+                    services.TryAddSingleton<IConsumer, Consumer>();
+                }
+            }
+            sealed class CatalogImpl : ICatalog { }
+            """;
+
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-factory-ctor-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "FactoryCtor.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Reg.cs"), source);
+
+            var parser = new CSharpStaticParser(new CSharpParseOptions { NoCache = true });
+            var graph = parser.ParseDirectory(root).ContextGraphs.Single().Graph;
+            var consumer = graph.Nodes.Single(n => n.DisplayName == "IConsumer");
+            Assert.Empty(graph.UnresolvedInjections.Where(u => u.FromRegistrationId == consumer.Id));
+            Assert.Single(graph.Edges, e => e.From == consumer.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Shallow_factory_with_get_required_service()
     {
         var source = """

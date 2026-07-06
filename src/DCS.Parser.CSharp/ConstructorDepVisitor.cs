@@ -34,7 +34,9 @@ internal sealed class ConstructorDepVisitor : CSharpSyntaxWalker
     public override void VisitClassDeclaration(ClassDeclarationSyntax node)
     {
         var className = node.Identifier.Text;
-        var ctors = node.Members.OfType<ConstructorDeclarationSyntax>().ToList();
+        var ctors = node.Members.OfType<ConstructorDeclarationSyntax>()
+            .Where(IsDiActivatableConstructor)
+            .ToList();
         var mainCtor = ctors.OrderByDescending(c => c.ParameterList.Parameters.Count).FirstOrDefault();
         if (mainCtor == null)
         {
@@ -70,6 +72,16 @@ internal sealed class ConstructorDepVisitor : CSharpSyntaxWalker
 
         base.VisitClassDeclaration(node);
     }
+
+    /// <summary>
+    /// MS DI only activates public constructors (same-assembly internal types may use internal ctors;
+    /// we prefer public to avoid analyzing helper-only ctor chains with inline <c>new</c> deps).
+    /// </summary>
+    private static bool IsDiActivatableConstructor(ConstructorDeclarationSyntax ctor) =>
+        !ctor.Modifiers.Any(m =>
+            m.IsKind(SyntaxKind.PrivateKeyword) ||
+            m.IsKind(SyntaxKind.ProtectedKeyword) ||
+            m.IsKind(SyntaxKind.InternalKeyword));
 
     private static string GetTypeName(TypeSyntax type) => type switch
     {

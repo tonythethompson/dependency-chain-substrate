@@ -192,7 +192,7 @@ public static class FindingPolicy
         UnresolvedInjection unresolved,
         RegistrationGraph graph)
     {
-        if (unresolved.Reason == "semantic_unresolved")
+        if (unresolved.Reason is "semantic_unresolved" or "factory_or_blindspot_provider_only")
             return true;
 
         if (consumer.ParserConfidence == Confidence.BlindSpot)

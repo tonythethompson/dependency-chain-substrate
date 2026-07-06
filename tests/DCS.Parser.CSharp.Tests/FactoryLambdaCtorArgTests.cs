@@ -36,6 +36,37 @@ public sealed class FactoryLambdaCtorArgTests
     }
 
     [Fact]
+    public void Block_factory_lambda_traces_GetRequiredService_in_body()
+    {
+        var (nodes, _) = Parse("""
+            services.AddSingleton<ITensorRtRtxProviderBootstrap>(sp =>
+            {
+                var settings = sp.GetRequiredService<IStudioSettingsService>();
+                var paths = sp.GetRequiredService<TrackdubStoragePaths>();
+                return TensorRtRtxProviderBootstrapFactory.Create(
+                    _ => default,
+                    _ => default,
+                    (_, _) => default);
+            });
+            public interface ITensorRtRtxProviderBootstrap { }
+            public interface IStudioSettingsService { }
+            public sealed class TrackdubStoragePaths { }
+            static class TensorRtRtxProviderBootstrapFactory
+            {
+                public static ITensorRtRtxProviderBootstrap Create(
+                    Func<CancellationToken, Task<string?>> a,
+                    Func<CancellationToken, ValueTask<string?>> b,
+                    Func<bool, CancellationToken, Task<object>> c) => null!;
+            }
+            """);
+        Assert.Single(nodes);
+        var keys = nodes[0].Annotations.GetValueOrDefault("factory_lambda_service_keys");
+        Assert.NotNull(keys);
+        Assert.Contains("IStudioSettingsService", keys, StringComparison.Ordinal);
+        Assert.Contains("TrackdubStoragePaths", keys, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Parameterless_factory_lambda_is_degraded_not_blind_spot()
     {
         var (nodes, _) = Parse("""
