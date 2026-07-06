@@ -85,3 +85,35 @@ The Trackdub repo path will be set in `.claude/settings.local.json` under
 | `PLAN.md` | Live milestone tracker |
 | `docs/DESIGN.md` | The actual design document (skeleton → filled) |
 | `docs/decisions/ADR-NNN-*.md` | Architecture decision records |
+
+---
+
+## Cursor Cloud specific instructions
+
+This is a .NET CLI tool (`dcs`); there is no web/GUI service. The startup update
+script installs the .NET SDKs and restores packages, so the notes below focus on
+how to build/test/run once the environment is warm.
+
+- **Solution file is `.slnx`.** `dotnet` does not auto-discover it and .NET 8
+  cannot parse it. Always pass it explicitly and use a **.NET 9+ SDK** to build:
+  `dotnet build DCS.slnx`, `dotnet test DCS.slnx`. Both .NET SDK 8 and 10 are
+  installed; the 10 SDK parses `.slnx`, and the net8.0 runtime runs the output
+  (every in-solution project targets `net8.0`). `dotnet` is on `PATH` via
+  `~/.dotnet` (exported in `~/.bashrc`).
+- **Run the CLI without installing the global tool:**
+  `dotnet run --project src/DCS.Cli --no-build -- <command> ...` (e.g.
+  `analyze <repo>`, `viz`, `diff`, `path`). `analyze` returns exit code **1** when
+  it finds `LEAKED`/`BROKEN` findings — that is the intended CI gate, not a crash.
+- **Tests:** run with `--filter "Category!=CorpusGate"` (matches CI `build-test`).
+  Corpus-gate tests (`Category=CorpusGate`) need external corpora — private
+  `Trackdub`, `StabilityMatrix`, `spring-petclinic` — via `DCS_CORPUS_PATH` (or the
+  per-gate env vars in `ci/corpus-gates.json`) and are not runnable here by default.
+- **Known Linux-only failure:** `DCS.Fix.Tests` fails ~8 tests on this
+  case-sensitive Linux filesystem because the fix engine lowercases registration
+  file paths while fixtures create PascalCase files (e.g. `OrphanRegistrations.cs`
+  looked up as `orphanregistrations.cs`). CI `build-test` runs on `windows-latest`
+  (case-insensitive), so it is green there. Treat these as a platform difference,
+  not a regression. All other test projects pass.
+- **`dcs viz`** currently emits HTML that throws a JS temporal-dead-zone error
+  (`panX`) and renders a blank canvas in-browser; the JSON/text `analyze` path is
+  the reliable core. This is a pre-existing template bug, not an environment issue.
