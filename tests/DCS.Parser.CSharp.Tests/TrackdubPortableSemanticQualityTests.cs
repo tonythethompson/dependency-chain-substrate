@@ -16,10 +16,9 @@ namespace DCS.Parser.CSharp.Tests;
 [Trait(CorpusGateTraits.CorpusIdName, CorpusGateTraits.CsharpMigrationQuality)]
 public sealed class TrackdubPortableSemanticQualityTests
 {
-    // Baseline @ pin b57fc832 portable context (~64.9%). Ctor-literal dedup @ 0.3.6 drops unresolved to ~34.
-    // Semantic rate recovery toward Phase 12 (~91% @ 3c4e374d) is separate work (syntactic ctor deps).
-    private const double MinPortableSemanticRate = 0.64;
-    private const int MaxPortableUnresolvedFindings = 40;
+    // Baseline @ pin b57fc832 portable context after P2 explicit abstract promotion (parser 0.3.7).
+    private const double MinPortableSemanticRate = 0.75;
+    private const int MaxPortableUnresolvedFindings = 60;
     private const double AspirationalPortableSemanticRate = 0.85;
 
     private readonly ITestOutputHelper _output;

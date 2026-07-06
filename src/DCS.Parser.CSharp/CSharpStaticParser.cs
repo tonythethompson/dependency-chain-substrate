@@ -368,7 +368,7 @@ public sealed class CSharpStaticParser : IStaticParser
         if (FrameworkProvidedServices.IsFrameworkProvided(
                 param.SyntacticName,
                 param.Identity?.MetadataName))
-            return true;
+            return false;
 
         List<RegistrationNode>? candidates = null;
         if (param.Quality == TypeResolutionQuality.Resolved && param.Identity != null)
@@ -388,7 +388,7 @@ public sealed class CSharpStaticParser : IStaticParser
                         ParameterName = param.SyntacticName,
                         Reason = "no_matching_registration"
                     });
-                    return true;
+                    return false;
                 }
             }
         }
@@ -405,12 +405,32 @@ public sealed class CSharpStaticParser : IStaticParser
                     ParameterName = param.SyntacticName,
                     Reason = "semantic_unresolved"
                 });
-                return true;
+                return false;
             }
         }
 
-        var depNode = candidates.FirstOrDefault(c =>
-            c.CompositionScopeId == node.CompositionScopeId) ?? candidates.First();
+        var depNode = candidates
+            .Where(IsEligibleConstructorDependencyTarget)
+            .FirstOrDefault(c => c.CompositionScopeId == node.CompositionScopeId)
+            ?? candidates.FirstOrDefault(IsEligibleConstructorDependencyTarget);
+
+        if (depNode == null)
+        {
+            var dependencyKey = param.Identity != null
+                ? ServiceTypeIdentity.FromResolved(param.Identity).CanonicalKey
+                : param.SyntacticName;
+            unresolved.Add(new UnresolvedInjection
+            {
+                Id = UnresolvedInjection.ComputeId(node.Id, dependencyKey, edgeIndexGlobal++),
+                FromRegistrationId = node.Id,
+                DeclaredType = param.Identity != null
+                    ? TypeIdentityFormatter.ToTypeRef(param.Identity)
+                    : TypeIdentityFormatter.SyntacticFallbackTypeRef(param.SyntacticName),
+                ParameterName = param.SyntacticName,
+                Reason = "no_matching_registration"
+            });
+            return false;
+        }
 
         edges.Add(new DependencyEdge
         {
@@ -553,6 +573,24 @@ public sealed class CSharpStaticParser : IStaticParser
             node.Annotations.GetValueOrDefault("pattern"),
             "factory_lambda_shallow",
             StringComparison.Ordinal);
+
+    /// <summary>
+    /// Ctor edges may target explicit/inferred providers and non-factory degraded registrations
+    /// (e.g. instance-arg <c>TryAddSingleton(instance)</c>), but not blind-spot or factory-lambda providers.
+    /// </summary>
+    private static bool IsEligibleConstructorDependencyTarget(RegistrationNode node)
+    {
+        if (node.ParserConfidence == Confidence.BlindSpot)
+            return false;
+
+        if (node.ParserConfidence == Confidence.Degraded)
+        {
+            var pattern = node.Annotations.GetValueOrDefault("pattern");
+            return pattern is not ("factory_lambda" or "factory_lambda_shallow");
+        }
+
+        return true;
+    }
 
     private static bool IsFrameworkServiceKey(string serviceKey)
     {
