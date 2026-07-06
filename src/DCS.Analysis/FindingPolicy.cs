@@ -25,8 +25,8 @@ public static class FindingPolicy
 
     private static readonly HashSet<string> NonActionableUnresolvedTypes = new(StringComparer.Ordinal)
     {
-        "String", "Int32", "Int64", "Int16", "UInt32", "UInt64", "UInt16",
-        "Boolean", "Single", "Double", "Decimal", "Byte", "SByte", "Char",
+        "String", "string", "string?", "Int32", "int", "Int64", "long", "Int16", "UInt32", "UInt64", "UInt16",
+        "Boolean", "bool", "Single", "Double", "Decimal", "Byte", "SByte", "Char",
         "Object", "Void", "HttpClient", "TimeSpan", "DateTime", "Guid",
         "IServiceScopeFactory", "IServiceScope", "CancellationToken",
         "ILogger", "IConfiguration", "IServiceProvider", "IHostEnvironment",
@@ -115,6 +115,37 @@ public static class FindingPolicy
         var tryAdd = nodes.Count(n => n.Annotations.GetValueOrDefault("conditional") == "try_add");
         var explicitCount = nodes.Count - tryAdd;
         return tryAdd >= 1 && explicitCount == 1;
+    }
+
+    /// <summary>
+    /// Multiple TryAdd registrations for the same service are idempotent at runtime (MS DI no-op).
+    /// </summary>
+    public static bool IsRedundantTryAddDuplicate(
+        IReadOnlyList<RegistrationNode> nodes,
+        FindingPolicyOptions? options = null)
+    {
+        if (IsStrict(options) || nodes.Count < 2)
+            return false;
+
+        return nodes.All(n => n.Annotations.GetValueOrDefault("conditional") == "try_add");
+    }
+
+    /// <summary>
+    /// Same abstract token registered in separate composition islands (api/desktop/lambda) is expected
+    /// for multi-host apps — not migration leakage within one host.
+    /// </summary>
+    public static bool IsCrossCompositionIslandDuplicate(IReadOnlyList<RegistrationNode> nodes)
+    {
+        if (nodes.Count < 2)
+            return false;
+
+        var islands = nodes
+            .Select(n => CompositionIslandAttribution.InferFromFilePath(n.SourceLocation?.FilePath))
+            .Where(i => i is not (CompositionIsland.Unknown or CompositionIsland.External))
+            .Distinct()
+            .ToList();
+
+        return islands.Count > 1;
     }
 
     /// <summary>

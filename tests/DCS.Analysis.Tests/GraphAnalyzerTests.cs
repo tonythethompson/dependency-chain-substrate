@@ -133,6 +133,43 @@ public sealed class GraphAnalyzerTests
     }
 
     [Fact]
+    public void Island_aware_mode_does_not_flag_cross_host_duplicates()
+    {
+        var apiNode = MakeStrictNode("IAmazonCloudWatch", "src/trackdub.api/program.cs", 77) with
+        {
+            FrameworkTags = ["aspnetcore"]
+        };
+        var workerNode = MakeStrictNode("IAmazonCloudWatch", "src/trackdub.worker/program.cs", 79);
+        var graph = new RegistrationGraph { Nodes = [apiNode, workerNode] };
+        var result = new GraphAnalyzer(graph, islandAware: true).Analyze();
+        Assert.Empty(result.Duplicates);
+    }
+
+    [Fact]
+    public void Redundant_try_add_pair_is_not_strict_duplicate()
+    {
+        var first = MakeStrictNode("StarterPackValidator", "CompositionRoot.cs", 182) with
+        {
+            Annotations = new Dictionary<string, string>
+            {
+                [StrictDuplicateEligibility.AnnotationKey] = "true",
+                ["conditional"] = "try_add"
+            }
+        };
+        var second = MakeStrictNode("StarterPackValidator", "CompositionRoot.cs", 196) with
+        {
+            Annotations = new Dictionary<string, string>
+            {
+                [StrictDuplicateEligibility.AnnotationKey] = "true",
+                ["conditional"] = "try_add"
+            }
+        };
+        var graph = new RegistrationGraph { Nodes = [first, second] };
+        var result = new GraphAnalyzer(graph, islandAware: true).Analyze();
+        Assert.Empty(result.Duplicates);
+    }
+
+    [Fact]
     public void Homonym_syntactic_nodes_are_possible_duplicate_not_strict()
     {
         var node1 = MakeNode("IFoo", "A.cs", 1);

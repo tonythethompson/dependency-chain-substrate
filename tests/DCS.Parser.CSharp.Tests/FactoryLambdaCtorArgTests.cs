@@ -21,7 +21,7 @@ public sealed class FactoryLambdaCtorArgTests
     }
 
     [Fact]
-    public void Factory_lambda_traces_GetService_in_ctor_args()
+    public void Factory_lambda_traces_only_GetRequiredService_in_service_keys()
     {
         var (nodes, _) = Parse("""
             services.AddSingleton<IFoo>(sp => new FooImpl(
@@ -31,7 +31,7 @@ public sealed class FactoryLambdaCtorArgTests
         Assert.Single(nodes);
         var keys = nodes[0].Annotations.GetValueOrDefault("factory_lambda_service_keys");
         Assert.NotNull(keys);
-        Assert.Contains("IBar", keys, StringComparison.Ordinal);
+        Assert.DoesNotContain("IBar", keys, StringComparison.Ordinal);
         Assert.Contains("IBaz", keys, StringComparison.Ordinal);
     }
 

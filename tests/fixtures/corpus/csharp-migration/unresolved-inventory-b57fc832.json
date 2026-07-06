@@ -3,9 +3,9 @@
   "commit_sha": "b57fc8327e4773fb686cc77025d2b57bbb37cb85",
   "context_id": "csharp|net10.0",
   "target_framework": "net10.0",
-  "parser_version": "0.3.10",
+  "parser_version": "0.3.11",
   "total_nodes": 339,
-  "total_edges": 170,
+  "total_edges": 149,
   "metrics": {
     "semantic_type_resolution_rate": 0.8790560471976401,
     "registration_api_verification_rate": 0.9528023598820059,
@@ -18,196 +18,22 @@
     "complete_composition_scope_count": 5
   },
   "summary": {
-    "actionable_count": 5,
+    "actionable_count": 0,
     "informational_count": 93,
-    "parser_limit_count": 12,
+    "parser_limit_count": 0,
     "intentional_count": 5,
     "error_count": 0,
     "leaked_count": 0,
     "broken_count": 0,
-    "duplicate_count": 5,
+    "duplicate_count": 0,
     "possible_duplicate_count": 2,
-    "unresolved_count": 12,
+    "unresolved_count": 0,
     "orphaned_count": 0,
     "cycle_count": 0,
     "blind_spot_count": 0,
     "has_errors": false
   },
   "findings": [
-    {
-      "finding_id": "duplicate_iamazoncloudwatch_3da05760d25075f30bf1f97e406e40e4",
-      "category": "duplicate",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAmazonCloudWatch",
-      "detail": "registered 2\u00D7 (may indicate leaked migration state)",
-      "sites": [
-        {
-          "registration_id": "3da05760d25075f3",
-          "display_name": "IAmazonCloudWatch",
-          "fully_qualified_name": "Amazon.CloudWatch.IAmazonCloudWatch",
-          "file_path": "src/trackdub.api/program.cs",
-          "line": 77,
-          "framework_tags": [
-            "aspnetcore",
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "0bf1f97e406e40e4",
-          "display_name": "IAmazonCloudWatch",
-          "fully_qualified_name": "Amazon.CloudWatch.IAmazonCloudWatch",
-          "file_path": "src/trackdub.worker/program.cs",
-          "line": 79,
-          "framework_tags": []
-        }
-      ]
-    },
-    {
-      "finding_id": "duplicate_iamazondynamodb_2991a975ec4c26a6d110dedb4b071f94",
-      "category": "duplicate",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAmazonDynamoDB",
-      "detail": "registered 4\u00D7 (may indicate leaked migration state)",
-      "sites": [
-        {
-          "registration_id": "2991a975ec4c26a6",
-          "display_name": "IAmazonDynamoDB",
-          "fully_qualified_name": "Amazon.DynamoDBv2.IAmazonDynamoDB",
-          "file_path": "src/trackdub.webhookdelivery/function.cs",
-          "line": 148,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "d110dedb4b071f94",
-          "display_name": "IAmazonDynamoDB",
-          "fully_qualified_name": "Amazon.DynamoDBv2.IAmazonDynamoDB",
-          "file_path": "src/trackdub.api/billing/billingservicecollectionextensions.cs",
-          "line": 25,
-          "framework_tags": []
-        },
-        {
-          "registration_id": "25a5cf55d2b78397",
-          "display_name": "IAmazonDynamoDB",
-          "fully_qualified_name": "Amazon.DynamoDBv2.IAmazonDynamoDB",
-          "file_path": "src/trackdub.api/program.cs",
-          "line": 73,
-          "framework_tags": [
-            "aspnetcore",
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "292501926ac942f5",
-          "display_name": "IAmazonDynamoDB",
-          "fully_qualified_name": "Amazon.DynamoDBv2.IAmazonDynamoDB",
-          "file_path": "src/trackdub.worker/program.cs",
-          "line": 75,
-          "framework_tags": []
-        }
-      ]
-    },
-    {
-      "finding_id": "duplicate_iamazoneventbridge_bbb1b0c503ad8bbf362e6f5e21c5d646",
-      "category": "duplicate",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAmazonEventBridge",
-      "detail": "registered 2\u00D7 (may indicate leaked migration state)",
-      "sites": [
-        {
-          "registration_id": "bbb1b0c503ad8bbf",
-          "display_name": "IAmazonEventBridge",
-          "fully_qualified_name": "Amazon.EventBridge.IAmazonEventBridge",
-          "file_path": "src/trackdub.api/program.cs",
-          "line": 78,
-          "framework_tags": [
-            "aspnetcore",
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "362e6f5e21c5d646",
-          "display_name": "IAmazonEventBridge",
-          "fully_qualified_name": "Amazon.EventBridge.IAmazonEventBridge",
-          "file_path": "src/trackdub.worker/program.cs",
-          "line": 77,
-          "framework_tags": []
-        }
-      ]
-    },
-    {
-      "finding_id": "duplicate_iamazonsqs_00839ed23b153e61b3dbce797bcc523e",
-      "category": "duplicate",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "IAmazonSQS",
-      "detail": "registered 2\u00D7 (may indicate leaked migration state)",
-      "sites": [
-        {
-          "registration_id": "00839ed23b153e61",
-          "display_name": "IAmazonSQS",
-          "fully_qualified_name": "Amazon.SQS.IAmazonSQS",
-          "file_path": "src/trackdub.webhookdelivery/function.cs",
-          "line": 149,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "b3dbce797bcc523e",
-          "display_name": "IAmazonSQS",
-          "fully_qualified_name": "Amazon.SQS.IAmazonSQS",
-          "file_path": "src/trackdub.api/program.cs",
-          "line": 75,
-          "framework_tags": [
-            "aspnetcore",
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "duplicate_starterpackvalidator_874a0b43ab1526cca1d9e3c9a7e393a6",
-      "category": "duplicate",
-      "severity": "warn",
-      "tier": "actionable",
-      "title": "StarterPackValidator",
-      "detail": "registered 2\u00D7 (may indicate leaked migration state)",
-      "sites": [
-        {
-          "registration_id": "874a0b43ab1526cc",
-          "display_name": "StarterPackValidator",
-          "fully_qualified_name": "Trackdub.Composition.StarterPacks.StarterPackValidator",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 180,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        },
-        {
-          "registration_id": "a1d9e3c9a7e393a6",
-          "display_name": "StarterPackValidator",
-          "fully_qualified_name": "Trackdub.Composition.StarterPacks.StarterPackValidator",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 194,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
     {
       "finding_id": "duplicate_icloudapikeyprovider_intentional",
       "category": "possible_duplicate",
@@ -363,259 +189,6 @@
           "line": 40,
           "framework_tags": [
             "avalonia",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_long_0a834aa4a8dbaa62",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "long",
-      "detail": "missing long (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "0a834aa4a8dbaa62",
-          "display_name": "IDiagnosticsBundleExporter",
-          "fully_qualified_name": "Trackdub.Contracts.IDiagnosticsBundleExporter",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 175,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_int_4e26533401c174fc",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "int",
-      "detail": "missing int (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "4e26533401c174fc",
-          "display_name": "IWaveformSummaryGenerator",
-          "fully_qualified_name": "Trackdub.Contracts.IWaveformSummaryGenerator",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 379,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_ireadonlydictionaryruntimestages_611aa9651dddd1aa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "IReadOnlyDictionary\u003CRuntimeStage, StageRuntimeRequirements\u003E?",
-      "detail": "missing IReadOnlyDictionary\u003CRuntimeStage, StageRuntimeRequirements\u003E? (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "611aa9651dddd1aa",
-          "display_name": "IRuntimePlanner",
-          "fully_qualified_name": "Trackdub.Inference.Runtime.Planning.IRuntimePlanner",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 518,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_string_09db3bc9a3e8ee12",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "string?",
-      "detail": "missing string? (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "09db3bc9a3e8ee12",
-          "display_name": "IAudioSegmentExtractor",
-          "fully_qualified_name": "Trackdub.Contracts.Pipeline.IAudioSegmentExtractor",
-          "file_path": "src/trackdub.composition/lipsynthesis/latentsynclipsynthesisregistration.cs",
-          "line": 23,
-          "framework_tags": [
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iappstoragepaths_cc5fe4d7bf8824fa",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "IAppStoragePaths",
-      "detail": "missing IAppStoragePaths (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "cc5fe4d7bf8824fa",
-          "display_name": "ILayoutPersistenceService",
-          "fully_qualified_name": "Trackdub.App.Avalonia.Services.ILayoutPersistenceService",
-          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
-          "line": 143,
-          "framework_tags": [
-            "avalonia",
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_iapplicationlogger_a7ef892e0b683796",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "IApplicationLogger?",
-      "detail": "missing IApplicationLogger? (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "a7ef892e0b683796",
-          "display_name": "IAppLanguageService",
-          "fully_qualified_name": "Trackdub.App.Avalonia.Services.IAppLanguageService",
-          "file_path": "src/trackdub.app.avalonia/app.axaml.cs",
-          "line": 147,
-          "framework_tags": [
-            "avalonia",
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_string_83e2a7c7e9b96542",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "string?",
-      "detail": "missing string? (semantic_unresolved)",
-      "sites": [
-        {
-          "registration_id": "83e2a7c7e9b96542",
-          "display_name": "ILibVlcRuntimeLocator",
-          "fully_qualified_name": "Trackdub.Media.Playback.ILibVlcRuntimeLocator",
-          "file_path": "src/trackdub.app.avalonia/playback/avaloniaplaybackcomposition.cs",
-          "line": 25,
-          "framework_tags": [
-            "avalonia",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_syntacticiruntimeplanningprefere_5f58cd7a5a09b51e",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "syntactic:IRuntimePlanningPreferences",
-      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "5f58cd7a5a09b51e",
-          "display_name": "VadStageHandler",
-          "fully_qualified_name": "Trackdub.Application.Transcripts.VadStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 422,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_syntacticiruntimeplanningprefere_6990c79cf79e55df",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "syntactic:IRuntimePlanningPreferences",
-      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "6990c79cf79e55df",
-          "display_name": "AsrStageHandler",
-          "fully_qualified_name": "Trackdub.Application.Transcripts.AsrStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 428,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_syntacticiruntimeplanningprefere_bac426ab14254538",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "syntactic:IRuntimePlanningPreferences",
-      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "bac426ab14254538",
-          "display_name": "TextRefinementStageHandler",
-          "fully_qualified_name": "Trackdub.Application.Transcripts.TextRefinementStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 434,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_syntacticiruntimeplanningprefere_e8bce3328e2075c6",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "syntactic:IRuntimePlanningPreferences",
-      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "e8bce3328e2075c6",
-          "display_name": "LipSyncStageHandler",
-          "fully_qualified_name": "Trackdub.Application.LipSync.LipSyncStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 579,
-          "framework_tags": [
-            "ms-extensions",
-            "msdi"
-          ]
-        }
-      ]
-    },
-    {
-      "finding_id": "unresolved_syntacticiruntimeplanningprefere_fb5db743589d80dd",
-      "category": "unresolved",
-      "severity": "warn",
-      "tier": "parser_limit",
-      "title": "syntactic:IRuntimePlanningPreferences",
-      "detail": "missing syntactic:IRuntimePlanningPreferences (parser_limit: provider likely factory_lambda_shallow) (no_matching_registration)",
-      "sites": [
-        {
-          "registration_id": "fb5db743589d80dd",
-          "display_name": "LipSynthesisStageHandler",
-          "fully_qualified_name": "Trackdub.Application.LipSynthesis.LipSynthesisStageHandler",
-          "file_path": "src/trackdub.composition/compositionroot.cs",
-          "line": 598,
-          "framework_tags": [
-            "ms-extensions",
             "msdi"
           ]
         }
@@ -2415,8 +1988,8 @@
       "island": "desktop",
       "seed_count": 270,
       "reachable_count": 277,
-      "orphaned_count": 208,
-      "island_valid_count": 206,
+      "orphaned_count": 215,
+      "island_valid_count": 213,
       "true_orphan_count": 2
     },
     {

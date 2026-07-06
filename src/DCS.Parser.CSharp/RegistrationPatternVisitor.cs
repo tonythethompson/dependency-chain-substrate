@@ -376,9 +376,9 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
             invocation, methodName, recognition, Confidence.BlindSpot, "factory_lambda_shallow");
 
         var serviceRequests = lambda != null
-            ? ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(lambda)
+            ? ShallowFactoryLambdaExtractor.TryExtractRequiredServiceRequestTypes(lambda)
             : anonLambda != null
-                ? ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(anonLambda)
+                ? ShallowFactoryLambdaExtractor.TryExtractRequiredServiceRequestTypes(anonLambda)
                 : [];
 
         var serviceKeys = serviceRequests
@@ -453,8 +453,8 @@ public sealed class RegistrationPatternVisitor : CSharpSyntaxWalker
     {
         IReadOnlyList<TypeSyntax> serviceRequests = lambdaExpression switch
         {
-            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(lambda),
-            AnonymousMethodExpressionSyntax anon => ShallowFactoryLambdaExtractor.TryExtractServiceRequestTypes(anon),
+            LambdaExpressionSyntax lambda => ShallowFactoryLambdaExtractor.TryExtractRequiredServiceRequestTypes(lambda),
+            AnonymousMethodExpressionSyntax anon => ShallowFactoryLambdaExtractor.TryExtractRequiredServiceRequestTypes(anon),
             _ => Array.Empty<TypeSyntax>()
         };
 

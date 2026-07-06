@@ -24,12 +24,18 @@ internal static class ShallowFactoryLambdaExtractor
     }
 
     public static IReadOnlyList<TypeSyntax> TryExtractServiceRequestTypes(LambdaExpressionSyntax lambda) =>
-        ExtractServiceRequestTypes(lambda.Body);
+        ExtractServiceRequestTypes(lambda.Body, requiredOnly: false);
+
+    public static IReadOnlyList<TypeSyntax> TryExtractRequiredServiceRequestTypes(LambdaExpressionSyntax lambda) =>
+        ExtractServiceRequestTypes(lambda.Body, requiredOnly: true);
 
     public static IReadOnlyList<TypeSyntax> TryExtractServiceRequestTypes(AnonymousMethodExpressionSyntax lambda) =>
-        ExtractServiceRequestTypes(lambda.Block);
+        ExtractServiceRequestTypes(lambda.Block, requiredOnly: false);
 
-    private static IReadOnlyList<TypeSyntax> ExtractServiceRequestTypes(SyntaxNode body)
+    public static IReadOnlyList<TypeSyntax> TryExtractRequiredServiceRequestTypes(AnonymousMethodExpressionSyntax lambda) =>
+        ExtractServiceRequestTypes(lambda.Block, requiredOnly: true);
+
+    private static IReadOnlyList<TypeSyntax> ExtractServiceRequestTypes(SyntaxNode body, bool requiredOnly)
     {
         var results = new List<TypeSyntax>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -45,7 +51,7 @@ internal static class ShallowFactoryLambdaExtractor
 
         foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            AddType(TryExtractServiceTypeFromInvocation(invocation));
+            AddType(TryExtractServiceTypeFromInvocation(invocation, requiredOnly));
         }
 
         foreach (var creation in body.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
@@ -67,7 +73,7 @@ internal static class ShallowFactoryLambdaExtractor
                 if (variable.Initializer?.Value is not InvocationExpressionSyntax initInvocation)
                     continue;
 
-                TypeSyntax? typeArg = TryExtractServiceTypeFromInvocation(initInvocation);
+                TypeSyntax? typeArg = TryExtractServiceTypeFromInvocation(initInvocation, requiredOnly);
 
                 if (typeArg == null)
                     continue;
@@ -98,8 +104,14 @@ internal static class ShallowFactoryLambdaExtractor
         return results;
     }
 
-    private static TypeSyntax? TryExtractServiceTypeFromInvocation(InvocationExpressionSyntax invocation)
+    private static TypeSyntax? TryExtractServiceTypeFromInvocation(InvocationExpressionSyntax invocation, bool requiredOnly)
     {
+        if (requiredOnly && !IsGetRequiredServiceInvocation(invocation))
+            return null;
+
+        if (!requiredOnly && !IsServiceResolutionInvocation(invocation))
+            return null;
+
         TypeSyntax? typeArg = invocation.Expression switch
         {
             MemberAccessExpressionSyntax
@@ -110,7 +122,7 @@ internal static class ShallowFactoryLambdaExtractor
         };
 
         if (typeArg == null &&
-            invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" or "GetService" } &&
+            IsServiceResolutionInvocation(invocation) &&
             invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is TypeOfExpressionSyntax typeOf)
         {
             typeArg = typeOf.Type;
@@ -118,6 +130,15 @@ internal static class ShallowFactoryLambdaExtractor
 
         return typeArg;
     }
+
+    private static bool IsGetRequiredServiceInvocation(InvocationExpressionSyntax invocation) =>
+        invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" };
+
+    private static bool IsServiceResolutionInvocation(InvocationExpressionSyntax invocation) =>
+        invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "GetRequiredService" or "GetService" };
+
+    private static TypeSyntax? TryExtractServiceTypeFromInvocation(InvocationExpressionSyntax invocation) =>
+        TryExtractServiceTypeFromInvocation(invocation, requiredOnly: false);
 
     private static TypeSyntax? TryExtractServiceTypeFromExpression(ExpressionSyntax expression) =>
         expression switch

@@ -402,16 +402,27 @@ public sealed class GraphAnalyzer
     private List<DuplicateAbstractToken> FindStrictDuplicates() =>
         _graph.Nodes
             .Where(StrictDuplicateEligibility.IsEligible)
-            .GroupBy(n => n.DuplicateGroupKey, StringComparer.Ordinal)
+            .GroupBy(StrictDuplicateGroupKey, StringComparer.Ordinal)
             .Where(g => g.Count() > 1
                 && !FindingPolicy.IsIntentionalTryAddOverride(g.ToList(), _policy)
-                && !FindingPolicy.IsMutuallyExclusiveIfElseBranch(g.ToList(), _policy))
+                && !FindingPolicy.IsRedundantTryAddDuplicate(g.ToList(), _policy)
+                && !FindingPolicy.IsMutuallyExclusiveIfElseBranch(g.ToList(), _policy)
+                && !(_islandAware && FindingPolicy.IsCrossCompositionIslandDuplicate(g.ToList())))
             .Select(g => new DuplicateAbstractToken(
                 g.First().DisplayName,
                 g.Select(n => n.Id).ToList(),
                 IsStrict: true))
             .OrderBy(d => d.AbstractTokenName, StringComparer.Ordinal)
             .ToList();
+
+    private string StrictDuplicateGroupKey(RegistrationNode node)
+    {
+        if (!_islandAware)
+            return node.DuplicateGroupKey;
+
+        var island = CompositionIslandAttribution.InferFromFilePath(node.SourceLocation?.FilePath);
+        return $"{node.DuplicateGroupKey}|{CompositionIslandAttribution.ToAnnotationValue(island)}";
+    }
 
     private List<DuplicateAbstractToken> FindPossibleDuplicates() =>
         _graph.Nodes

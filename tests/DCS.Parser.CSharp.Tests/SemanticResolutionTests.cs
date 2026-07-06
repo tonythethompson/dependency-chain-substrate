@@ -348,6 +348,59 @@ public sealed class SemanticResolutionTests
     }
 
     [Fact]
+    public void Constructor_deps_skip_optional_parameters_with_defaults()
+    {
+        var source = """
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Test;
+            public interface ICatalog { }
+            public interface IExporter { }
+            public sealed class Exporter : IExporter
+            {
+                public Exporter(ICatalog catalog, long maxBytes = 1024) { }
+            }
+            public static class Reg
+            {
+                public static void Configure(IServiceCollection services)
+                {
+                    services.TryAddSingleton<ICatalog, CatalogImpl>();
+                    services.TryAddSingleton<IExporter, Exporter>();
+                }
+            }
+            sealed class CatalogImpl : ICatalog { }
+            """;
+
+        var root = Path.Combine(Path.GetTempPath(), $"dcs-optional-ctor-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "OptionalCtor.csproj"), """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(root, "Reg.cs"), source);
+
+            var parser = new CSharpStaticParser(new CSharpParseOptions { NoCache = true });
+            var graph = parser.ParseDirectory(root).ContextGraphs.Single().Graph;
+            var exporter = graph.Nodes.Single(n => n.DisplayName == "IExporter");
+            Assert.Empty(graph.UnresolvedInjections.Where(u => u.FromRegistrationId == exporter.Id));
+            Assert.Single(graph.Edges, e => e.From == exporter.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Explicit_ctor_wires_to_factory_lambda_provider_when_only_match()
     {
         var source = """

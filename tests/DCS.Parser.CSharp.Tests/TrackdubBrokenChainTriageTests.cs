@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 namespace DCS.Parser.CSharp.Tests;
 
 /// <summary>
-/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.9 factory tracing.
+/// Documents Trackdub broken-chain triage @ pin b57fc832 after parser 0.3.11.
 /// </summary>
 [Collection(CorpusGateCollection.CsharpMigration)]
 [Trait(CorpusGateTraits.CategoryName, CorpusGateTraits.CategoryValue)]

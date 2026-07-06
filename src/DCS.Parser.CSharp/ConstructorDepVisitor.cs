@@ -37,7 +37,10 @@ internal sealed class ConstructorDepVisitor : CSharpSyntaxWalker
         var ctors = node.Members.OfType<ConstructorDeclarationSyntax>()
             .Where(IsDiActivatableConstructor)
             .ToList();
-        var mainCtor = ctors.OrderByDescending(c => c.ParameterList.Parameters.Count).FirstOrDefault();
+        var mainCtor = ctors
+            .OrderByDescending(InjectableParameterCount)
+            .ThenByDescending(c => c.ParameterList.Parameters.Count(p => p.Default == null))
+            .FirstOrDefault();
         if (mainCtor == null)
         {
             base.VisitClassDeclaration(node);
@@ -51,7 +54,7 @@ internal sealed class ConstructorDepVisitor : CSharpSyntaxWalker
         var implKey = implIdentity?.CanonicalKey ?? className;
 
         var deps = mainCtor.ParameterList.Parameters
-            .Where(p => p.Type != null)
+            .Where(p => p.Type != null && p.Default == null && IsInjectableParameterType(p.Type))
             .Select(p =>
             {
                 var syntactic = GetTypeName(p.Type!);
@@ -82,6 +85,21 @@ internal sealed class ConstructorDepVisitor : CSharpSyntaxWalker
             m.IsKind(SyntaxKind.PrivateKeyword) ||
             m.IsKind(SyntaxKind.ProtectedKeyword) ||
             m.IsKind(SyntaxKind.InternalKeyword));
+
+    private static int InjectableParameterCount(ConstructorDeclarationSyntax ctor) =>
+        ctor.ParameterList.Parameters.Count(p =>
+            p.Type != null && p.Default == null && IsInjectableParameterType(p.Type));
+
+    private static bool IsInjectableParameterType(TypeSyntax type)
+    {
+        var name = GetTypeName(type).TrimEnd('?');
+        return name switch
+        {
+            "string" or "int" or "long" or "short" or "byte" or "bool" or "float" or "double" or "decimal" or "char" or "object" => false,
+            _ when name.StartsWith("syntactic:", StringComparison.Ordinal) => false,
+            _ => true
+        };
+    }
 
     private static string GetTypeName(TypeSyntax type) => type switch
     {

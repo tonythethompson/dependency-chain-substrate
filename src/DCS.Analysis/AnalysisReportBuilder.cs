@@ -231,6 +231,36 @@ public static class AnalysisReportBuilder
                 continue;
             }
 
+            if (FindingPolicy.IsRedundantTryAddDuplicate(nodes, policy))
+            {
+                yield return new AnalysisFinding
+                {
+                    FindingId = FindingId(FindingCategory.Duplicate, d.AbstractTokenName, "redundant_try_add"),
+                    Category = strict ? FindingCategory.Duplicate : FindingCategory.PossibleDuplicate,
+                    Severity = FindingSeverity.Warn,
+                    Tier = FindingTier.Intentional,
+                    Title = d.AbstractTokenName,
+                    Detail = "Multiple TryAdd registrations (idempotent at runtime)",
+                    Sites = nodes.Select(n => SiteFromNode(n)).ToList()
+                };
+                continue;
+            }
+
+            if (FindingPolicy.IsCrossCompositionIslandDuplicate(nodes))
+            {
+                yield return new AnalysisFinding
+                {
+                    FindingId = FindingId(FindingCategory.Duplicate, d.AbstractTokenName, "cross_island"),
+                    Category = strict ? FindingCategory.Duplicate : FindingCategory.PossibleDuplicate,
+                    Severity = FindingSeverity.Warn,
+                    Tier = FindingTier.Informational,
+                    Title = d.AbstractTokenName,
+                    Detail = "Registered in separate composition islands (multi-host)",
+                    Sites = nodes.Select(n => SiteFromNode(n)).ToList()
+                };
+                continue;
+            }
+
             yield return new AnalysisFinding
             {
                 FindingId = FindingId(

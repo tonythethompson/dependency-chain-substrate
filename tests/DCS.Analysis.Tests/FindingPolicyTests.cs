@@ -11,6 +11,9 @@ public sealed class FindingPolicyTests
     [InlineData("IStringLocalizer<SharedResource>", false)]
     [InlineData("IRepository<Foo>", true)]
     [InlineData("IValidator<Bar>", true)]
+    [InlineData("int", false)]
+    [InlineData("long", false)]
+    [InlineData("string?", false)]
     public void IsActionableUnresolved_suppresses_only_framework_generics(string typeName, bool expectedActionable)
     {
         var actionable = FindingPolicy.IsActionableUnresolved(typeName);

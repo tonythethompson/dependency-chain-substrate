@@ -11,7 +11,7 @@ namespace DCS.Parser.CSharp;
 
 public sealed class CSharpStaticParser : IStaticParser
 {
-    public const string ParserVersion = "0.3.10";
+    public const string ParserVersion = "0.3.11";
 
     private readonly CSharpParseOptions _options;
 
@@ -399,7 +399,8 @@ public sealed class CSharpStaticParser : IStaticParser
         }
         else
         {
-            candidates = TryResolveExplicitProviderForSyntacticParam(param, byCanonicalKey, nodes);
+            candidates = TryResolveExplicitProviderForSyntacticParam(param, byCanonicalKey, nodes) ??
+                         TryResolveProviderByTypeName(param, byCanonicalKey, nodes);
             if (candidates == null)
             {
                 unresolved.Add(new UnresolvedInjection
@@ -508,15 +509,16 @@ public sealed class CSharpStaticParser : IStaticParser
         var syntacticKey = $"syntactic:{name}";
         if (byCanonicalKey.TryGetValue(syntacticKey, out var syntacticCandidates))
         {
-            var explicitOnly = syntacticCandidates
-                .Where(n => n.ParserConfidence == Confidence.Explicit)
+            var eligible = syntacticCandidates
+                .Where(n => n.ParserConfidence is Confidence.Explicit or Confidence.Degraded or Confidence.Inferred)
                 .ToList();
-            if (explicitOnly.Count == 1)
-                return explicitOnly;
+            if (eligible.Count == 1)
+                return eligible;
         }
 
         var explicitMatches = nodes
-            .Where(n => n.ParserConfidence == Confidence.Explicit && RegistrationTypeNameMatches(n, name))
+            .Where(n => n.ParserConfidence is Confidence.Explicit or Confidence.Degraded or Confidence.Inferred &&
+                        RegistrationTypeNameMatches(n, name))
             .ToList();
         return explicitMatches.Count == 1 ? explicitMatches : null;
     }
