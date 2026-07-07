@@ -1,6 +1,6 @@
 # Dependency Chain Substrate — Milestone Tracker
 
-Last updated: 2026-07-02 (hardening items 7-10)
+Last updated: 2026-07-06 (Phase 14 Trackdub pin hardening @ b57fc832)
 
 ---
 
@@ -420,6 +420,65 @@ all fix classes preserve buildability on arbitrary repositories.
 
 **Phase 13c gate:** ✅ CLOSED for implementation/test coverage. Remaining risk:
 rename precision on broad technical renames and real-corpus 1000+ node legibility.
+
+---
+
+## Phase 14 — Trackdub pin hardening @ b57fc832
+
+**Done means:** Ground-truth corpus at GitHub main pin `b57fc8327e4773fb686cc77025d2b57bbb37cb85`
+shows zero actionable findings, zero broken chains, and zero Trackdub source fixes
+required for parser-fidelity gaps identified in triage.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Trackdub-first triage (A/B/C buckets) | ✅ Done | 8 parser gaps (A), 0 wiring bugs (B), 3 blind spots (C) |
+| Parser 0.3.9 — factory lambda block tracing + activator ctor | ✅ Done | 3 false broken chains cleared |
+| Parser 0.3.10 — ctor→factory wiring + cross-scope duplicate-grouping key | ✅ Done | 5 RuntimePlanner/glossary actionable unresolved cleared |
+| Parser 0.3.11 — island-scoped duplicates + parser_limit cleanup | ✅ Done | 0 actionable / 0 unresolved / 0 broken @ portable net10.0 |
+| Duplicate triage (5 actionable duplicates) | ✅ Done | All **C** — multi-host islands + redundant TryAdd; no Trackdub fixes |
+| Inventory fixture lock | ✅ Done | `unresolved-inventory-b57fc832.json` @ parser 0.3.11 |
+| CI corpus gates @ pin | ✅ Done | [ci run 28830778190](https://github.com/tonythethompson/dependency-chain-substrate/actions/runs/28830778190) green on `cbf9d27` |
+
+**Verified metrics @ pin `b57fc832` (portable `csharp|net10.0`, `--no-cache`):**
+
+| Metric | Value |
+|--------|-------|
+| Parser version | 0.3.11 |
+| Nodes / edges | 339 / 149 |
+| Actionable | 0 |
+| Unresolved | 0 |
+| Broken | 0 |
+| Leaked | 0 |
+| Strict duplicates | 0 (5 re-tiered: cross-island informational + redundant TryAdd intentional) |
+
+**Discipline gate evidence (AGENTS.md):**
+
+| State | Evidence |
+|-------|----------|
+| **Designed** | Triage A/B/C classification; no metric gaming or ceiling lowering |
+| **Implemented** | Parser 0.3.9–0.3.11 (`111b4b2`, `cbf9d27` on main) |
+| **Tested** | 283 tests green locally; corpus-gate matrix green on CI |
+| **Verified** | Trackdub @ pin reproduces clean report; broken-chain gate = 0; inventory fixture aligned |
+
+**Duplicate triage summary (all bucket C — DCS policy, not Trackdub bugs):**
+
+| Token | Sites | Verdict |
+|-------|-------|---------|
+| `IAmazonCloudWatch` | api + worker | Multi-host composition islands |
+| `IAmazonDynamoDB` | api + billing + worker + lambda | Multi-host; api pair is TryAdd+TryAdd |
+| `IAmazonEventBridge` | api + worker | Multi-host |
+| `IAmazonSQS` | api + webhook lambda | Multi-host |
+| `StarterPackValidator` | CompositionRoot.cs:182 + :196 | Redundant TryAdd (runtime no-op) |
+
+**Optional Trackdub hygiene (not required for Verified):** remove duplicate
+`TryAddSingleton<StarterPackValidator>()` @ line 196; register
+`IRuntimePlanningPreferences` if stage handlers should always receive it (currently
+optional `GetService` — no longer a DCS finding).
+
+**Phase 14 gate:** ✅ CLOSED — parser fidelity **Verified** on Trackdub @ `b57fc832`.
+
+**Next recommended phase:** [Phase 7 — IDE Extension](#phase-7--ide-extension) (inline
+diagnostics on `CompositionRoot.cs` / `Program.cs` via report JSON).
 
 ---
 
